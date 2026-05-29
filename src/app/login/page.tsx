@@ -7,7 +7,8 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { toast } from 'sonner';
-import { Loader2, Eye, EyeOff, Bus, ArrowRight } from 'lucide-react';
+import Image from 'next/image';
+import { Loader2, Eye, EyeOff, ArrowRight } from 'lucide-react';
 import { authApi } from '@/lib/api';
 import { useAuthStore } from '@/store/auth.store';
 import { BrandPanel } from '@/components/auth/BrandPanel';
@@ -56,11 +57,15 @@ export default function LoginPage() {
         <div className="absolute bottom-0 left-0 w-48 h-48 bg-slate-50 rounded-full translate-y-1/2 -translate-x-1/2 pointer-events-none" />
 
         {/* Mobile-only logo */}
-        <div className="lg:hidden flex items-center gap-2.5 mb-10 relative">
-          <div className="bg-brand-500 text-white p-2.5 rounded-xl shadow-lg shadow-brand-500/30">
-            <Bus size={20} />
-          </div>
-          <span className="text-lg font-bold text-slate-900">TransPro CI</span>
+        <div className="lg:hidden flex items-center gap-3 mb-10 relative">
+          <Image
+            src="/transpro-logo.png"
+            width={40}
+            height={40}
+            alt="TransPro CI"
+            className="rounded-xl"
+          />
+          <span className="text-lg font-bold text-slate-900">transpro</span>
         </div>
 
         <div className="w-full max-w-[360px] relative">

@@ -1,12 +1,14 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, lazy, Suspense } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { Building2, Plus, Pencil, Trash2, Users, MapPin, Phone } from 'lucide-react';
 import { stationsApi, citiesApi } from '@/lib/api';
 import { SearchableSelect, SelectOption } from '@/components/ui/SearchableSelect';
 import Link from 'next/link';
+
+const MapPicker = lazy(() => import('@/components/ui/MapPicker'));
 
 type Station = {
   id: string;
@@ -15,13 +17,18 @@ type Station = {
   address?: string;
   phone?: string;
   code?: string;
+  latitude?: number | null;
+  longitude?: number | null;
   isActive: boolean;
   _count?: { userStations: number };
 };
 
-type FormData = { name: string; cityId: string; address: string; phone: string; code: string };
+type FormData = {
+  name: string; cityId: string; address: string; phone: string; code: string;
+  latitude: number | null; longitude: number | null;
+};
 
-const emptyForm: FormData = { name: '', cityId: '', address: '', phone: '', code: '' };
+const emptyForm: FormData = { name: '', cityId: '', address: '', phone: '', code: '', latitude: null, longitude: null };
 
 export default function StationsPage() {
   const qc = useQueryClient();
@@ -65,7 +72,11 @@ export default function StationsPage() {
 
   function openCreate() { setForm(emptyForm); setEditing(null); setModal('create'); }
   function openEdit(s: Station) {
-    setForm({ name: s.name, cityId: s.city?.id ?? '', address: s.address ?? '', phone: s.phone ?? '', code: s.code ?? '' });
+    setForm({
+      name: s.name, cityId: s.city?.id ?? '', address: s.address ?? '',
+      phone: s.phone ?? '', code: s.code ?? '',
+      latitude: s.latitude ?? null, longitude: s.longitude ?? null,
+    });
     setEditing(s);
     setModal('edit');
   }
@@ -73,12 +84,14 @@ export default function StationsPage() {
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    const payload = {
+    const payload: any = {
       ...form,
       cityId: form.cityId || undefined,
       code: form.code || undefined,
       address: form.address || undefined,
       phone: form.phone || undefined,
+      latitude: form.latitude ?? undefined,
+      longitude: form.longitude ?? undefined,
     };
     if (modal === 'create') createMut.mutate(payload);
     else if (editing) updateMut.mutate({ id: editing.id, data: payload });
@@ -132,9 +145,16 @@ export default function StationsPage() {
                     )}
                   </div>
                 </div>
-                <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${s.isActive ? 'bg-green-50 text-green-700' : 'bg-gray-100 text-gray-500'}`}>
-                  {s.isActive ? 'Active' : 'Inactive'}
-                </span>
+                <div className="flex flex-col items-end gap-1">
+                  <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${s.isActive ? 'bg-green-50 text-green-700' : 'bg-gray-100 text-gray-500'}`}>
+                    {s.isActive ? 'Active' : 'Inactive'}
+                  </span>
+                  {s.latitude != null && s.longitude != null && (
+                    <span className="text-xs text-blue-500 flex items-center gap-0.5">
+                      <MapPin size={10} /> GPS
+                    </span>
+                  )}
+                </div>
               </div>
 
               {s.phone && (
@@ -174,8 +194,8 @@ export default function StationsPage() {
       )}
 
       {modal && (
-        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6">
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4 overflow-y-auto">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl p-6 my-4">
             <h2 className="text-lg font-bold text-gray-900 mb-5">
               {modal === 'create' ? 'Nouvelle gare' : 'Modifier la gare'}
             </h2>
@@ -212,6 +232,32 @@ export default function StationsPage() {
                 <input value={form.phone} onChange={(e) => setForm((p) => ({ ...p, phone: e.target.value }))}
                   placeholder="+2250700000000" className={inputCls} />
               </div>
+
+              {/* GPS Map Picker */}
+              <div>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="block text-xs font-medium text-gray-700">
+                    Position GPS <span className="text-gray-400">(optionnel)</span>
+                  </label>
+                  {(form.latitude != null || form.longitude != null) && (
+                    <button
+                      type="button"
+                      onClick={() => setForm((p) => ({ ...p, latitude: null, longitude: null }))}
+                      className="text-xs text-red-400 hover:text-red-600 transition"
+                    >
+                      Effacer
+                    </button>
+                  )}
+                </div>
+                <Suspense fallback={<div className="h-64 rounded-xl border border-gray-200 bg-gray-50 flex items-center justify-center text-sm text-gray-400">Chargement de la carte...</div>}>
+                  <MapPicker
+                    lat={form.latitude}
+                    lng={form.longitude}
+                    onChange={(lat, lng) => setForm((p) => ({ ...p, latitude: lat, longitude: lng }))}
+                  />
+                </Suspense>
+              </div>
+
               <div className="flex gap-3 pt-2">
                 <button type="button" onClick={closeModal}
                   className="flex-1 border border-gray-200 text-gray-700 rounded-lg py-2.5 text-sm font-medium hover:bg-gray-50 transition">

@@ -1,11 +1,12 @@
 'use client';
 
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { useMutation } from '@tanstack/react-query';
 import { useAuthStore } from '@/store/auth.store';
 import { usersApi, authApi } from '@/lib/api';
 import { toast } from 'sonner';
-import { Loader2, Save, Lock, UserRound, Mail, Phone, Shield } from 'lucide-react';
+import { Camera, Loader2, Save, Lock, UserRound, Mail, Phone, Shield } from 'lucide-react';
+import { UserAvatar } from '@/components/ui/UserAvatar';
 
 type Tab = 'profile' | 'password';
 
@@ -21,6 +22,7 @@ export default function ProfilePage() {
 
   const [pwd, setPwd] = useState({ current: '', next: '', confirm: '' });
   const [pwdErrors, setPwdErrors] = useState<{ next?: string; confirm?: string }>({});
+  const fileRef = useRef<HTMLInputElement>(null);
 
   function setF(k: keyof typeof form, v: string) {
     setForm((p) => ({ ...p, [k]: v }));
@@ -41,6 +43,38 @@ export default function ProfilePage() {
       toast.error(Array.isArray(msg) ? msg.join(' | ') : msg);
     },
   });
+
+  const avatarMut = useMutation({
+    mutationFn: (avatar: string) => usersApi.updateAvatar(avatar) as any,
+    onSuccess: async () => {
+      try { const me = await authApi.me() as any; setAuth(me, accessToken!, refreshToken!); } catch {}
+      toast.success('Photo de profil mise à jour');
+    },
+    onError: () => toast.error('Erreur lors de la mise à jour de la photo'),
+  });
+
+  function handleAvatarFile(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      const img = new window.Image();
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        const SIZE = 256;
+        canvas.width = SIZE; canvas.height = SIZE;
+        const ctx = canvas.getContext('2d')!;
+        const side = Math.min(img.width, img.height);
+        const ox = (img.width - side) / 2;
+        const oy = (img.height - side) / 2;
+        ctx.drawImage(img, ox, oy, side, side, 0, 0, SIZE, SIZE);
+        avatarMut.mutate(canvas.toDataURL('image/jpeg', 0.82));
+      };
+      img.src = ev.target?.result as string;
+    };
+    reader.readAsDataURL(file);
+    e.target.value = '';
+  }
 
   const pwdMut = useMutation({
     mutationFn: () => usersApi.changePassword(pwd.current, pwd.next) as any,
@@ -67,8 +101,6 @@ export default function ProfilePage() {
   const inp = (err?: string) =>
     `w-full border ${err ? 'border-red-400 focus:ring-red-500/30' : 'border-gray-200 focus:ring-brand-500/30 focus:border-brand-400'} rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:ring-2 transition bg-white`;
 
-  const initials = `${user?.firstName?.[0] ?? ''}${user?.lastName?.[0] ?? ''}`.toUpperCase();
-
   return (
     <div className="space-y-6">
       <div>
@@ -80,8 +112,20 @@ export default function ProfilePage() {
         {/* Left column — identity card */}
         <div className="space-y-4">
           <div className="bg-white rounded-2xl border border-gray-100 p-6 text-center">
-            <div className="w-20 h-20 bg-gradient-to-br from-brand-400 to-brand-600 text-white rounded-2xl flex items-center justify-center text-2xl font-bold mx-auto shadow-lg shadow-brand-500/25">
-              {initials}
+            <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={handleAvatarFile} />
+            <div className="relative w-20 h-20 mx-auto group cursor-pointer" onClick={() => fileRef.current?.click()}>
+              <UserAvatar
+                firstName={user?.firstName}
+                lastName={user?.lastName}
+                avatar={(user as any)?.avatar}
+                size={80}
+                className="!rounded-2xl shadow-lg shadow-brand-500/25"
+              />
+              <div className="absolute inset-0 bg-black/40 rounded-2xl flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                {avatarMut.isPending
+                  ? <Loader2 size={20} className="text-white animate-spin" />
+                  : <Camera size={20} className="text-white" />}
+              </div>
             </div>
             <p className="font-bold text-gray-900 text-lg mt-4">{user?.firstName} {user?.lastName}</p>
             <p className="text-sm text-gray-500 mt-0.5">{user?.email}</p>

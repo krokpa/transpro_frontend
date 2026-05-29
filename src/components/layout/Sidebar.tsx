@@ -5,7 +5,7 @@ import { usePathname, useRouter } from 'next/navigation';
 import {
   LayoutDashboard, Bus, Route, Users, Ticket,
   Settings, LogOut, Truck, CalendarClock, TicketCheck, ConciergeBell, ScanLine, BarChart3, FileText, Building2,
-  ShieldCheck, MapPin, CreditCard, UserCog,
+  ShieldCheck, MapPin, CreditCard, UserCog, Package, Lock, Home, Luggage,
 } from 'lucide-react';
 import { useAuthStore } from '@/store/auth.store';
 import { authApi, tenantsApi } from '@/lib/api';
@@ -18,37 +18,40 @@ const navGroups = [
   {
     label: 'Principal',
     items: [
-      { label: 'Tableau de bord', icon: LayoutDashboard, href: '/dashboard' },
-      { label: 'Analytiques',    icon: BarChart3,       href: '/dashboard/analytics' },
+      { label: 'Tableau de bord', icon: LayoutDashboard, href: '/dashboard',           plan: null },
+      { label: 'Analytiques',    icon: BarChart3,       href: '/dashboard/analytics', plan: null },
     ],
   },
   {
     label: 'Opérations',
     items: [
-      { label: 'Plannings',       icon: CalendarClock, href: '/dashboard/schedules' },
-      { label: 'Voyages',         icon: Bus,           href: '/dashboard/trips' },
-      { label: 'Réservations',    icon: Ticket,        href: '/dashboard/bookings' },
-      { label: 'Billetterie',     icon: ConciergeBell, href: '/dashboard/billetterie' },
-      { label: 'Scanner billets', icon: ScanLine,      href: '/dashboard/scanner' },
-      { label: 'Itinéraires',     icon: Route,         href: '/dashboard/routes' },
-      { label: 'Modèles tickets', icon: TicketCheck,   href: '/dashboard/ticket-templates' },
-      { label: 'Rapports',        icon: FileText,      href: '/dashboard/reports' },
+      { label: 'Plannings',       icon: CalendarClock, href: '/dashboard/schedules',         plan: null },
+      { label: 'Voyages',         icon: Bus,           href: '/dashboard/trips',             plan: null },
+      { label: 'Réservations',    icon: Ticket,        href: '/dashboard/bookings',          plan: null },
+      { label: 'Billetterie',     icon: ConciergeBell, href: '/dashboard/billetterie',       plan: null },
+      { label: 'Colis',           icon: Package,       href: '/dashboard/parcels',           plan: ['PROFESSIONAL', 'ENTERPRISE'] },
+      { label: 'Livraisons dom.', icon: Home,          href: '/dashboard/delivery-requests', plan: ['PROFESSIONAL', 'ENTERPRISE'] },
+      { label: 'Bagages',         icon: Luggage,       href: '/dashboard/luggage',           plan: null },
+      { label: 'Scanner billets', icon: ScanLine,      href: '/dashboard/scanner',           plan: null },
+      { label: 'Itinéraires',     icon: Route,         href: '/dashboard/routes',            plan: null },
+      { label: 'Modèles tickets', icon: TicketCheck,   href: '/dashboard/ticket-templates',  plan: null },
+      { label: 'Rapports',        icon: FileText,      href: '/dashboard/reports',           plan: null },
     ],
   },
   {
     label: 'Ressources',
     items: [
-      { label: 'Gares',     icon: Building2, href: '/dashboard/stations' },
-      { label: 'Véhicules', icon: Truck,     href: '/dashboard/vehicles' },
-      { label: 'Chauffeurs',icon: Users,     href: '/dashboard/drivers' },
-      { label: 'Équipe',    icon: UserCog,   href: '/dashboard/team' },
+      { label: 'Gares',      icon: Building2, href: '/dashboard/stations', plan: null },
+      { label: 'Véhicules',  icon: Truck,     href: '/dashboard/vehicles', plan: null },
+      { label: 'Chauffeurs', icon: Users,     href: '/dashboard/drivers',  plan: null },
+      { label: 'Équipe',     icon: UserCog,   href: '/dashboard/team',     plan: null },
     ],
   },
   {
     label: 'Compte',
     items: [
-      { label: 'Abonnement', icon: CreditCard, href: '/dashboard/subscription' },
-      { label: 'Paramètres', icon: Settings,   href: '/dashboard/settings' },
+      { label: 'Abonnement', icon: CreditCard, href: '/dashboard/subscription', plan: null },
+      { label: 'Paramètres', icon: Settings,   href: '/dashboard/settings',     plan: null },
     ],
   },
 ];
@@ -178,6 +181,22 @@ export function Sidebar() {
                   pathname === item.href ||
                   (item.href !== '/dashboard' && pathname.startsWith(item.href + '/'));
                 const badge = item.href === '/dashboard/subscription' ? getSubBadge(tenant) : null;
+                const locked = item.plan !== null && !item.plan?.includes(tenant?.plan);
+
+                if (locked) {
+                  return (
+                    <div
+                      key={item.href}
+                      title={`Disponible à partir du plan ${item.plan![0]}`}
+                      className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium opacity-40 cursor-not-allowed select-none"
+                    >
+                      <item.icon size={16} className="text-slate-500" />
+                      <span className="flex-1 text-slate-500">{item.label}</span>
+                      <Lock size={11} className="text-slate-600" />
+                    </div>
+                  );
+                }
+
                 return (
                   <Link
                     key={item.href}

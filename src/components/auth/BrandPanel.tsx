@@ -1,4 +1,5 @@
-import { Bus, MapPin, Users, BarChart3, ShieldCheck } from 'lucide-react';
+import Image from 'next/image';
+import { MapPin, Users, BarChart3, ShieldCheck } from 'lucide-react';
 
 const features = [
   { icon: MapPin,       text: 'Suivi GPS des véhicules en temps réel' },
@@ -29,11 +30,15 @@ export function BrandPanel() {
       <div className="absolute bottom-0 -left-24 w-72 h-72 bg-brand-600 rounded-full opacity-[0.07] blur-3xl pointer-events-none" />
 
       {/* Logo */}
-      <div className="relative flex items-center gap-3 mb-14">
-        <div className="bg-brand-500 p-2.5 rounded-xl shadow-lg shadow-brand-500/30">
-          <Bus size={22} className="text-white" />
-        </div>
-        <span className="text-xl font-bold tracking-tight">TransPro CI</span>
+      <div className="relative flex items-center gap-3.5 mb-14">
+        <Image
+          src="/transpro-logo.png"
+          width={48}
+          height={48}
+          alt="TransPro CI"
+          className="rounded-xl shadow-lg"
+        />
+        <span className="text-xl font-bold tracking-tight">transpro</span>
       </div>
 
       {/* Headline */}

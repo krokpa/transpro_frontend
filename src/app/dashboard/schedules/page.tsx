@@ -2,8 +2,8 @@
 
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { schedulesApi, routesApi, vehiclesApi, driversApi } from '@/lib/api';
-import { Plus, Play, RefreshCw, Trash2, Pencil, CalendarClock, Zap, Star, Clock } from 'lucide-react';
+import { schedulesApi, routesApi, vehiclesApi, driversApi, stationsApi } from '@/lib/api';
+import { Plus, Play, RefreshCw, Trash2, Pencil, CalendarClock, Zap, Star, Clock, MapPin } from 'lucide-react';
 import { toast } from 'sonner';
 
 const DAYS = ['Dim', 'Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam'];
@@ -28,6 +28,7 @@ const CLASS_CONFIG = {
 
 const EMPTY_FORM = {
   routeId: '', vehicleId: '', driverId: '',
+  departureStationId: '', arrivalStationId: '',
   label: '', departureTime: '08:00',
   daysOfWeek: [1, 2, 3, 4, 5] as number[],
   tripClass: 'STANDARD' as 'STANDARD' | 'VIP' | 'EXPRESS',
@@ -62,6 +63,12 @@ export default function SchedulesPage() {
   const { data: drivers = [] } = useQuery({
     queryKey: ['drivers'],
     queryFn: () => driversApi.list() as any,
+    enabled: showModal,
+  });
+
+  const { data: stations = [] } = useQuery({
+    queryKey: ['stations'],
+    queryFn: () => stationsApi.list() as any,
     enabled: showModal,
   });
 
@@ -117,16 +124,18 @@ export default function SchedulesPage() {
   function openEdit(schedule: any) {
     setEditId(schedule.id);
     setForm({
-      routeId: schedule.routeId,
-      vehicleId: schedule.vehicleId ?? '',
-      driverId: schedule.driverId ?? '',
-      label: schedule.label,
-      departureTime: schedule.departureTime,
-      daysOfWeek: schedule.daysOfWeek,
-      tripClass: schedule.tripClass,
-      price: String(schedule.price),
-      amenities: schedule.amenities,
-      generateDaysAhead: schedule.generateDaysAhead,
+      routeId:            schedule.routeId,
+      vehicleId:          schedule.vehicleId          ?? '',
+      driverId:           schedule.driverId            ?? '',
+      departureStationId: schedule.departureStationId ?? '',
+      arrivalStationId:   schedule.arrivalStationId   ?? '',
+      label:              schedule.label,
+      departureTime:      schedule.departureTime,
+      daysOfWeek:         schedule.daysOfWeek,
+      tripClass:          schedule.tripClass,
+      price:              String(schedule.price),
+      amenities:          schedule.amenities,
+      generateDaysAhead:  schedule.generateDaysAhead,
     });
     setShowModal(true);
   }
@@ -164,16 +173,18 @@ export default function SchedulesPage() {
   function handleSubmit() {
     if (!validate()) return;
     const payload = {
-      routeId: form.routeId,
-      vehicleId: form.vehicleId || undefined,
-      driverId: form.driverId || undefined,
-      label: form.label,
-      departureTime: form.departureTime,
-      daysOfWeek: form.daysOfWeek,
-      tripClass: form.tripClass,
-      price: Number(form.price),
-      amenities: form.amenities,
-      generateDaysAhead: form.generateDaysAhead,
+      routeId:            form.routeId,
+      vehicleId:          form.vehicleId          || undefined,
+      driverId:           form.driverId            || undefined,
+      departureStationId: form.departureStationId || undefined,
+      arrivalStationId:   form.arrivalStationId   || undefined,
+      label:              form.label,
+      departureTime:      form.departureTime,
+      daysOfWeek:         form.daysOfWeek,
+      tripClass:          form.tripClass,
+      price:              Number(form.price),
+      amenities:          form.amenities,
+      generateDaysAhead:  form.generateDaysAhead,
     };
     if (editId) {
       updateMutation.mutate({ id: editId, data: payload });
@@ -280,6 +291,20 @@ export default function SchedulesPage() {
                           {s._count?.trips ?? 0} voyage(s) générés
                         </span>
                       </div>
+                      {(s.departureStation || s.arrivalStation) && (
+                        <div className="flex items-center gap-2 mt-1 flex-wrap">
+                          {s.departureStation && (
+                            <span className="text-[11px] text-green-700 bg-green-50 border border-green-100 px-2 py-0.5 rounded-full flex items-center gap-1">
+                              <MapPin size={9} /> Départ : {s.departureStation.name}
+                            </span>
+                          )}
+                          {s.arrivalStation && (
+                            <span className="text-[11px] text-blue-700 bg-blue-50 border border-blue-100 px-2 py-0.5 rounded-full flex items-center gap-1">
+                              <MapPin size={9} /> Arrivée : {s.arrivalStation.name}
+                            </span>
+                          )}
+                        </div>
+                      )}
                       <div className="flex gap-1 mt-2">
                         {DAYS.map((d, i) => (
                           <span
@@ -522,6 +547,46 @@ export default function SchedulesPage() {
                     {(drivers as any[]).map((d: any) => (
                       <option key={d.id} value={d.id}>
                         {d.firstName} {d.lastName}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              {/* Gares de départ / arrivée */}
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1 flex items-center gap-1">
+                    <MapPin size={13} className="text-brand-500" /> Gare de départ
+                    <span className="text-gray-400 font-normal">(propagée aux voyages)</span>
+                  </label>
+                  <select
+                    value={form.departureStationId}
+                    onChange={(e) => setForm((p) => ({ ...p, departureStationId: e.target.value }))}
+                    className="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
+                  >
+                    <option value="">Aucune (gare non définie)</option>
+                    {(stations as any[]).map((s: any) => (
+                      <option key={s.id} value={s.id}>
+                        {s.name}{s.city?.name ? ` — ${s.city.name}` : ''}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1 flex items-center gap-1">
+                    <MapPin size={13} className="text-gray-400" /> Gare d&apos;arrivée
+                    <span className="text-gray-400 font-normal">(propagée aux voyages)</span>
+                  </label>
+                  <select
+                    value={form.arrivalStationId}
+                    onChange={(e) => setForm((p) => ({ ...p, arrivalStationId: e.target.value }))}
+                    className="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
+                  >
+                    <option value="">Aucune (gare non définie)</option>
+                    {(stations as any[]).map((s: any) => (
+                      <option key={s.id} value={s.id}>
+                        {s.name}{s.city?.name ? ` — ${s.city.name}` : ''}
                       </option>
                     ))}
                   </select>

@@ -9,8 +9,9 @@ import { formatCFA } from '@transpro/shared';
 import {
   Search, MapPin, Calendar, ArrowRight, Clock,
   Loader2, Ticket, TrendingUp, Star, Users,
-  ChevronDown, ChevronUp, Bus, CheckCircle2,
+  ChevronDown, ChevronUp, Bus, CheckCircle2, Building2,
 } from 'lucide-react';
+import { useFavorites } from '@/hooks/useFavorites';
 import dayjs from 'dayjs';
 import 'dayjs/locale/fr';
 dayjs.locale('fr');
@@ -84,6 +85,8 @@ export default function PassengerHome() {
   const cities: string[] = Array.isArray(citiesRaw) && citiesRaw.length > 0
     ? citiesRaw.map((c: any) => c.name)
     : FALLBACK_CITIES;
+
+  const { favs } = useFavorites();
 
   const { data: bookingsRaw, isLoading } = useQuery({
     queryKey: ['my-bookings'],
@@ -210,6 +213,40 @@ export default function PassengerHome() {
         </div>
       </div>
 
+      {/* ── Next booking hero ── */}
+      {!isLoading && upcoming.length > 0 && (() => {
+        const next = upcoming[0];
+        const depAt = next.trip?.departureAt;
+        return (
+          <button
+            onClick={() => router.push(`/passenger/bookings/${next.id}`)}
+            className="w-full bg-gradient-to-r from-brand-500 to-brand-600 hover:from-brand-600 hover:to-brand-700 rounded-2xl p-5 text-white text-left transition shadow-md shadow-brand-500/25 group"
+          >
+            <div className="flex items-center justify-between gap-4">
+              <div className="min-w-0">
+                <p className="text-brand-200 text-xs font-medium mb-1.5 flex items-center gap-1">
+                  <Bus size={11} /> Prochain voyage
+                </p>
+                <p className="text-lg font-bold truncate">
+                  {next.trip?.route?.originCity?.name} <span className="text-brand-300">→</span> {next.trip?.route?.destinationCity?.name}
+                </p>
+                <p className="text-brand-200 text-sm mt-0.5 flex items-center gap-1.5 capitalize">
+                  <Calendar size={11} />
+                  {depAt ? dayjs(depAt).format('dddd D MMM à HH:mm') : '—'}
+                </p>
+              </div>
+              <div className="text-right shrink-0">
+                <p className="text-2xl font-bold">{formatCFA(next.totalAmount)}</p>
+                <p className="text-brand-200 text-xs mt-0.5">{STATUS_STYLE[next.status]?.label}</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-1 mt-3 text-brand-300 text-xs font-medium group-hover:text-white transition">
+              <Ticket size={11} /> Voir les billets <ArrowRight size={11} />
+            </div>
+          </button>
+        );
+      })()}
+
       {/* ── Stats ── */}
       {!isLoading && bookings.length > 0 && (
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
@@ -227,6 +264,59 @@ export default function PassengerHome() {
               <p className="text-gray-500 text-sm mt-1.5">{s.label}</p>
             </div>
           ))}
+        </div>
+      )}
+
+      {/* ── Favorite companies ── */}
+      {favs.companies.length > 0 && (
+        <div>
+          <div className="flex items-center justify-between mb-3">
+            <h2 className="text-[15px] font-bold text-gray-900 flex items-center gap-2">
+              <Star size={15} className="text-amber-400 fill-amber-400" />
+              Mes compagnies favorites
+            </h2>
+            <button
+              onClick={() => router.push('/passenger/favorites')}
+              className="text-xs text-brand-600 hover:text-brand-700 font-semibold flex items-center gap-1 transition-colors"
+            >
+              Voir tout <ArrowRight size={12} />
+            </button>
+          </div>
+          <div className="flex gap-3 overflow-x-auto pb-1 scrollbar-none">
+            {favs.companies.map((c) => (
+              <button
+                key={c.id}
+                onClick={() => router.push(`/passenger/companies/${c.slug}`)}
+                className="flex flex-col items-center gap-2 shrink-0 group"
+              >
+                {c.logo ? (
+                  <div className="w-14 h-14 rounded-2xl overflow-hidden bg-white border border-gray-100 shadow-sm group-hover:shadow-md group-hover:border-brand-200 transition-all">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={c.logo} alt={c.name} className="object-contain w-full h-full p-1" />
+                  </div>
+                ) : (
+                  <div className="w-14 h-14 rounded-2xl bg-brand-50 border border-brand-100 flex items-center justify-center shadow-sm group-hover:shadow-md transition-all">
+                    <Building2 size={24} className="text-brand-400" />
+                  </div>
+                )}
+                <span className="text-[11px] font-medium text-gray-600 group-hover:text-brand-600 transition-colors w-16 text-center leading-tight truncate">
+                  {c.name}
+                </span>
+              </button>
+            ))}
+            {/* Add more shortcut */}
+            <button
+              onClick={() => router.push('/passenger/companies')}
+              className="flex flex-col items-center gap-2 shrink-0 group"
+            >
+              <div className="w-14 h-14 rounded-2xl bg-gray-50 border border-dashed border-gray-200 flex items-center justify-center group-hover:border-brand-300 group-hover:bg-brand-50 transition-all">
+                <Building2 size={20} className="text-gray-300 group-hover:text-brand-400 transition-colors" />
+              </div>
+              <span className="text-[11px] font-medium text-gray-400 group-hover:text-brand-500 transition-colors w-16 text-center leading-tight">
+                Voir tout
+              </span>
+            </button>
+          </div>
         </div>
       )}
 

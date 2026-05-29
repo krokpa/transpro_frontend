@@ -1,13 +1,16 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, lazy, Suspense } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { tenantsApi, api, citiesApi } from '@/lib/api';
+import { tenantsApi, api, usersApi, authApi, citiesApi } from '@/lib/api';
 import { useAuthStore } from '@/store/auth.store';
 import { TenantPlan, TenantStatus } from '@transpro/shared';
-import { Building2, User, CreditCard, Loader2, Eye, EyeOff, Upload, X } from 'lucide-react';
+import { Building2, Camera, User, CreditCard, Loader2, Eye, EyeOff, Upload, X } from 'lucide-react';
 import { toast } from 'sonner';
+import { UserAvatar } from '@/components/ui/UserAvatar';
 import dayjs from 'dayjs';
+
+const MapPicker = lazy(() => import('@/components/ui/MapPicker'));
 import { SearchableSelect, SelectOption } from '@/components/ui/SearchableSelect';
 
 type Tab = 'company' | 'profile' | 'subscription';
@@ -65,8 +68,9 @@ const tenantStatusConfig: Record<TenantStatus, { label: string; className: strin
 
 export default function SettingsPage() {
   const qc = useQueryClient();
-  const user = useAuthStore((s) => s.user);
+  const { user, setAuth, accessToken, refreshToken } = useAuthStore();
   const [activeTab, setActiveTab] = useState<Tab>('company');
+  const avatarFileRef = useRef<HTMLInputElement>(null);
 
   const [companyForm, setCompanyForm] = useState({
     name: '',
@@ -75,6 +79,8 @@ export default function SettingsPage() {
     address: '',
     cityId: '',
     logo: '' as string | null,
+    latitude: null as number | null,
+    longitude: null as number | null,
   });
   const [companyFormLoaded, setCompanyFormLoaded] = useState(false);
 
@@ -100,6 +106,8 @@ export default function SettingsPage() {
         address: data.address ?? '',
         cityId: data.cityId ?? '',
         logo: data.logo ?? null,
+        latitude: data.latitude ?? null,
+        longitude: data.longitude ?? null,
       });
       setCompanyFormLoaded(true);
     }
@@ -131,7 +139,39 @@ export default function SettingsPage() {
     const payload: any = { ...companyForm };
     if (!payload.sigle) delete payload.sigle;
     if (!payload.logo) payload.logo = null;
+    if (payload.latitude === null) delete payload.latitude;
+    if (payload.longitude === null) delete payload.longitude;
     updateTenantMutation.mutate(payload);
+  }
+
+  const avatarMut = useMutation({
+    mutationFn: (avatar: string) => usersApi.updateAvatar(avatar) as any,
+    onSuccess: async () => {
+      try { const me = await authApi.me() as any; setAuth(me, accessToken!, refreshToken!); } catch {}
+      toast.success('Photo de profil mise à jour');
+    },
+    onError: () => toast.error('Erreur lors de la mise à jour de la photo'),
+  });
+
+  function handleAvatarFile(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      const img = new window.Image();
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        const SIZE = 256;
+        canvas.width = SIZE; canvas.height = SIZE;
+        const ctx = canvas.getContext('2d')!;
+        const side = Math.min(img.width, img.height);
+        ctx.drawImage(img, (img.width - side) / 2, (img.height - side) / 2, side, side, 0, 0, SIZE, SIZE);
+        avatarMut.mutate(canvas.toDataURL('image/jpeg', 0.82));
+      };
+      img.src = ev.target?.result as string;
+    };
+    reader.readAsDataURL(file);
+    e.target.value = '';
   }
 
   const [passwordForm, setPasswordForm] = useState({
@@ -338,6 +378,32 @@ export default function SettingsPage() {
                     />
                   </div>
                 </div>
+
+                {/* GPS Map Picker */}
+                <div>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="block text-sm font-medium text-gray-700">
+                      Position GPS du siège <span className="text-gray-400 font-normal">(optionnel)</span>
+                    </label>
+                    {(companyForm.latitude != null || companyForm.longitude != null) && (
+                      <button
+                        type="button"
+                        onClick={() => setCompanyForm((p) => ({ ...p, latitude: null, longitude: null }))}
+                        className="text-xs text-red-400 hover:text-red-600 transition"
+                      >
+                        Effacer
+                      </button>
+                    )}
+                  </div>
+                  <Suspense fallback={<div className="h-64 rounded-xl border border-gray-200 bg-gray-50 flex items-center justify-center text-sm text-gray-400">Chargement de la carte...</div>}>
+                    <MapPicker
+                      lat={companyForm.latitude}
+                      lng={companyForm.longitude}
+                      onChange={(lat, lng) => setCompanyForm((p) => ({ ...p, latitude: lat, longitude: lng }))}
+                    />
+                  </Suspense>
+                </div>
+
                 <div className="flex justify-end">
                   <button
                     type="submit"
@@ -356,6 +422,42 @@ export default function SettingsPage() {
 
       {activeTab === 'profile' && (
         <div className="space-y-5">
+          {/* Avatar */}
+          <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-6">
+            <h2 className="text-lg font-semibold text-gray-900 mb-4">Photo de profil</h2>
+            <div className="flex items-center gap-5">
+              <input ref={avatarFileRef} type="file" accept="image/*" className="hidden" onChange={handleAvatarFile} />
+              <div
+                className="relative group cursor-pointer"
+                onClick={() => avatarFileRef.current?.click()}
+              >
+                <UserAvatar
+                  firstName={user?.firstName}
+                  lastName={user?.lastName}
+                  avatar={(user as any)?.avatar}
+                  size={72}
+                  className="!rounded-xl shadow"
+                />
+                <div className="absolute inset-0 bg-black/40 rounded-xl flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                  {avatarMut.isPending
+                    ? <Loader2 size={18} className="text-white animate-spin" />
+                    : <Camera size={18} className="text-white" />}
+                </div>
+              </div>
+              <div>
+                <p className="text-sm font-medium text-gray-700">{user?.firstName} {user?.lastName}</p>
+                <p className="text-xs text-gray-400 mt-0.5 mb-2">{user?.email}</p>
+                <button
+                  type="button"
+                  onClick={() => avatarFileRef.current?.click()}
+                  className="text-xs text-brand-600 hover:text-brand-700 font-medium flex items-center gap-1 transition"
+                >
+                  <Camera size={12} /> Modifier la photo
+                </button>
+              </div>
+            </div>
+          </div>
+
           <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-6">
             <h2 className="text-lg font-semibold text-gray-900 mb-4">Informations personnelles</h2>
             <div className="grid grid-cols-2 gap-4">

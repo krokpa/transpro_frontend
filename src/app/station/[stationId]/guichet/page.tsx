@@ -124,6 +124,7 @@ export default function StationGuichetPage() {
   const [selectedTrip, setSelectedTrip] = useState<any>(null);
   const [seats, setSeats] = useState<any[]>([]);
   const [selectedSeats, setSelectedSeats] = useState<string[]>([]);
+  const [passengerCount, setPassengerCount] = useState(1);
   const [passenger, setPassenger] = useState({ firstName: '', lastName: '', phone: '', email: '' });
   const [payMethod, setPayMethod] = useState('CASH');
   const [loading, setLoading] = useState(false);
@@ -252,14 +253,22 @@ export default function StationGuichetPage() {
     );
   });
 
+  const effectiveASM = (trip: any) =>
+    trip.advancedSeatManagement ?? trip.vehicle?.advancedSeatManagement ?? true;
+
   async function selectTrip(trip: any) {
     setSelectedTrip(trip);
     setSelectedSeats([]);
-    try {
-      const s = await tripsApi.getSeats(trip.id) as any;
-      setSeats(Array.isArray(s) ? s : []);
-    } catch { setSeats([]); }
-    setStep('selecting-seats');
+    setPassengerCount(1);
+    if (effectiveASM(trip)) {
+      try {
+        const s = await tripsApi.getSeats(trip.id) as any;
+        setSeats(Array.isArray(s) ? s : []);
+      } catch { setSeats([]); }
+      setStep('selecting-seats');
+    } else {
+      setStep('passenger-info');
+    }
   }
 
   function toggleSeat(seatNumber: string, status: string) {
@@ -271,19 +280,26 @@ export default function StationGuichetPage() {
 
   async function handleSell(e: React.FormEvent) {
     e.preventDefault();
-    if (selectedSeats.length === 0) return;
+    const isAdvanced = effectiveASM(selectedTrip);
+    if (isAdvanced && selectedSeats.length === 0) return;
     setLoading(true);
     try {
-      const result = await bookingsApi.guichet({
+      const payload: any = {
         tripId: selectedTrip.id,
-        seatNumbers: selectedSeats,
         firstName: passenger.firstName || undefined,
         lastName: passenger.lastName || undefined,
         phone: passenger.phone || undefined,
         email: passenger.email || undefined,
         paymentMethod: payMethod,
         stationId,
-      }) as any;
+      };
+      if (isAdvanced) {
+        payload.seatNumbers = selectedSeats;
+      } else {
+        payload.passengerCount = passengerCount;
+        payload.seatNumbers = [];
+      }
+      const result = await bookingsApi.guichet(payload) as any;
       setBooking(result);
       setStep('done');
       toast.success('Billet vendu avec succès !');
@@ -307,6 +323,7 @@ export default function StationGuichetPage() {
     setSelectedTrip(null);
     setSeats([]);
     setSelectedSeats([]);
+    setPassengerCount(1);
     setPassenger({ firstName: '', lastName: '', phone: '', email: '' });
     setPayMethod('CASH');
     setBooking(null);
@@ -614,18 +631,40 @@ export default function StationGuichetPage() {
   return (
     <div className="p-6 max-w-md">
       <div className="flex items-center gap-3 mb-5">
-        <button onClick={() => setStep('selecting-seats')} className="text-gray-400 hover:text-gray-600 transition">
+        <button
+          onClick={() => setStep(effectiveASM(selectedTrip) ? 'selecting-seats' : 'idle')}
+          className="text-gray-400 hover:text-gray-600 transition"
+        >
           <X size={18} />
         </button>
         <div>
           <h1 className="text-xl font-bold text-gray-900">Informations passager</h1>
           <p className="text-gray-400 text-sm">
-            Sièges : {selectedSeats.join(', ')} · {formatCFA(selectedTrip?.price * selectedSeats.length)}
+            {effectiveASM(selectedTrip)
+              ? `Sièges : ${selectedSeats.join(', ')} · ${formatCFA(selectedTrip?.price * selectedSeats.length)}`
+              : `${passengerCount} place${passengerCount > 1 ? 's' : ''} · ${formatCFA(selectedTrip?.price * passengerCount)}`
+            }
           </p>
         </div>
       </div>
 
       <form onSubmit={handleSell} className="space-y-4">
+        {!effectiveASM(selectedTrip) && (
+          <div>
+            <label className="block text-xs font-medium text-gray-700 mb-2">Nombre de places</label>
+            <div className="flex items-center gap-3">
+              <button type="button"
+                onClick={() => setPassengerCount((n) => Math.max(1, n - 1))}
+                className="w-9 h-9 rounded-lg border border-gray-200 text-gray-600 font-bold text-lg hover:bg-gray-50 flex items-center justify-center"
+              >−</button>
+              <span className="text-2xl font-bold text-gray-900 w-8 text-center">{passengerCount}</span>
+              <button type="button"
+                onClick={() => setPassengerCount((n) => Math.min(selectedTrip?.availableSeats ?? 6, n + 1))}
+                className="w-9 h-9 rounded-lg border border-gray-200 text-gray-600 font-bold text-lg hover:bg-gray-50 flex items-center justify-center"
+              >+</button>
+            </div>
+          </div>
+        )}
         <div className="grid grid-cols-2 gap-3">
           <div>
             <label className="block text-xs font-medium text-gray-700 mb-1">Prénom</label>
@@ -661,7 +700,10 @@ export default function StationGuichetPage() {
         >
           {loading
             ? <><Loader2 size={16} className="animate-spin" /> Enregistrement...</>
-            : <><Ticket size={16} /> Émettre {selectedSeats.length > 1 ? `${selectedSeats.length} billets` : 'le billet'}</>
+            : (() => {
+                const count = effectiveASM(selectedTrip) ? selectedSeats.length : passengerCount;
+                return <><Ticket size={16} /> Émettre {count > 1 ? `${count} billets` : 'le billet'}</>;
+              })()
           }
         </button>
       </form>

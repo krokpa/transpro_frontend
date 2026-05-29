@@ -2,10 +2,10 @@
 
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { tripsApi, routesApi, vehiclesApi, driversApi } from '@/lib/api';
+import { tripsApi, routesApi, vehiclesApi, driversApi, stationsApi } from '@/lib/api';
 import { TripStatus } from '@transpro/shared';
 import { formatCFA } from '@transpro/shared';
-import { Plus, Bus, ChevronRight, Users } from 'lucide-react';
+import { Plus, Bus, ChevronRight, Users, ToggleLeft, ToggleRight } from 'lucide-react';
 import dayjs from 'dayjs';
 import 'dayjs/locale/fr';
 import { SeatMap } from '@/components/trips/SeatMap';
@@ -39,6 +39,9 @@ interface TripForm {
   driverId: string;
   departureAt: string;
   price: string;
+  advancedSeatManagement: 'inherit' | 'true' | 'false';
+  departureStationId: string;
+  arrivalStationId: string;
 }
 
 const emptyForm: TripForm = {
@@ -47,6 +50,9 @@ const emptyForm: TripForm = {
   driverId: '',
   departureAt: dayjs().add(1, 'hour').format('YYYY-MM-DDTHH:mm'),
   price: '',
+  advancedSeatManagement: 'inherit',
+  departureStationId: '',
+  arrivalStationId: '',
 };
 
 export default function TripsPage() {
@@ -81,6 +87,22 @@ export default function TripsPage() {
     enabled: showCreate,
   });
 
+  const selectedRoute = (routes as any[]).find((r: any) => r.id === form.routeId);
+  const originCity: string = selectedRoute?.originCity?.name ?? '';
+  const destinationCity: string = selectedRoute?.destinationCity?.name ?? '';
+
+  const { data: departureStations = [] } = useQuery({
+    queryKey: ['stations-by-city', originCity],
+    queryFn: () => stationsApi.byCity(originCity) as any,
+    enabled: showCreate && !!originCity,
+  });
+
+  const { data: arrivalStations = [] } = useQuery({
+    queryKey: ['stations-by-city', destinationCity],
+    queryFn: () => stationsApi.byCity(destinationCity) as any,
+    enabled: showCreate && !!destinationCity,
+  });
+
   const createTrip = useMutation({
     mutationFn: (data: any) => tripsApi.create(data) as any,
     onSuccess: () => {
@@ -109,6 +131,8 @@ export default function TripsPage() {
   });
 
   const selectedTrip = (trips as any[]).find((t: any) => t.id === selectedTripId);
+  const effectiveASM = (trip: any) =>
+    trip.advancedSeatManagement ?? trip.vehicle?.advancedSeatManagement ?? true;
 
   function validate(): boolean {
     const e: Partial<TripForm> = {};
@@ -124,13 +148,19 @@ export default function TripsPage() {
 
   function handleSubmit() {
     if (!validate()) return;
-    createTrip.mutate({
+    const payload: any = {
       routeId: form.routeId,
       vehicleId: form.vehicleId,
       driverId: form.driverId,
       departureAt: new Date(form.departureAt).toISOString(),
       price: Number(form.price),
-    });
+    };
+    if (form.advancedSeatManagement !== 'inherit') {
+      payload.advancedSeatManagement = form.advancedSeatManagement === 'true';
+    }
+    if (form.departureStationId) payload.departureStationId = form.departureStationId;
+    if (form.arrivalStationId) payload.arrivalStationId = form.arrivalStationId;
+    createTrip.mutate(payload);
   }
 
   function field(key: keyof TripForm) {
@@ -208,6 +238,11 @@ export default function TripsPage() {
                           {dayjs(trip.departureAt).format('HH:mm')} ·{' '}
                           {trip.vehicle?.brand} {trip.vehicle?.model}
                         </p>
+                        {trip.departureStation && (
+                          <p className="text-xs text-gray-400 mt-0.5">
+                            Gare : {trip.departureStation.name}
+                          </p>
+                        )}
                       </div>
                       <div className="flex flex-col items-end gap-1.5">
                         <span
@@ -254,11 +289,31 @@ export default function TripsPage() {
         {/* Plan des sièges */}
         {selectedTripId && selectedTrip && (
           <div className="bg-white rounded-xl border border-gray-100 p-5">
-            <h2 className="font-semibold text-gray-900 mb-4">
-              Plan des sièges —{' '}
-              {selectedTrip.route?.originCity?.name} → {selectedTrip.route?.destinationCity?.name}
-            </h2>
-            <SeatMap tripId={selectedTripId} />
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="font-semibold text-gray-900">
+                Plan des sièges —{' '}
+                {selectedTrip.route?.originCity?.name} → {selectedTrip.route?.destinationCity?.name}
+              </h2>
+              <span className={`text-xs px-2 py-1 rounded-full font-medium flex items-center gap-1 ${
+                effectiveASM(selectedTrip)
+                  ? 'bg-brand-50 text-brand-700'
+                  : 'bg-gray-100 text-gray-500'
+              }`}>
+                {effectiveASM(selectedTrip)
+                  ? <><ToggleRight size={13} /> Gestion avancée</>
+                  : <><ToggleLeft size={13} /> Attribution auto</>
+                }
+              </span>
+            </div>
+            {effectiveASM(selectedTrip) ? (
+              <SeatMap tripId={selectedTripId} />
+            ) : (
+              <div className="text-center py-8 text-gray-400 text-sm bg-gray-50 rounded-xl border border-dashed border-gray-200">
+                <ToggleLeft size={28} className="mx-auto mb-2 text-gray-300" />
+                <p className="font-medium text-gray-500">Gestion avancée des sièges désactivée</p>
+                <p className="text-xs mt-1">Les sièges sont attribués automatiquement à la réservation</p>
+              </div>
+            )}
           </div>
         )}
       </div>
@@ -290,7 +345,11 @@ export default function TripsPage() {
       >
         <div className="space-y-4">
           <FormField label="Itinéraire" required error={errors.routeId}>
-            <Select {...field('routeId')} error={!!errors.routeId}>
+            <Select
+              {...field('routeId')}
+              error={!!errors.routeId}
+              onChange={(e) => setForm((p) => ({ ...p, routeId: e.target.value, departureStationId: '', arrivalStationId: '' }))}
+            >
               <option value="">Sélectionner un itinéraire</option>
               {(routes as any[]).map((r: any) => (
                 <option key={r.id} value={r.id}>
@@ -299,6 +358,27 @@ export default function TripsPage() {
               ))}
             </Select>
           </FormField>
+
+          {form.routeId && (
+            <div className="grid grid-cols-2 gap-4">
+              <FormField label={`Gare de départ${originCity ? ` (${originCity})` : ''}`}>
+                <Select {...field('departureStationId')}>
+                  <option value="">Sans gare spécifique</option>
+                  {(departureStations as any[]).map((s: any) => (
+                    <option key={s.id} value={s.id}>{s.name}</option>
+                  ))}
+                </Select>
+              </FormField>
+              <FormField label={`Gare d'arrivée${destinationCity ? ` (${destinationCity})` : ''}`}>
+                <Select {...field('arrivalStationId')}>
+                  <option value="">Sans gare spécifique</option>
+                  {(arrivalStations as any[]).map((s: any) => (
+                    <option key={s.id} value={s.id}>{s.name}</option>
+                  ))}
+                </Select>
+              </FormField>
+            </div>
+          )}
 
           <div className="grid grid-cols-2 gap-4">
             <FormField label="Véhicule" required error={errors.vehicleId}>
@@ -343,6 +423,38 @@ export default function TripsPage() {
               />
             </FormField>
           </div>
+
+          <FormField label="Gestion des sièges">
+            <div className="flex gap-2">
+              {([
+                { val: 'inherit', label: 'Hérite du véhicule' },
+                { val: 'true',    label: 'Activée' },
+                { val: 'false',   label: 'Désactivée' },
+              ] as const).map(({ val, label }) => (
+                <button
+                  key={val}
+                  type="button"
+                  onClick={() => setForm((p) => ({ ...p, advancedSeatManagement: val }))}
+                  className={`flex-1 text-xs py-2 rounded-lg border font-medium transition ${
+                    form.advancedSeatManagement === val
+                      ? val === 'false'
+                        ? 'bg-gray-700 text-white border-gray-700'
+                        : 'bg-brand-500 text-white border-brand-500'
+                      : 'bg-white text-gray-600 border-gray-200 hover:border-gray-300'
+                  }`}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+            <p className="text-xs text-gray-400 mt-1">
+              {form.advancedSeatManagement === 'inherit'
+                ? 'Utilise le paramètre défini sur le véhicule sélectionné'
+                : form.advancedSeatManagement === 'true'
+                ? 'Les passagers choisissent leur siège'
+                : 'Les sièges sont attribués automatiquement dans l\'ordre'}
+            </p>
+          </FormField>
         </div>
       </FormModal>
     </div>

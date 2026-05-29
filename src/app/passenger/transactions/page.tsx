@@ -5,9 +5,10 @@ import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query';
 import { paymentsApi } from '@/lib/api';
 import { formatCFA } from '@transpro/shared';
 import {
-  CreditCard, Loader2, ArrowRight, CheckCircle,
+  CreditCard, Banknote, Loader2, ArrowRight, CheckCircle,
   XCircle, Clock, TrendingUp, RefreshCw,
 } from 'lucide-react';
+import Image from 'next/image';
 import dayjs from 'dayjs';
 import 'dayjs/locale/fr';
 import relativeTime from 'dayjs/plugin/relativeTime';
@@ -23,11 +24,58 @@ const STATUS_STYLE: Record<string, { label: string; icon: any; cls: string; dot:
   PROCESSING: { label: 'En cours', icon: Clock,       cls: 'bg-yellow-100 text-yellow-700', dot: 'bg-yellow-400' },
 };
 
-const METHOD_LABEL: Record<string, string> = {
-  GENIUS_PAY: 'Genius Pay',
-  CASH:       'Espèces',
-  CARD:       'Carte bancaire',
+// ── Mapping logo → chemin public/ ─────────────────────────────────────────────
+// Clés : valeur lowercase renvoyée par Genius Pay OU enum PaymentMethod direct
+const PAYMENT_LOGO: Record<string, { src: string; label: string }> = {
+  // Canaux Genius Pay (lowercase)
+  wave:         { src: '/payments/wave.png',       label: 'Wave' },
+  orange_money: { src: '/payments/orange.jpeg',    label: 'Orange Money' },
+  orange:       { src: '/payments/orange.jpeg',    label: 'Orange Money' },
+  mtn_momo:     { src: '/payments/mtn.jpg',        label: 'MTN MoMo' },
+  mtn:          { src: '/payments/mtn.jpg',         label: 'MTN MoMo' },
+  moov:         { src: '/payments/moov.png',       label: 'Moov Money' },
+  moov_money:   { src: '/payments/moov.png',       label: 'Moov Money' },
+  visa:         { src: '/payments/visa.png',       label: 'Visa' },
+  mastercard:   { src: '/payments/mastercard.png', label: 'Mastercard' },
+  // Méthodes directes (guichet agent, enum uppercase)
+  WAVE:         { src: '/payments/wave.png',       label: 'Wave' },
+  ORANGE_MONEY: { src: '/payments/orange.jpeg',    label: 'Orange Money' },
+  MTN_MOMO:     { src: '/payments/mtn.jpg',         label: 'MTN MoMo' },
 };
+
+function MethodIcon({ method, channel }: { method: string; channel?: string | null }) {
+  // Résolution : canal Genius Pay > méthode directe
+  const logoKey = method === 'GENIUS_PAY' ? (channel?.toLowerCase() ?? '') : method;
+  const entry = PAYMENT_LOGO[logoKey];
+
+  if (entry) {
+    return (
+      <span className="inline-flex items-center justify-center rounded-lg overflow-hidden bg-white border border-gray-100 shrink-0" style={{ width: 28, height: 28 }}>
+        <Image src={entry.src} alt={entry.label} width={24} height={24} className="object-contain" />
+      </span>
+    );
+  }
+
+  // Genius Pay sans canal connu
+  if (method === 'GENIUS_PAY') {
+    return (
+      <span className="inline-flex items-center justify-center rounded-lg text-[9px] font-bold shrink-0 bg-brand-100 text-brand-600 border border-brand-200"
+        style={{ width: 28, height: 28 }}>GP</span>
+    );
+  }
+  if (method === 'CASH') return <Banknote size={16} className="text-green-600 shrink-0" />;
+  return <CreditCard size={16} className="text-gray-400 shrink-0" />;
+}
+
+function formatPaymentMethod(method: string, channel?: string | null): string {
+  const logoKey = method === 'GENIUS_PAY' ? (channel?.toLowerCase() ?? '') : method;
+  const entry = PAYMENT_LOGO[logoKey];
+  if (entry) return entry.label;
+  const fallback: Record<string, string> = {
+    GENIUS_PAY: 'Genius Pay', CASH: 'Espèces', CARD: 'Carte bancaire',
+  };
+  return fallback[method] ?? method;
+}
 
 const FAIL_REASON: Record<string, string> = {
   'payment.failed':    'Paiement refusé',
@@ -186,7 +234,10 @@ export default function TransactionsPage() {
                     <div className="flex items-center gap-3 mt-0.5 text-xs text-gray-400 flex-wrap">
                       <span>{dayjs(p.createdAt).format('ddd D MMM YYYY · HH:mm')}</span>
                       {p.booking?.reference && <span className="font-mono">{p.booking.reference}</span>}
-                      <span>{METHOD_LABEL[p.method] ?? p.method}</span>
+                      <span className="flex items-center gap-1.5">
+                        <MethodIcon method={p.method} channel={p.paymentChannel} />
+                        {formatPaymentMethod(p.method, p.paymentChannel)}
+                      </span>
                       {dep && <span>Départ {dayjs(dep).format('D MMM')}</span>}
                     </div>
                     {p.status === 'FAILED' && p.failReason && (

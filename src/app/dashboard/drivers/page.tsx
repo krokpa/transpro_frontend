@@ -1,9 +1,10 @@
 'use client';
 
 import { useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { driversApi } from '@/lib/api';
-import { UserCheck, UserX, Plus, X, Loader2, AlertTriangle } from 'lucide-react';
+import { UserCheck, UserX, Plus, X, Loader2, AlertTriangle, ExternalLink } from 'lucide-react';
 import { toast } from 'sonner';
 import dayjs from 'dayjs';
 
@@ -46,6 +47,7 @@ function isExpired(dateStr: string): boolean {
 
 export default function DriversPage() {
   const qc = useQueryClient();
+  const router = useRouter();
   const [showModal, setShowModal] = useState(false);
   const [form, setForm] = useState<DriverForm>(defaultForm);
 
@@ -151,6 +153,7 @@ export default function DriversPage() {
                   <th className="px-4 py-3 text-left font-medium text-gray-600">Expiration permis</th>
                   <th className="px-4 py-3 text-left font-medium text-gray-600">Disponibilité</th>
                   <th className="px-4 py-3 text-left font-medium text-gray-600">Actions</th>
+                  <th className="px-4 py-3 text-left font-medium text-gray-600">Détail</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-50">
@@ -230,6 +233,15 @@ export default function DriversPage() {
                               Activer
                             </>
                           )}
+                        </button>
+                      </td>
+                      <td className="px-4 py-3">
+                        <button
+                          onClick={() => router.push(`/dashboard/drivers/${driver.id}`)}
+                          className="flex items-center gap-1.5 text-xs text-brand-600 hover:text-brand-700 font-medium transition"
+                          title="Planning, absences & évaluations"
+                        >
+                          <ExternalLink size={13} /> Voir
                         </button>
                       </td>
                     </tr>

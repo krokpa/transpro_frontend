@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
-  Bus, Search, Ticket, LogOut, Bell, UserRound, Home, CreditCard,
+  Bus, Search, Ticket, LogOut, Bell, UserRound, Home, CreditCard, Building2, Star,
 } from 'lucide-react';
 import { useAuthStore } from '@/store/auth.store';
 import { authApi, notificationsApi } from '@/lib/api';
@@ -16,6 +16,8 @@ import clsx from 'clsx';
 const NAV = [
   { label: 'Accueil',          href: '/passenger',                icon: Home },
   { label: 'Rechercher',       href: '/passenger/search',         icon: Search },
+  { label: 'Compagnies',       href: '/passenger/companies',      icon: Building2 },
+  { label: 'Mes favoris',      href: '/passenger/favorites',      icon: Star },
   { label: 'Mes réservations', href: '/passenger/bookings',       icon: Ticket },
   { label: 'Transactions',     href: '/passenger/transactions',   icon: CreditCard },
   { label: 'Notifications',    href: '/passenger/notifications',  icon: Bell },
@@ -25,6 +27,8 @@ const NAV = [
 const PAGE_TITLES: Record<string, string> = {
   '/passenger':                 'Accueil',
   '/passenger/search':          'Rechercher un voyage',
+  '/passenger/companies':       'Compagnies',
+  '/passenger/favorites':       'Mes favoris',
   '/passenger/bookings':        'Mes réservations',
   '/passenger/transactions':    'Mes transactions',
   '/passenger/notifications':   'Notifications',

@@ -1,10 +1,11 @@
 'use client';
 
 import { useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { vehiclesApi } from '@/lib/api';
 import { VehicleStatus } from '@transpro/shared';
-import { Plus, Car, X, Loader2, LayoutGrid } from 'lucide-react';
+import { Plus, Car, X, Loader2, LayoutGrid, ToggleLeft, ToggleRight, Wrench } from 'lucide-react';
 import { toast } from 'sonner';
 import { SeatLayoutEditor } from '@/components/vehicles/SeatLayoutEditor';
 
@@ -33,6 +34,7 @@ interface Vehicle {
   capacity: number;
   status: VehicleStatus;
   seatLayout: SeatLayout;
+  advancedSeatManagement: boolean;
 }
 
 interface VehicleForm {
@@ -55,6 +57,7 @@ const statusConfig: Record<VehicleStatus, { label: string; className: string }> 
 
 export default function VehiclesPage() {
   const qc = useQueryClient();
+  const router = useRouter();
   const [showModal, setShowModal] = useState(false);
   const [form, setForm] = useState<VehicleForm>(defaultForm);
   const [editingLayoutVehicle, setEditingLayoutVehicle] = useState<Vehicle | null>(null);
@@ -83,6 +86,15 @@ export default function VehiclesPage() {
       toast.success('Statut mis à jour');
     },
     onError: () => toast.error('Erreur lors de la mise à jour du statut'),
+  });
+
+  const toggleASMMutation = useMutation({
+    mutationFn: ({ id, value }: { id: string; value: boolean }) =>
+      vehiclesApi.update(id, { advancedSeatManagement: value } as any),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['vehicles'] });
+    },
+    onError: () => toast.error('Erreur lors de la mise à jour'),
   });
 
   function handleSubmit(e: React.FormEvent) {
@@ -150,7 +162,9 @@ export default function VehiclesPage() {
                   <th className="px-4 py-3 text-left font-medium text-gray-600">Année</th>
                   <th className="px-4 py-3 text-left font-medium text-gray-600">Sièges</th>
                   <th className="px-4 py-3 text-left font-medium text-gray-600">Statut</th>
+                  <th className="px-4 py-3 text-left font-medium text-gray-600">Gestion sièges</th>
                   <th className="px-4 py-3 text-left font-medium text-gray-600">Plan</th>
+                  <th className="px-4 py-3 text-left font-medium text-gray-600">Maintenance</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-50">
@@ -186,11 +200,33 @@ export default function VehiclesPage() {
                       </td>
                       <td className="px-4 py-3">
                         <button
+                          onClick={() => toggleASMMutation.mutate({ id: vehicle.id, value: !vehicle.advancedSeatManagement })}
+                          disabled={toggleASMMutation.isPending}
+                          className="flex items-center gap-1.5 text-xs font-medium transition disabled:opacity-50"
+                          title={vehicle.advancedSeatManagement ? 'Désactiver la gestion avancée' : 'Activer la gestion avancée'}
+                        >
+                          {vehicle.advancedSeatManagement
+                            ? <><ToggleRight size={18} className="text-brand-500" /><span className="text-brand-600">Activée</span></>
+                            : <><ToggleLeft size={18} className="text-gray-400" /><span className="text-gray-500">Désactivée</span></>
+                          }
+                        </button>
+                      </td>
+                      <td className="px-4 py-3">
+                        <button
                           onClick={() => setEditingLayoutVehicle(vehicle)}
                           className="flex items-center gap-1.5 text-xs text-brand-600 hover:text-brand-700 font-medium transition"
                           title="Modifier le plan des sièges"
                         >
                           <LayoutGrid size={14} /> Modifier
+                        </button>
+                      </td>
+                      <td className="px-4 py-3">
+                        <button
+                          onClick={() => router.push(`/dashboard/vehicles/${vehicle.id}`)}
+                          className="flex items-center gap-1.5 text-xs text-gray-600 hover:text-gray-800 font-medium transition"
+                          title="Carburant & entretien"
+                        >
+                          <Wrench size={14} /> Suivi
                         </button>
                       </td>
                     </tr>

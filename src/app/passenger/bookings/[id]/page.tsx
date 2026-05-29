@@ -7,8 +7,10 @@ import { formatCFA } from '@transpro/shared';
 import {
   ArrowLeft, ArrowRight, Clock, Loader2,
   XCircle, CheckCircle, QrCode, AlertTriangle, CreditCard,
-  MapPin, Users, Calendar, Bus,
+  MapPin, Users, Calendar, Bus, Building2, Navigation2,
+  Star, Share2, Copy, Check,
 } from 'lucide-react';
+import Link from 'next/link';
 import dayjs from 'dayjs';
 import 'dayjs/locale/fr';
 import { toast } from 'sonner';
@@ -29,6 +31,10 @@ export default function BookingDetailPage() {
   const qc = useQueryClient();
   const [confirmCancel, setConfirmCancel] = useState(false);
   const [paying, setPaying] = useState(false);
+  const [hoverRating, setHoverRating] = useState(0);
+  const [selectedRating, setSelectedRating] = useState(0);
+  const [ratingComment, setRatingComment] = useState('');
+  const [copied, setCopied] = useState(false);
 
   async function handlePay() {
     setPaying(true);
@@ -48,6 +54,31 @@ export default function BookingDetailPage() {
     queryFn: () => bookingsApi.getMine(id) as any,
     enabled: !!id,
   });
+
+  const rateMut = useMutation({
+    mutationFn: (data: { rating: number; comment?: string }) =>
+      bookingsApi.rate(id, data) as any,
+    onSuccess: () => {
+      toast.success('Merci pour votre avis !');
+      qc.invalidateQueries({ queryKey: ['booking', id] });
+      qc.invalidateQueries({ queryKey: ['my-bookings'] });
+    },
+    onError: () => toast.error('Erreur lors de l\'envoi de la note'),
+  });
+
+  async function handleShare() {
+    const origin = booking.trip?.route?.originCity?.name ?? '';
+    const dest   = booking.trip?.route?.destinationCity?.name ?? '';
+    const depAt  = booking.trip?.departureAt ? dayjs(booking.trip.departureAt).format('dddd D MMM à HH:mm') : '';
+    const text   = `Je voyage avec TransPro CI — ${origin} → ${dest}, ${depAt}. Réservez sur transpro.ci 🚌`;
+    if (navigator.share) {
+      await navigator.share({ title: 'Mon voyage TransPro', text }).catch(() => {});
+    } else {
+      await navigator.clipboard.writeText(text);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    }
+  }
 
   const cancelMut = useMutation({
     mutationFn: () => bookingsApi.cancel(id) as any,
@@ -77,6 +108,8 @@ export default function BookingDetailPage() {
     );
   }
 
+  const tenant = booking.trip?.tenant;
+
   const s = STATUS_STYLE[booking.status] ?? STATUS_STYLE.PENDING;
   const StatusIcon = s.icon;
   const canCancel = ['PENDING', 'CONFIRMED'].includes(booking.status) && dayjs(booking.trip?.departureAt).isAfter(dayjs());
@@ -102,6 +135,24 @@ export default function BookingDetailPage() {
         <div className="lg:col-span-3 space-y-4">
           {/* Route card */}
           <div className="bg-white rounded-2xl border border-gray-100 p-6">
+            {/* Company header */}
+            {tenant && (
+              <div className="flex items-center gap-3 mb-5 pb-4 border-b border-gray-100">
+                {tenant.logo ? (
+                  <img src={tenant.logo} alt={tenant.name}
+                    className="w-10 h-10 rounded-xl object-cover shrink-0 border border-gray-100"
+                    onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
+                ) : (
+                  <div className="w-10 h-10 rounded-xl bg-brand-50 flex items-center justify-center shrink-0">
+                    <Building2 size={18} className="text-brand-400" />
+                  </div>
+                )}
+                <div>
+                  <p className="font-semibold text-gray-800 text-sm">{tenant.name}</p>
+                  <p className="text-xs text-gray-400">{booking.trip?.route?.name}</p>
+                </div>
+              </div>
+            )}
             <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-4">Détails du voyage</p>
 
             {/* Departure / arrival times */}
@@ -171,6 +222,50 @@ export default function BookingDetailPage() {
                   <p className="font-semibold text-gray-800 text-sm mt-0.5">{booking.trip?.tripClass}</p>
                 </div>
               </div>
+              {booking.trip?.departureStation && (
+                <div className="col-span-2 flex items-start gap-3">
+                  <div className="w-8 h-8 bg-orange-50 rounded-lg flex items-center justify-center shrink-0 mt-0.5">
+                    <MapPin size={14} className="text-orange-400" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-xs text-gray-400">Gare de départ</p>
+                    <p className="font-semibold text-gray-800 text-sm mt-0.5">{booking.trip.departureStation.name}</p>
+                    {booking.trip.departureStation.address && (
+                      <p className="text-xs text-gray-400 mt-0.5">{booking.trip.departureStation.address}</p>
+                    )}
+                  </div>
+                  {booking.trip.departureStation.latitude != null && booking.trip.departureStation.longitude != null && (
+                    <Link
+                      href={`/passenger/navigate?name=${encodeURIComponent(booking.trip.departureStation.name)}&lat=${booking.trip.departureStation.latitude}&lng=${booking.trip.departureStation.longitude}`}
+                      className="shrink-0 flex items-center gap-1.5 bg-orange-500 hover:bg-orange-600 text-white text-xs font-semibold px-3 py-2 rounded-lg transition"
+                    >
+                      <Navigation2 size={12} /> Naviguer
+                    </Link>
+                  )}
+                </div>
+              )}
+              {booking.trip?.arrivalStation && (
+                <div className="col-span-2 flex items-start gap-3">
+                  <div className="w-8 h-8 bg-green-50 rounded-lg flex items-center justify-center shrink-0 mt-0.5">
+                    <MapPin size={14} className="text-green-400" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-xs text-gray-400">Gare d'arrivée</p>
+                    <p className="font-semibold text-gray-800 text-sm mt-0.5">{booking.trip.arrivalStation.name}</p>
+                    {booking.trip.arrivalStation.address && (
+                      <p className="text-xs text-gray-400 mt-0.5">{booking.trip.arrivalStation.address}</p>
+                    )}
+                  </div>
+                  {booking.trip.arrivalStation.latitude != null && booking.trip.arrivalStation.longitude != null && (
+                    <Link
+                      href={`/passenger/navigate?name=${encodeURIComponent(booking.trip.arrivalStation.name)}&lat=${booking.trip.arrivalStation.latitude}&lng=${booking.trip.arrivalStation.longitude}`}
+                      className="shrink-0 flex items-center gap-1.5 bg-green-500 hover:bg-green-600 text-white text-xs font-semibold px-3 py-2 rounded-lg transition"
+                    >
+                      <Navigation2 size={12} /> Naviguer
+                    </Link>
+                  )}
+                </div>
+              )}
             </div>
 
             {/* Total */}
@@ -186,30 +281,55 @@ export default function BookingDetailPage() {
               <h2 className="font-bold text-gray-900">Vos tickets ({tickets.length})</h2>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 {tickets.map((ticket) => (
-                  <div key={ticket.id} className="bg-white rounded-2xl border border-gray-100 p-5">
-                    <div className="flex items-center justify-between mb-4">
-                      <div>
-                        <p className="font-semibold text-gray-800">Siège {ticket.seatNumber}</p>
-                        <p className="text-xs text-gray-400 mt-0.5">#{ticket.ticketNumber}</p>
+                  <div key={ticket.id} className="bg-white rounded-2xl border border-gray-100 overflow-hidden">
+                    {/* Ticket header with company branding */}
+                    <div className="bg-gradient-to-r from-brand-500 to-brand-600 p-4">
+                      <div className="flex items-center gap-3">
+                        {tenant?.logo ? (
+                          <img src={tenant.logo} alt={tenant.name}
+                            className="w-9 h-9 rounded-lg object-cover border border-white/20 shrink-0"
+                            onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
+                        ) : (
+                          <div className="w-9 h-9 rounded-lg bg-white/10 flex items-center justify-center shrink-0">
+                            <Bus size={18} className="text-white" />
+                          </div>
+                        )}
+                        <div className="flex-1 min-w-0">
+                          <p className="text-white font-semibold text-sm truncate">{tenant?.name ?? 'TransPro'}</p>
+                          <p className="text-white/70 text-xs truncate">
+                            {booking.trip?.route?.originCity?.name} → {booking.trip?.route?.destinationCity?.name}
+                          </p>
+                        </div>
+                        <div className="text-right shrink-0">
+                          <p className="text-white/70 text-xs">Siège</p>
+                          <p className="text-white font-bold text-lg leading-none">{ticket.seatNumber}</p>
+                        </div>
                       </div>
-                      <span className={`text-xs px-2 py-1 rounded-full font-medium ${
-                        ticket.status === 'VALID' ? 'bg-green-100 text-green-700' :
-                        ticket.status === 'USED'  ? 'bg-gray-100 text-gray-500' :
-                        'bg-red-100 text-red-600'
-                      }`}>
-                        {ticket.status === 'VALID' ? 'Valide' : ticket.status === 'USED' ? 'Utilisé' : 'Annulé'}
-                      </span>
                     </div>
-                    {ticket.qrCode ? (
-                      <div className="flex justify-center">
-                        <img src={ticket.qrCode} alt={`QR Siège ${ticket.seatNumber}`} className="w-40 h-40 rounded-lg border border-gray-100" />
+
+                    {/* QR + meta */}
+                    <div className="p-4 space-y-3">
+                      <div className="flex items-center justify-between text-xs text-gray-500">
+                        <span>{dayjs(booking.trip?.departureAt).format('ddd D MMM · HH:mm')}</span>
+                        <span className={`px-2 py-0.5 rounded-full font-medium ${
+                          ticket.isScanned ? 'bg-gray-100 text-gray-500' : 'bg-green-100 text-green-700'
+                        }`}>
+                          {ticket.isScanned ? 'Utilisé' : 'Valide'}
+                        </span>
                       </div>
-                    ) : (
-                      <div className="flex flex-col items-center justify-center py-6 text-gray-300 gap-2">
-                        <QrCode size={36} />
-                        <p className="text-xs">QR disponible après confirmation</p>
-                      </div>
-                    )}
+                      {ticket.qrCode ? (
+                        <div className="flex justify-center">
+                          <img src={ticket.qrCode} alt={`QR Siège ${ticket.seatNumber}`}
+                            className="w-40 h-40 rounded-xl border border-gray-100" />
+                        </div>
+                      ) : (
+                        <div className="flex flex-col items-center justify-center py-6 text-gray-300 gap-2">
+                          <QrCode size={36} />
+                          <p className="text-xs">QR disponible après confirmation</p>
+                        </div>
+                      )}
+                      <p className="text-center text-xs text-gray-400">Présentez ce QR à l'agent à l'embarquement</p>
+                    </div>
                   </div>
                 ))}
               </div>
@@ -275,6 +395,90 @@ export default function BookingDetailPage() {
                   Conserver
                 </button>
               </div>
+            </div>
+          )}
+
+          {/* Share */}
+          <button
+            onClick={handleShare}
+            className="w-full flex items-center justify-center gap-2 border border-gray-200 text-gray-700 hover:bg-gray-50 py-3 rounded-xl text-sm font-semibold transition"
+          >
+            {copied
+              ? <><Check size={15} className="text-green-500" /> Lien copié !</>
+              : <><Share2 size={15} /> Partager ce voyage</>}
+          </button>
+
+          {/* Rating — COMPLETED bookings only */}
+          {booking.status === 'COMPLETED' && (
+            <div className="bg-white rounded-2xl border border-gray-100 p-5 space-y-4">
+              <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                {booking.rating ? 'Votre avis' : 'Noter ce voyage'}
+              </p>
+
+              {/* Already rated — show saved rating */}
+              {booking.rating ? (
+                <div className="space-y-2">
+                  <div className="flex items-center gap-1">
+                    {[1, 2, 3, 4, 5].map((star) => (
+                      <Star
+                        key={star}
+                        size={22}
+                        className={star <= booking.rating.rating
+                          ? 'text-amber-400 fill-amber-400'
+                          : 'text-gray-200 fill-gray-200'}
+                      />
+                    ))}
+                    <span className="text-sm text-gray-400 ml-1.5">{booking.rating.rating}/5</span>
+                  </div>
+                  {booking.rating.comment && (
+                    <p className="text-sm text-gray-600 italic leading-relaxed">"{booking.rating.comment}"</p>
+                  )}
+                </div>
+              ) : (
+                /* Not yet rated — interactive widget */
+                <>
+                  <div className="flex items-center gap-1">
+                    {[1, 2, 3, 4, 5].map((star) => (
+                      <button
+                        key={star}
+                        onMouseEnter={() => setHoverRating(star)}
+                        onMouseLeave={() => setHoverRating(0)}
+                        onClick={() => setSelectedRating(star)}
+                        className="transition-transform active:scale-110"
+                      >
+                        <Star
+                          size={30}
+                          className={star <= (hoverRating || selectedRating)
+                            ? 'text-amber-400 fill-amber-400'
+                            : 'text-gray-200 fill-gray-200 hover:text-amber-200 hover:fill-amber-200'}
+                        />
+                      </button>
+                    ))}
+                  </div>
+
+                  {selectedRating > 0 && (
+                    <>
+                      <textarea
+                        value={ratingComment}
+                        onChange={(e) => setRatingComment(e.target.value)}
+                        placeholder="Commentaire optionnel (max 500 caractères)"
+                        rows={3}
+                        maxLength={500}
+                        className="w-full text-sm border border-gray-200 rounded-xl p-3 resize-none focus:outline-none focus:ring-2 focus:ring-brand-300 placeholder:text-gray-300"
+                      />
+                      <button
+                        onClick={() => rateMut.mutate({ rating: selectedRating, comment: ratingComment || undefined })}
+                        disabled={rateMut.isPending}
+                        className="w-full bg-amber-400 hover:bg-amber-500 text-white py-2.5 rounded-xl text-sm font-semibold transition disabled:opacity-60 flex items-center justify-center gap-2"
+                      >
+                        {rateMut.isPending
+                          ? <><Loader2 size={14} className="animate-spin" /> Envoi...</>
+                          : 'Envoyer mon avis'}
+                      </button>
+                    </>
+                  )}
+                </>
+              )}
             </div>
           )}
 

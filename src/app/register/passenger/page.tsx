@@ -3,7 +3,8 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
-import { Loader2, Bus, UserRound } from 'lucide-react';
+import Image from 'next/image';
+import { Loader2, UserRound } from 'lucide-react';
 import { authApi } from '@/lib/api';
 import { useAuthStore } from '@/store/auth.store';
 
@@ -75,9 +76,13 @@ export default function PassengerRegisterPage() {
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-8">
         {/* Header */}
         <div className="flex flex-col items-center mb-7">
-          <div className="bg-brand-500 text-white rounded-xl p-3 mb-3">
-            <Bus size={28} />
-          </div>
+          <Image
+            src="/transpro-logo.png"
+            width={64}
+            height={64}
+            alt="TransPro CI"
+            className="rounded-2xl mb-3 shadow-lg"
+          />
           <h1 className="text-xl font-bold text-gray-900">Créer un compte passager</h1>
           <p className="text-gray-500 text-sm mt-1">Réservez vos voyages en toute simplicité</p>
         </div>

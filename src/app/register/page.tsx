@@ -3,7 +3,8 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
-import { Loader2, ArrowRight, ArrowLeft, Check, Eye, EyeOff, Building2, Bus } from 'lucide-react';
+import Image from 'next/image';
+import { Loader2, ArrowRight, ArrowLeft, Check, Eye, EyeOff, Building2 } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { authApi, tenantsApi, citiesApi } from '@/lib/api';
 import { useAuthStore } from '@/store/auth.store';
@@ -124,11 +125,15 @@ export default function RegisterPage() {
       <div className="flex-1 flex flex-col items-center justify-center p-8 bg-white overflow-y-auto">
 
         {/* Mobile-only logo */}
-        <div className="lg:hidden flex items-center gap-2.5 mb-8">
-          <div className="bg-brand-500 text-white p-2 rounded-xl shadow shadow-brand-500/30">
-            <Bus size={20} />
-          </div>
-          <span className="text-lg font-bold text-slate-900">TransPro CI</span>
+        <div className="lg:hidden flex items-center gap-3 mb-8">
+          <Image
+            src="/transpro-logo.png"
+            width={40}
+            height={40}
+            alt="TransPro CI"
+            className="rounded-xl"
+          />
+          <span className="text-lg font-bold text-slate-900">transpro</span>
         </div>
 
         <div className="w-full max-w-[400px]">

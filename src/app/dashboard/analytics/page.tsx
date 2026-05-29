@@ -96,6 +96,7 @@ export default function AnalyticsPage() {
   const kpis = a?.kpis ?? {};
   const timeline: any[] = a?.timeline ?? [];
   const topRoutes: any[] = a?.topRoutes ?? [];
+  const routeFillRate: any[] = a?.routeFillRate ?? [];
   const statusBreakdown: any[] = a?.statusBreakdown ?? [];
   const paymentMethods: any[] = a?.paymentMethods ?? [];
   const recentBookings: any[] = a?.recentBookings ?? [];
@@ -323,6 +324,51 @@ export default function AnalyticsPage() {
           )}
         </div>
       </div>
+
+      {/* Fill rate per route */}
+      {routeFillRate.length > 0 && (
+        <div className="bg-white rounded-2xl border border-gray-100 p-5">
+          <h2 className="font-bold text-gray-900 mb-5">Taux de remplissage par ligne</h2>
+          <ResponsiveContainer width="100%" height={Math.max(routeFillRate.length * 44, 200)}>
+            <BarChart data={routeFillRate} layout="vertical" margin={{ left: 10, right: 50, top: 0, bottom: 0 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#f3f4f6" horizontal={false} />
+              <XAxis
+                type="number"
+                domain={[0, 100]}
+                tickFormatter={(v) => `${v}%`}
+                tick={{ fontSize: 11, fill: '#9ca3af' }}
+                tickLine={false}
+                axisLine={false}
+              />
+              <YAxis
+                type="category"
+                dataKey="name"
+                tick={{ fontSize: 11, fill: '#374151' }}
+                tickLine={false}
+                axisLine={false}
+                width={130}
+              />
+              <Tooltip
+                formatter={(v: any) => [`${v}%`, 'Taux de remplissage']}
+                cursor={{ fill: '#f9fafb' }}
+              />
+              <Bar dataKey="fillRate" radius={[0, 6, 6, 0]} maxBarSize={24}>
+                {routeFillRate.map((r, i) => (
+                  <Cell
+                    key={r.routeId}
+                    fill={r.fillRate >= 80 ? '#16a34a' : r.fillRate >= 50 ? '#f05a1a' : '#f59e0b'}
+                  />
+                ))}
+              </Bar>
+            </BarChart>
+          </ResponsiveContainer>
+          <div className="flex items-center gap-4 mt-3 text-xs text-gray-500">
+            <span className="flex items-center gap-1"><span className="w-3 h-3 rounded-sm bg-green-600 inline-block" />≥ 80%</span>
+            <span className="flex items-center gap-1"><span className="w-3 h-3 rounded-sm bg-brand-500 inline-block" />50–79%</span>
+            <span className="flex items-center gap-1"><span className="w-3 h-3 rounded-sm bg-yellow-400 inline-block" />{'< 50%'}</span>
+          </div>
+        </div>
+      )}
 
       {/* Payment methods */}
       {paymentMethods.length > 0 && (

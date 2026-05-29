@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, Suspense } from 'react';
+import { useEffect, useState, Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { bookingsApi, paymentsApi } from '@/lib/api';
@@ -10,23 +10,36 @@ import dayjs from 'dayjs';
 import 'dayjs/locale/fr';
 dayjs.locale('fr');
 
+
 function SuccessContent() {
   const params    = useSearchParams();
   const router    = useRouter();
   const qc        = useQueryClient();
   const bookingId = params.get('bookingId');
   const urlStatus = params.get('status'); // 'completed' | 'failed' | ... depuis Genius Pay
+  const [isRetrying, setIsRetrying] = useState(false);
 
-  // Appel Genius Pay immédiat pour synchroniser le statut en DB
+  const invalidateAll = () => {
+    qc.invalidateQueries({ queryKey: ['booking-success', bookingId] });
+    qc.invalidateQueries({ queryKey: ['my-bookings'] });
+    qc.invalidateQueries({ queryKey: ['my-payments'] });
+    qc.invalidateQueries({ queryKey: ['booking', bookingId] });
+  };
+
+  // Si Genius Pay a redirigé avec status=completed, on confirme directement en DB.
+  // Sinon on poll Genius Pay pour récupérer le statut.
   const confirmMut = useMutation({
-    mutationFn: () => paymentsApi.checkStatusByBooking(bookingId!) as any,
+    mutationFn: () =>
+      urlStatus === 'completed'
+        ? (paymentsApi.confirmFromRedirect(bookingId!) as any)
+        : (paymentsApi.checkStatusByBooking(bookingId!) as any),
     onSuccess: (data: any) => {
-      if (data?.updated) {
-        qc.invalidateQueries({ queryKey: ['booking-success', bookingId] });
-        qc.invalidateQueries({ queryKey: ['my-bookings'] });
-        qc.invalidateQueries({ queryKey: ['my-payments'] });
-        qc.invalidateQueries({ queryKey: ['booking', bookingId] });
-      }
+      invalidateAll();
+      setIsRetrying(false);
+    },
+    onError: () => {
+      setIsRetrying(false);
+      invalidateAll();
     },
   });
 
@@ -37,18 +50,28 @@ function SuccessContent() {
   const { data: booking, isLoading } = useQuery({
     queryKey: ['booking-success', bookingId],
     queryFn: () => bookingsApi.getMine(bookingId!) as any,
-    enabled: !!bookingId && !confirmMut.isPending,
+    enabled: !!bookingId && !confirmMut.isPending && !isRetrying,
     retry: 2,
   });
+
+  const isPaid     = booking?.status === 'CONFIRMED' || booking?.status === 'COMPLETED';
+  const isFailed   = booking?.status === 'CANCELLED' && urlStatus !== 'completed';
+  const isChecking = confirmMut.isPending || isRetrying || isLoading;
+
+  useEffect(() => {
+    if (!bookingId || !isPaid || isChecking) return;
+
+    const redirectTimer = window.setTimeout(() => {
+      router.replace(`/passenger/bookings/${bookingId}`);
+    }, 2000);
+
+    return () => window.clearTimeout(redirectTimer);
+  }, [bookingId, isPaid, isChecking, router]);
 
   if (!bookingId) {
     router.replace('/passenger');
     return null;
   }
-
-  const isPaid   = booking?.status === 'CONFIRMED' || booking?.status === 'COMPLETED';
-  const isFailed = booking?.status === 'CANCELLED' && urlStatus !== 'completed';
-  const isChecking = confirmMut.isPending || isLoading;
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-white flex items-center justify-center p-4">

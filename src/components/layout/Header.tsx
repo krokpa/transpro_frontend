@@ -10,6 +10,7 @@ import { useAuthStore } from '@/store/auth.store';
 import { notificationsApi, authApi } from '@/lib/api';
 import { getSocket, SocketEvent, disconnectSocket } from '@/lib/socket';
 import { toast } from 'sonner';
+import { UserAvatar } from '@/components/ui/UserAvatar';
 
 const PAGE_TITLES: Record<string, string> = {
   '/dashboard':                   'Tableau de bord',
@@ -28,6 +29,8 @@ const PAGE_TITLES: Record<string, string> = {
   '/dashboard/team':              'Équipe',
   '/dashboard/stations':          'Gares',
   '/dashboard/subscription':      'Abonnement',
+  '/dashboard/delivery-requests': 'Livraisons à domicile',
+  '/dashboard/luggage':           'Bagages passagers',
   '/dashboard/cities':            'Villes',
   '/dashboard/admin/tenants':     'Compagnies',
 };
@@ -65,7 +68,6 @@ export function Header() {
   }
 
   const segments = pathname.split('/').filter(Boolean);
-  const initials = `${user?.firstName?.[0] ?? ''}${user?.lastName?.[0] ?? ''}`.toUpperCase();
 
   // Derive current page title from longest matching prefix
   const currentTitle = (() => {
@@ -125,9 +127,12 @@ export function Header() {
         <DropdownMenu.Root>
           <DropdownMenu.Trigger asChild>
             <button className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg hover:bg-gray-50 transition-all duration-150 outline-none group border border-transparent hover:border-gray-100">
-              <div className="w-7 h-7 bg-brand-500/[0.12] text-brand-600 ring-1 ring-brand-500/20 rounded-full flex items-center justify-center text-xs font-bold transition-all group-hover:ring-brand-500/40">
-                {initials}
-              </div>
+              <UserAvatar
+                firstName={user?.firstName}
+                lastName={user?.lastName}
+                avatar={(user as any)?.avatar}
+                size={28}
+              />
               <span className="text-sm font-medium text-gray-700 hidden sm:block">
                 {user?.firstName}
               </span>
@@ -143,9 +148,13 @@ export function Header() {
               {/* User info header */}
               <div className="px-3 py-2.5 mb-1">
                 <div className="flex items-center gap-2.5">
-                  <div className="w-9 h-9 bg-brand-500/[0.12] text-brand-600 ring-1 ring-brand-500/20 rounded-full flex items-center justify-center text-sm font-bold shrink-0">
-                    {initials}
-                  </div>
+                  <UserAvatar
+                    firstName={user?.firstName}
+                    lastName={user?.lastName}
+                    avatar={(user as any)?.avatar}
+                    size={36}
+                    className="shrink-0"
+                  />
                   <div className="min-w-0">
                     <p className="text-sm font-semibold text-gray-900 truncate">
                       {user?.firstName} {user?.lastName}
