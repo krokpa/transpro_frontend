@@ -208,6 +208,13 @@ export const teamApi = {
 
 // ─── Super Admin ────────────────────────────────────────────────────────────
 
+export const billingApi = {
+  subscribe: (plan: string) => api.post('/billing/subscribe', { plan }),
+  confirmFromRedirect: (subscriptionId: string) =>
+    api.patch(`/billing/subscriptions/${subscriptionId}/confirm`),
+  runCheck: () => api.post('/billing/run-check'),
+};
+
 export const adminApi = {
   platformStats: () => api.get('/tenants/admin/platform-stats'),
   allUsers: (params?: { page?: number; limit?: number; search?: string; role?: string }) =>

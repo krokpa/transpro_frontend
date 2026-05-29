@@ -1,15 +1,17 @@
 'use client';
 
-import { useQuery } from '@tanstack/react-query';
-import { tenantsApi } from '@/lib/api';
+import { useState } from 'react';
+import { useQuery, useMutation } from '@tanstack/react-query';
+import { tenantsApi, billingApi } from '@/lib/api';
+import { toast } from 'sonner';
 import {
   TenantPlan, TenantStatus, formatCFA,
   PLAN_PRICING, PLAN_LIMITS, PLAN_FEATURES,
 } from '@transpro/shared';
 import {
   CreditCard, CheckCircle, XCircle, AlertTriangle, Clock,
-  Truck, Users, Route, Building2, UserCheck, Mail, Phone,
-  RefreshCw, Loader2,
+  Truck, Users, Route, Building2, UserCheck, Mail,
+  RefreshCw, Loader2, ExternalLink,
 } from 'lucide-react';
 import dayjs from 'dayjs';
 import 'dayjs/locale/fr';
@@ -175,6 +177,26 @@ function UsageMeter({ label, icon: Icon, used, max }: { label: string; icon: Rea
 // ── Page ──────────────────────────────────────────────────────────────────────
 
 export default function SubscriptionPage() {
+  const [subscribingPlan, setSubscribingPlan] = useState<string | null>(null);
+
+  const subscribeMut = useMutation({
+    mutationFn: (plan: string) => billingApi.subscribe(plan) as any,
+    onSuccess: (data: any) => {
+      if (data?.checkoutUrl) {
+        window.location.href = data.checkoutUrl;
+      }
+    },
+    onError: (err: any) => {
+      toast.error(err?.response?.data?.message ?? 'Erreur lors de l\'initiation du paiement');
+      setSubscribingPlan(null);
+    },
+  });
+
+  const handleSubscribe = (plan: string) => {
+    setSubscribingPlan(plan);
+    subscribeMut.mutate(plan);
+  };
+
   const { data: tenantRaw, isLoading } = useQuery({
     queryKey: ['tenant-me'],
     queryFn: () => tenantsApi.me() as any,
@@ -301,14 +323,26 @@ export default function SubscriptionPage() {
                 </ul>
 
                 {!isCurrent && (
-                  <a
-                    href={`mailto:commercial@transpro.ci?subject=Demande de passage au plan ${cfg.label}`}
-                    className={`w-full text-center py-2 rounded-lg text-sm font-semibold transition ${
-                      isUpgrade ? 'bg-brand-500 hover:bg-brand-600 text-white' : 'border border-gray-200 text-gray-600 hover:bg-gray-50'
-                    }`}
-                  >
-                    {isUpgrade ? `Passer à ${cfg.label}` : 'Rétrograder'}
-                  </a>
+                  isUpgrade ? (
+                    <button
+                      onClick={() => handleSubscribe(p)}
+                      disabled={subscribeMut.isPending}
+                      className="w-full flex items-center justify-center gap-2 py-2 rounded-lg text-sm font-semibold bg-brand-500 hover:bg-brand-600 text-white transition disabled:opacity-50"
+                    >
+                      {subscribeMut.isPending && subscribingPlan === p
+                        ? <Loader2 size={14} className="animate-spin" />
+                        : <ExternalLink size={14} />
+                      }
+                      {`Passer à ${cfg.label}`}
+                    </button>
+                  ) : (
+                    <a
+                      href={`mailto:commercial@transpro.ci?subject=Demande de passage au plan ${cfg.label}`}
+                      className="w-full text-center py-2 rounded-lg text-sm font-semibold border border-gray-200 text-gray-600 hover:bg-gray-50 transition"
+                    >
+                      Rétrograder (contacter)
+                    </a>
+                  )
                 )}
               </div>
             );
