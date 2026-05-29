@@ -146,6 +146,7 @@ export const tenantsApi = {
   stats: () => api.get('/tenants/me/stats'),
   analytics: (period: string) => api.get('/tenants/me/analytics', { params: { period } }),
   subscriptions: () => api.get('/tenants/me/subscriptions'),
+  usage: () => api.get('/tenants/me/usage'),
   // Super-admin
   list: () => api.get('/tenants'),
   getById: (id: string) => api.get(`/tenants/${id}`),
