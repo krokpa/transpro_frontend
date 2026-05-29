@@ -144,9 +144,12 @@ export function Sidebar() {
             </p>
             <div className="space-y-0.5">
               {[
-                { label: 'Compagnies', icon: ShieldCheck, href: '/dashboard/admin/tenants' },
-                { label: 'Villes',     icon: MapPin,      href: '/dashboard/cities' },
-                { label: 'Paramètres', icon: Settings,    href: '/dashboard/settings' },
+                { label: 'Tableau de bord', icon: LayoutDashboard, href: '/dashboard/admin' },
+                { label: 'Compagnies',      icon: ShieldCheck,     href: '/dashboard/admin/tenants' },
+                { label: 'Utilisateurs',    icon: Users,           href: '/dashboard/admin/users' },
+                { label: 'Facturation',     icon: CreditCard,      href: '/dashboard/admin/billing' },
+                { label: 'Villes',          icon: MapPin,          href: '/dashboard/cities' },
+                { label: 'Paramètres',      icon: Settings,        href: '/dashboard/settings' },
               ].map((item) => {
                 const active = pathname === item.href || pathname.startsWith(item.href + '/');
                 return (

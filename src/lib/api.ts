@@ -205,6 +205,16 @@ export const teamApi = {
   remove: (id: string) => api.delete(`/users/${id}/from-tenant`),
 };
 
+// ─── Super Admin ────────────────────────────────────────────────────────────
+
+export const adminApi = {
+  platformStats: () => api.get('/tenants/admin/platform-stats'),
+  allUsers: (params?: { page?: number; limit?: number; search?: string; role?: string }) =>
+    api.get('/tenants/admin/users', { params }),
+  tenantFullDetail: (id: string) => api.get(`/tenants/${id}/full-detail`),
+  runBillingCheck: () => api.post('/billing/run-check'),
+};
+
 export const citiesApi = {
   list: (search?: string) => api.get('/cities', { params: search ? { search } : {} }),
   create: (data: { name: string; region?: string; code?: string }) => api.post('/cities', data),
