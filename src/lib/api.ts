@@ -2,6 +2,20 @@ import axios, { AxiosError } from 'axios';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api/v1';
 
+/**
+ * Extrait le message d'erreur lisible depuis une erreur axios API.
+ * Le filtre NestJS retourne { error: string, details?: { message } }.
+ */
+export function apiError(err: any, fallback = 'Une erreur est survenue'): string {
+  const data = err?.response?.data;
+  if (!data) return fallback;
+  // Format du HttpExceptionFilter : { error: string, details?: { message } }
+  if (typeof data.error === 'string' && data.error.length > 0) return data.error;
+  if (typeof data.details?.message === 'string') return data.details.message;
+  if (typeof data.message === 'string') return data.message;
+  return fallback;
+}
+
 export const api = axios.create({
   baseURL: API_URL,
   headers: { 'Content-Type': 'application/json' },
