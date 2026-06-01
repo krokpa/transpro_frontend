@@ -202,11 +202,10 @@ export const notificationsApi = {
 };
 
 export const campaignsApi = {
-  getConfig: () => api.get('/notifications/campaigns/config').then((r) => r.data?.data ?? r.data),
-  updateConfig: (data: Record<string, unknown>) =>
-    api.put('/notifications/campaigns/config', data).then((r) => r.data?.data ?? r.data),
+  getConfig: () => api.get('/notifications/campaigns/config'),
+  updateConfig: (data: Record<string, unknown>) => api.put('/notifications/campaigns/config', data),
   getPublicConfig: (tenantId: string) =>
-    api.get(`/notifications/campaigns/config/tenant/${tenantId}`).then((r) => r.data?.data ?? r.data),
+    api.get(`/notifications/campaigns/config/tenant/${tenantId}`),
 };
 
 export const usersApi = {
