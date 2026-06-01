@@ -56,24 +56,33 @@ export default function ProfilePage() {
   function handleAvatarFile(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
+    e.target.value = '';
     const reader = new FileReader();
+    reader.onerror = () => toast.error('Impossible de lire ce fichier image');
     reader.onload = (ev) => {
+      const dataUrl = ev.target?.result as string;
+      if (!dataUrl) { toast.error('Fichier image invalide'); return; }
       const img = new window.Image();
+      img.onerror = () => toast.error('Format d\'image non supporté');
       img.onload = () => {
-        const canvas = document.createElement('canvas');
-        const SIZE = 256;
-        canvas.width = SIZE; canvas.height = SIZE;
-        const ctx = canvas.getContext('2d')!;
-        const side = Math.min(img.width, img.height);
-        const ox = (img.width - side) / 2;
-        const oy = (img.height - side) / 2;
-        ctx.drawImage(img, ox, oy, side, side, 0, 0, SIZE, SIZE);
-        avatarMut.mutate(canvas.toDataURL('image/jpeg', 0.82));
+        try {
+          const canvas = document.createElement('canvas');
+          const SIZE = 256;
+          canvas.width = SIZE; canvas.height = SIZE;
+          const ctx = canvas.getContext('2d');
+          if (!ctx) { toast.error('Erreur de traitement de l\'image'); return; }
+          const side = Math.min(img.width, img.height);
+          const ox = (img.width - side) / 2;
+          const oy = (img.height - side) / 2;
+          ctx.drawImage(img, ox, oy, side, side, 0, 0, SIZE, SIZE);
+          avatarMut.mutate(canvas.toDataURL('image/jpeg', 0.82));
+        } catch {
+          toast.error('Erreur lors du traitement de l\'image');
+        }
       };
-      img.src = ev.target?.result as string;
+      img.src = dataUrl;
     };
     reader.readAsDataURL(file);
-    e.target.value = '';
   }
 
   const pwdMut = useMutation({

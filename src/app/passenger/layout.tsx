@@ -7,10 +7,12 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   Bus, Search, Ticket, LogOut, Bell, UserRound, Home, CreditCard, Building2, Star,
 } from 'lucide-react';
+import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
 import { useAuthStore } from '@/store/auth.store';
 import { authApi, notificationsApi } from '@/lib/api';
 import { connectSocket, disconnectSocket, SocketEvent } from '@/lib/socket';
 import { toast } from 'sonner';
+import { UserAvatar } from '@/components/ui/UserAvatar';
 import clsx from 'clsx';
 
 const NAV = [
@@ -81,8 +83,6 @@ export default function PassengerLayout({ children }: { children: React.ReactNod
 
   if (!mounted || !isAuthenticated() || user?.role !== 'PASSENGER') return null;
 
-  const initials = `${user?.firstName?.[0] ?? ''}${user?.lastName?.[0] ?? ''}`.toUpperCase();
-
   const currentTitle = (() => {
     let best = '';
     let bestLen = 0;
@@ -141,9 +141,13 @@ export default function PassengerLayout({ children }: { children: React.ReactNod
         {/* User footer */}
         <div className="px-3 py-4 border-t border-white/[0.06] space-y-0.5">
           <div className="flex items-center gap-3 px-3 py-2.5">
-            <div className="w-8 h-8 bg-brand-500/20 text-brand-400 rounded-full ring-1 ring-brand-500/25 flex items-center justify-center text-xs font-bold shrink-0">
-              {initials}
-            </div>
+            <UserAvatar
+              firstName={user?.firstName}
+              lastName={user?.lastName}
+              avatar={(user as any)?.avatar}
+              size={32}
+              className="shrink-0 ring-1 ring-brand-500/25"
+            />
             <div className="flex-1 min-w-0">
               <p className="text-sm font-medium text-slate-200 truncate">{user?.firstName} {user?.lastName}</p>
               <p className="text-[11px] text-slate-500 truncate">{user?.email}</p>
@@ -185,6 +189,75 @@ export default function PassengerLayout({ children }: { children: React.ReactNod
             >
               <Search size={14} /> Rechercher un voyage
             </Link>
+
+            {/* User menu */}
+            <DropdownMenu.Root>
+              <DropdownMenu.Trigger asChild>
+                <button className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg hover:bg-gray-50 transition-all duration-150 outline-none border border-transparent hover:border-gray-100">
+                  <UserAvatar
+                    firstName={user?.firstName}
+                    lastName={user?.lastName}
+                    avatar={(user as any)?.avatar}
+                    size={28}
+                  />
+                  <span className="text-sm font-medium text-gray-700 hidden sm:block">
+                    {user?.firstName}
+                  </span>
+                </button>
+              </DropdownMenu.Trigger>
+
+              <DropdownMenu.Portal>
+                <DropdownMenu.Content
+                  align="end"
+                  sideOffset={8}
+                  className="bg-white rounded-xl shadow-lg shadow-black/[0.08] border border-gray-100/80 p-1.5 min-w-[220px] z-50 animate-in fade-in-0 zoom-in-95 duration-100"
+                >
+                  <div className="px-3 py-2.5 mb-1">
+                    <div className="flex items-center gap-2.5">
+                      <UserAvatar
+                        firstName={user?.firstName}
+                        lastName={user?.lastName}
+                        avatar={(user as any)?.avatar}
+                        size={36}
+                        className="shrink-0"
+                      />
+                      <div className="min-w-0">
+                        <p className="text-sm font-semibold text-gray-900 truncate">
+                          {user?.firstName} {user?.lastName}
+                        </p>
+                        <p className="text-xs text-gray-400 truncate mt-0.5">{user?.email}</p>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="my-1 h-px bg-gray-100" />
+
+                  <DropdownMenu.Item asChild>
+                    <Link
+                      href="/passenger/profile"
+                      className="flex items-center gap-2.5 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 rounded-lg cursor-pointer outline-none transition-colors"
+                    >
+                      <div className="w-6 h-6 bg-gray-100 rounded-md flex items-center justify-center shrink-0">
+                        <UserRound size={12} className="text-gray-500" />
+                      </div>
+                      Mon profil
+                    </Link>
+                  </DropdownMenu.Item>
+
+                  <div className="my-1 h-px bg-gray-100" />
+
+                  <DropdownMenu.Item
+                    onSelect={handleLogout}
+                    className="flex items-center gap-2.5 px-3 py-2 text-sm text-red-600 hover:bg-red-50 rounded-lg cursor-pointer outline-none transition-colors"
+                  >
+                    <div className="w-6 h-6 bg-red-50 rounded-md flex items-center justify-center shrink-0">
+                      <LogOut size={12} className="text-red-500" />
+                    </div>
+                    Déconnexion
+                  </DropdownMenu.Item>
+                </DropdownMenu.Content>
+              </DropdownMenu.Portal>
+            </DropdownMenu.Root>
           </div>
         </header>
 

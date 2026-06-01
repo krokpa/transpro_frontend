@@ -302,6 +302,15 @@ export const luggageApi = {
   reportMissingPublic: (qrCode: string, note?: string) => api.post('/luggage/bags/report-missing', { qrCode, note }),
 };
 
+export const smsPackagesApi = {
+  listActive: () => api.get('/sms-packages'),
+  balance: () => api.get('/sms-packages/balance'),
+  logs: (page = 1, limit = 20) => api.get('/sms-packages/logs', { params: { page, limit } }),
+  purchase: (packageId: string, customSender?: string) =>
+    api.post('/sms-packages/purchase', { packageId, ...(customSender ? { customSender } : {}) }),
+  confirmRedirect: (purchaseId: string) => api.get(`/sms-packages/purchase/${purchaseId}/confirm`),
+};
+
 export const stationsApi = {
   list: () => api.get('/stations'),
   byCity: (city: string) => api.get('/stations/by-city', { params: { city } }),
