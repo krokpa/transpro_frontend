@@ -201,6 +201,14 @@ export const notificationsApi = {
   markAllRead: () => api.patch('/notifications/read-all'),
 };
 
+export const campaignsApi = {
+  getConfig: () => api.get('/notifications/campaigns/config').then((r) => r.data?.data ?? r.data),
+  updateConfig: (data: Record<string, unknown>) =>
+    api.put('/notifications/campaigns/config', data).then((r) => r.data?.data ?? r.data),
+  getPublicConfig: (tenantId: string) =>
+    api.get(`/notifications/campaigns/config/tenant/${tenantId}`).then((r) => r.data?.data ?? r.data),
+};
+
 export const usersApi = {
   updateProfile: (data: { firstName?: string; lastName?: string; phone?: string; preferredLang?: string }) =>
     api.patch('/users/profile', data),

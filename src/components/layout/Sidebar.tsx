@@ -5,7 +5,7 @@ import { usePathname, useRouter } from 'next/navigation';
 import {
   LayoutDashboard, Bus, Route, Users, Ticket,
   Settings, LogOut, Truck, CalendarClock, TicketCheck, ConciergeBell, ScanLine, BarChart3, FileText, Building2,
-  ShieldCheck, MapPin, CreditCard, UserCog, Package, Lock, Home, Luggage,
+  ShieldCheck, MapPin, CreditCard, UserCog, Package, Lock, Home, Luggage, Megaphone,
 } from 'lucide-react';
 import { useAuthStore } from '@/store/auth.store';
 import { authApi, tenantsApi } from '@/lib/api';
@@ -50,6 +50,7 @@ const navGroups = [
   {
     label: 'Compte',
     items: [
+      { label: 'Campagnes',  icon: Megaphone,  href: '/dashboard/campaigns',    plan: null },
       { label: 'Abonnement', icon: CreditCard, href: '/dashboard/subscription', plan: null },
       { label: 'Paramètres', icon: Settings,   href: '/dashboard/settings',     plan: null },
     ],
