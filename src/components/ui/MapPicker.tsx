@@ -74,6 +74,9 @@ export default function MapPicker({ lat, lng, onChange, provider }: MapPickerPro
   async function initMapbox() {
     const mapboxgl = (await import('mapbox-gl')).default;
 
+    // Re-vérifier après l'import async — le composant peut avoir été démonté
+    if (!containerRef.current || mapRef.current) return;
+
     // Inject Mapbox CSS once
     if (!document.getElementById('mapbox-gl-css')) {
       const link = document.createElement('link');
@@ -89,7 +92,7 @@ export default function MapPicker({ lat, lng, onChange, provider }: MapPickerPro
       lat != null && lng != null ? [lng, lat] : [DEFAULT_LNG, DEFAULT_LAT];
 
     const map = new mapboxgl.Map({
-      container: containerRef.current!,
+      container: containerRef.current,
       style: 'mapbox://styles/mapbox/streets-v12',
       center,
       zoom: 13,
@@ -131,6 +134,9 @@ export default function MapPicker({ lat, lng, onChange, provider }: MapPickerPro
   async function initLeaflet() {
     const L = (await import('leaflet')).default;
 
+    // Re-vérifier après l'import async — le composant peut avoir été démonté
+    if (!containerRef.current || mapRef.current) return;
+
     if (!document.getElementById('leaflet-css')) {
       const link = document.createElement('link');
       link.id = 'leaflet-css';
@@ -150,7 +156,7 @@ export default function MapPicker({ lat, lng, onChange, provider }: MapPickerPro
     const center: [number, number] =
       lat != null && lng != null ? [lat, lng] : [DEFAULT_LAT, DEFAULT_LNG];
 
-    const map = L.map(containerRef.current!, { zoomControl: true }).setView(center, 13);
+    const map = L.map(containerRef.current, { zoomControl: true }).setView(center, 13);
 
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
       attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
