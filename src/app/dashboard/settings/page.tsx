@@ -4,8 +4,8 @@ import { useState, useEffect, useRef, lazy, Suspense } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { tenantsApi, api, usersApi, authApi, citiesApi } from '@/lib/api';
 import { useAuthStore } from '@/store/auth.store';
-import { TenantPlan, TenantStatus } from '@transpro/shared';
-import { Building2, Camera, User, CreditCard, Loader2, Eye, EyeOff, Upload, X } from 'lucide-react';
+import { TenantPlan, TenantStatus, PERMISSION_DEFINITIONS } from '@transpro/shared';
+import { Building2, Camera, User, CreditCard, Loader2, Eye, EyeOff, Upload, X, ShieldCheck, CheckCircle2, XCircle } from 'lucide-react';
 import { toast } from 'sonner';
 import { UserAvatar } from '@/components/ui/UserAvatar';
 import dayjs from 'dayjs';
@@ -13,7 +13,25 @@ import dayjs from 'dayjs';
 const MapPicker = lazy(() => import('@/components/ui/MapPicker'));
 import { SearchableSelect, SelectOption } from '@/components/ui/SearchableSelect';
 
-type Tab = 'company' | 'profile' | 'subscription';
+type Tab = 'company' | 'profile' | 'subscription' | 'permissions';
+
+/** Décode le payload JWT (sans vérification de signature — client side). */
+function decodeJwtPayload(token: string | null): Record<string, any> {
+  if (!token) return {};
+  try {
+    return JSON.parse(atob(token.split('.')[1]));
+  } catch {
+    return {};
+  }
+}
+
+const ROLE_LABELS: Record<string, string> = {
+  SUPER_ADMIN:    'Super Administrateur',
+  COMPANY_OWNER:  'Propriétaire',
+  COMPANY_ADMIN:  'Admin Compagnie',
+  COMPANY_AGENT:  'Agent Guichet',
+  PASSENGER:      'Passager',
+};
 
 const planConfig: Record<TenantPlan, {
   label: string;
@@ -211,10 +229,19 @@ export default function SettingsPage() {
   }
 
   const tabs: { key: Tab; label: string; icon: React.ReactNode }[] = [
-    { key: 'company', label: 'Compagnie', icon: <Building2 size={16} /> },
-    { key: 'profile', label: 'Mon profil', icon: <User size={16} /> },
-    { key: 'subscription', label: 'Abonnement', icon: <CreditCard size={16} /> },
+    { key: 'company',     label: 'Compagnie',   icon: <Building2 size={16} /> },
+    { key: 'profile',     label: 'Mon profil',  icon: <User size={16} /> },
+    { key: 'subscription',label: 'Abonnement',  icon: <CreditCard size={16} /> },
+    { key: 'permissions', label: 'Permissions', icon: <ShieldCheck size={16} /> },
   ];
+
+  // Permissions extraites du JWT courant
+  const jwtPayload  = decodeJwtPayload(accessToken);
+  const userPerms   = (jwtPayload.perms ?? []) as string[];
+  const permsByCategory = PERMISSION_DEFINITIONS.reduce<Record<string, typeof PERMISSION_DEFINITIONS>>((acc, p) => {
+    (acc[p.category] = acc[p.category] ?? []).push(p);
+    return acc;
+  }, {});
 
   const tenantData = tenant as any;
   const currentPlan: TenantPlan = tenantData?.plan ?? TenantPlan.BASIC;
@@ -641,6 +668,70 @@ export default function SettingsPage() {
               </a>
             </p>
           </div>
+        </div>
+      )}
+
+      {activeTab === 'permissions' && (
+        <div className="space-y-5">
+          {/* Résumé */}
+          <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-5">
+            <div className="flex items-center justify-between flex-wrap gap-3">
+              <div>
+                <h2 className="text-base font-semibold text-gray-900">Mes permissions</h2>
+                <p className="text-sm text-gray-500 mt-0.5">
+                  Basées sur votre rôle et le profil qui vous a été assigné.
+                </p>
+              </div>
+              <div className="flex items-center gap-3">
+                <span className="text-xs font-medium bg-gray-100 text-gray-700 px-3 py-1.5 rounded-full">
+                  {ROLE_LABELS[user?.role ?? ''] ?? user?.role}
+                </span>
+                <span className={`text-xs font-semibold px-3 py-1.5 rounded-full ${
+                  userPerms.length === 0 ? 'bg-red-100 text-red-600' : 'bg-green-100 text-green-700'
+                }`}>
+                  {userPerms.length} permission{userPerms.length > 1 ? 's' : ''}
+                </span>
+              </div>
+            </div>
+            {userPerms.length === 0 && (
+              <div className="mt-4 p-3 bg-amber-50 border border-amber-200 rounded-lg text-sm text-amber-700">
+                Aucune permission détectée. Déconnectez-vous et reconnectez-vous pour actualiser votre session.
+              </div>
+            )}
+          </div>
+
+          {/* Permissions par catégorie */}
+          {Object.entries(permsByCategory).map(([category, perms]) => (
+            <div key={category} className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
+              <div className="px-5 py-3 border-b border-gray-50 bg-gray-50/50">
+                <h3 className="text-sm font-semibold text-gray-700">{category}</h3>
+              </div>
+              <div className="divide-y divide-gray-50">
+                {perms.map((p) => {
+                  const has = userPerms.includes(p.code);
+                  return (
+                    <div key={p.code} className={`flex items-center justify-between px-5 py-3 ${!has ? 'opacity-40' : ''}`}>
+                      <div className="flex items-center gap-3">
+                        {has
+                          ? <CheckCircle2 size={15} className="text-green-500 shrink-0" />
+                          : <XCircle size={15} className="text-gray-300 shrink-0" />
+                        }
+                        <div>
+                          <p className="text-sm text-gray-800">{p.label}</p>
+                          <p className="text-xs text-gray-400 font-mono">{p.code}</p>
+                        </div>
+                      </div>
+                      <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${
+                        has ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-400'
+                      }`}>
+                        {has ? 'Autorisé' : 'Refusé'}
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          ))}
         </div>
       )}
     </div>
