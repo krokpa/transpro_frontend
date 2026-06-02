@@ -69,6 +69,14 @@ export const authApi = {
     api.post('/auth/reset-password', { token, password }),
 };
 
+export const twoFactorApi = {
+  verify: (twoFactorToken: string, code: string) =>
+    api.post('/auth/2fa/verify', { twoFactorToken, code }),
+  setup: () => api.post('/auth/2fa/setup'),
+  enable: (code: string) => api.post('/auth/2fa/enable', { code }),
+  disable: (code: string) => api.post('/auth/2fa/disable', { code }),
+};
+
 export const tripsApi = {
   create: (data: any) => api.post('/trips', data),
   list: (params?: any) => api.get('/trips', { params }),
