@@ -64,6 +64,8 @@ api.interceptors.response.use(
 export const authApi = {
   login: (email: string, password: string) =>
     api.post('/auth/login', { email, password }),
+  loginByPhone: (phone: string, code: string) =>
+    api.post('/auth/login-phone', { phone, code }),
   register: (data: any) => api.post('/auth/register', data),
   refresh: (refreshToken: string) =>
     axios.post(`${API_URL}/auth/refresh`, { refreshToken }).then((r) => r.data.data ?? r.data),
@@ -72,6 +74,11 @@ export const authApi = {
   forgotPassword: (email: string) => api.post('/auth/forgot-password', { email }),
   resetPassword: (token: string, password: string) =>
     api.post('/auth/reset-password', { token, password }),
+};
+
+export const otpApi = {
+  send:   (phone: string)                => api.post('/otp/send',   { phone }),
+  verify: (phone: string, code: string)  => api.post('/otp/verify', { phone, code }),
 };
 
 export const twoFactorApi = {
