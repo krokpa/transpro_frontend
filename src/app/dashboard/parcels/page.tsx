@@ -7,9 +7,11 @@ import { parcelsApi, tripsApi, tenantsApi, usersApi } from '@/lib/api';
 import { formatCFA } from '@transpro/shared';
 import { PlanGate } from '@/components/ui/PlanGate';
 import { SearchableSelect } from '@/components/ui/SearchableSelect';
+import { PhoneInput } from '@/components/ui/PhoneInput';
+import { UserAvatar } from '@/components/ui/UserAvatar';
 import {
   Plus, Package, X, Loader2, Search, ChevronRight,
-  MapPin, Scale, Phone, User, AlertCircle, CheckCircle2,
+  MapPin, Scale, User, AlertCircle, CheckCircle2,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import dayjs from 'dayjs';
@@ -78,6 +80,37 @@ const defaultForm: ParcelForm = {
   declaredValue: '', fee: '', isPaid: false, paymentMethod: 'CASH', notes: '',
 };
 
+// ── PhoneLookupBadge ──────────────────────────────────────────────────────────
+
+function PhoneLookupBadge({
+  looking, match, phone,
+}: { looking: boolean; match: UserMatch | null; phone: string }) {
+  const clean = phone.replace(/\s/g, '');
+  if (looking) return (
+    <div className="mt-2 flex items-center gap-1.5 text-xs text-gray-400">
+      <Loader2 size={11} className="animate-spin" />
+      Recherche du passager…
+    </div>
+  );
+  if (match) return (
+    <div className="mt-2 flex items-center gap-2.5 px-3 py-2 bg-green-50 border border-green-200 rounded-lg">
+      <UserAvatar firstName={match.firstName} lastName={match.lastName} avatar={match.avatar} size={28} className="shrink-0" />
+      <div className="min-w-0 flex-1">
+        <p className="text-xs font-semibold text-green-800 truncate">{match.firstName} {match.lastName}</p>
+        <p className="text-[11px] text-green-600 truncate">{match.email}</p>
+      </div>
+      <CheckCircle2 size={14} className="text-green-500 shrink-0" />
+    </div>
+  );
+  if (clean.length >= 10) return (
+    <p className="mt-1.5 text-xs text-gray-400 flex items-center gap-1">
+      <User size={11} className="shrink-0" />
+      Numéro non inscrit — champ nom requis
+    </p>
+  );
+  return null;
+}
+
 // ── Status config ─────────────────────────────────────────────────────────────
 
 const STATUS_CFG: Record<string, { label: string; classes: string }> = {
@@ -100,8 +133,10 @@ export default function ParcelsPage() {
   const [filterStatus, setFilterStatus] = useState('');
   const [filterDate,   setFilterDate]   = useState('');
   const [search, setSearch]             = useState('');
-  const [senderMatch,    setSenderMatch]    = useState<UserMatch | null>(null);
-  const [recipientMatch, setRecipientMatch] = useState<UserMatch | null>(null);
+  const [senderMatch,      setSenderMatch]      = useState<UserMatch | null>(null);
+  const [recipientMatch,   setRecipientMatch]   = useState<UserMatch | null>(null);
+  const [senderLooking,    setSenderLooking]    = useState(false);
+  const [recipientLooking, setRecipientLooking] = useState(false);
 
   // ── Queries ───────────────────────────────────────────────────────────────
 
@@ -150,37 +185,49 @@ export default function ParcelsPage() {
   // ── Phone lookups ─────────────────────────────────────────────────────
 
   useEffect(() => {
-    const phone = form.senderPhone.trim();
-    if (phone.length < 8) { setSenderMatch(null); return; }
+    const phone = form.senderPhone.replace(/\s/g, '');
+    if (phone.length < 10) { setSenderMatch(null); setSenderLooking(false); return; }
+    setSenderLooking(true);
     const t = setTimeout(async () => {
       try {
         const res = await usersApi.lookupByPhone(phone) as any;
         setSenderMatch(res ?? null);
-        if (res && !form.senderName) {
-          setForm((p) => ({ ...p, senderId: res.id, senderName: `${res.firstName} ${res.lastName}`, senderEmail: res.email }));
-        } else if (!res) {
+        if (res) {
+          setForm((p) => ({
+            ...p,
+            senderId:    res.id,
+            senderEmail: res.email,
+            senderName:  p.senderName || `${res.firstName} ${res.lastName}`,
+          }));
+        } else {
           setForm((p) => ({ ...p, senderId: '' }));
         }
       } catch { setSenderMatch(null); }
+      finally  { setSenderLooking(false); }
     }, 500);
     return () => clearTimeout(t);
   }, [form.senderPhone]);
 
   useEffect(() => {
-    const phone = form.recipientPhone.trim();
-    if (phone.length < 8) { setRecipientMatch(null); return; }
+    const phone = form.recipientPhone.replace(/\s/g, '');
+    if (phone.length < 10) { setRecipientMatch(null); setRecipientLooking(false); return; }
+    setRecipientLooking(true);
     const t = setTimeout(async () => {
       try {
         const res = await usersApi.lookupByPhone(phone) as any;
         setRecipientMatch(res ?? null);
-        if (res && !form.recipientName) {
-          setForm((p) => ({ ...p, recipientId: res.id, recipientName: `${res.firstName} ${res.lastName}`, recipientEmail: res.email }));
-        } else if (res) {
-          setForm((p) => ({ ...p, recipientId: res.id, recipientEmail: res.email }));
+        if (res) {
+          setForm((p) => ({
+            ...p,
+            recipientId:    res.id,
+            recipientEmail: res.email,
+            recipientName:  p.recipientName || `${res.firstName} ${res.lastName}`,
+          }));
         } else {
           setForm((p) => ({ ...p, recipientId: '' }));
         }
       } catch { setRecipientMatch(null); }
+      finally  { setRecipientLooking(false); }
     }, 500);
     return () => clearTimeout(t);
   }, [form.recipientPhone]);
@@ -197,6 +244,8 @@ export default function ParcelsPage() {
       setEstimatedFee(null);
       setSenderMatch(null);
       setRecipientMatch(null);
+      setSenderLooking(false);
+      setRecipientLooking(false);
     },
     onError: (err: any) =>
       toast.error(err?.response?.data?.message ?? 'Erreur lors de l\'enregistrement'),
@@ -444,49 +493,38 @@ export default function ParcelsPage() {
                 {/* ── Expéditeur ── */}
                 <section>
                   <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Expéditeur</h3>
-                  {senderMatch && (
-                    <div className="mb-3 flex items-center gap-2 px-3 py-2 bg-green-50 border border-green-200 rounded-lg text-sm text-green-700">
-                      <CheckCircle2 size={14} className="shrink-0" />
-                      <span>Passager inscrit : <strong>{senderMatch.firstName} {senderMatch.lastName}</strong></span>
-                    </div>
-                  )}
-                  <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-3">
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">Téléphone</label>
-                      <div className="relative">
-                        <Phone size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-                        <input
-                          type="tel"
-                          value={form.senderPhone}
-                          onChange={(e) => { setForm((p) => ({ ...p, senderPhone: e.target.value, senderId: '', senderName: '', senderEmail: '' })); setSenderMatch(null); }}
-                          placeholder="+225 07 XX XX XX XX"
-                          className={`w-full pl-8 border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500 ${senderMatch ? 'border-green-400' : 'border-gray-200'}`}
-                        />
-                      </div>
+                      <PhoneInput
+                        value={form.senderPhone}
+                        onChange={(v) => {
+                          setForm((p) => ({ ...p, senderPhone: v, senderId: '', senderName: '', senderEmail: '' }));
+                          setSenderMatch(null);
+                        }}
+                      />
+                      <PhoneLookupBadge looking={senderLooking} match={senderMatch} phone={form.senderPhone} />
                     </div>
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">Nom</label>
-                      <div className="relative">
-                        <User size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-                        <input
-                          type="text"
-                          value={form.senderName}
-                          onChange={(e) => setForm((p) => ({ ...p, senderName: e.target.value }))}
-                          placeholder="Koné Amani"
-                          className="w-full pl-8 border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
-                        />
-                      </div>
+                      <input
+                        type="text"
+                        value={form.senderName}
+                        onChange={(e) => setForm((p) => ({ ...p, senderName: e.target.value }))}
+                        placeholder="Koné Amani"
+                        className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
+                      />
                     </div>
-                  </div>
-                  <div className="mt-3">
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Email <span className="text-gray-400 font-normal">(optionnel — pour notifications)</span></label>
-                    <input
-                      type="email"
-                      value={form.senderEmail}
-                      onChange={(e) => setForm((p) => ({ ...p, senderEmail: e.target.value }))}
-                      placeholder="expediteur@email.com"
-                      className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
-                    />
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Email <span className="text-gray-400 font-normal">(optionnel)</span></label>
+                      <input
+                        type="email"
+                        value={form.senderEmail}
+                        onChange={(e) => setForm((p) => ({ ...p, senderEmail: e.target.value }))}
+                        placeholder="expediteur@email.com"
+                        className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
+                      />
+                    </div>
                   </div>
                 </section>
 
@@ -495,44 +533,32 @@ export default function ParcelsPage() {
                 {/* ── Destinataire ── */}
                 <section>
                   <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Destinataire</h3>
-                  {recipientMatch && (
-                    <div className="mb-3 flex items-center gap-2 px-3 py-2 bg-green-50 border border-green-200 rounded-lg text-sm text-green-700">
-                      <CheckCircle2 size={14} className="shrink-0" />
-                      <span>Passager inscrit : <strong>{recipientMatch.firstName} {recipientMatch.lastName}</strong></span>
-                    </div>
-                  )}
-                  <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-3">
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">
                         Téléphone <span className="text-red-500">*</span>
                       </label>
-                      <div className="relative">
-                        <Phone size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-                        <input
-                          type="tel"
-                          value={form.recipientPhone}
-                          onChange={(e) => { setForm((p) => ({ ...p, recipientPhone: e.target.value, recipientId: '', recipientName: '', recipientEmail: '' })); setRecipientMatch(null); }}
-                          placeholder="+225 05 XX XX XX XX"
-                          className={`w-full pl-8 border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500 ${recipientMatch ? 'border-green-400' : 'border-gray-200'}`}
-                          required
-                        />
-                      </div>
+                      <PhoneInput
+                        value={form.recipientPhone}
+                        onChange={(v) => {
+                          setForm((p) => ({ ...p, recipientPhone: v, recipientId: '', recipientName: '', recipientEmail: '' }));
+                          setRecipientMatch(null);
+                        }}
+                      />
+                      <PhoneLookupBadge looking={recipientLooking} match={recipientMatch} phone={form.recipientPhone} />
                     </div>
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">
                         Nom <span className="text-red-500">*</span>
                       </label>
-                      <div className="relative">
-                        <User size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-                        <input
-                          type="text"
-                          value={form.recipientName}
-                          onChange={(e) => setForm((p) => ({ ...p, recipientName: e.target.value }))}
-                          placeholder="Traoré Fatou"
-                          className="w-full pl-8 border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
-                          required
-                        />
-                      </div>
+                      <input
+                        type="text"
+                        value={form.recipientName}
+                        onChange={(e) => setForm((p) => ({ ...p, recipientName: e.target.value }))}
+                        placeholder="Traoré Fatou"
+                        className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
+                        required
+                      />
                     </div>
                   </div>
                   <div className="mt-3">
