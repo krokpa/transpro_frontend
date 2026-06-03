@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
-  Bus, Search, Ticket, LogOut, Bell, UserRound, Home, CreditCard, Building2, Star,
+  Bus, Search, Ticket, LogOut, Bell, UserRound, Home, CreditCard, Building2, Star, Package,
 } from 'lucide-react';
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
 import { useAuthStore } from '@/store/auth.store';
@@ -21,6 +21,7 @@ const NAV = [
   { label: 'Compagnies',       href: '/passenger/companies',      icon: Building2 },
   { label: 'Mes favoris',      href: '/passenger/favorites',      icon: Star },
   { label: 'Mes réservations', href: '/passenger/bookings',       icon: Ticket },
+  { label: 'Mes colis',        href: '/passenger/parcels',        icon: Package },
   { label: 'Transactions',     href: '/passenger/transactions',   icon: CreditCard },
   { label: 'Notifications',    href: '/passenger/notifications',  icon: Bell },
   { label: 'Mon profil',       href: '/passenger/profile',        icon: UserRound },
@@ -32,6 +33,7 @@ const PAGE_TITLES: Record<string, string> = {
   '/passenger/companies':       'Compagnies',
   '/passenger/favorites':       'Mes favoris',
   '/passenger/bookings':        'Mes réservations',
+  '/passenger/parcels':         'Mes colis',
   '/passenger/transactions':    'Mes transactions',
   '/passenger/notifications':   'Notifications',
   '/passenger/profile':         'Mon profil',

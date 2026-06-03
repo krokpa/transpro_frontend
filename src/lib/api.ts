@@ -293,6 +293,16 @@ export const parcelsApi = {
     api.get(`/parcels/track/${code}/delivery-request`),
   createDeliveryRequestByCode: (code: string, data: any) =>
     api.post(`/parcels/track/${code}/delivery-request`, data),
+
+  // Passenger-facing
+  myParcels: () => api.get('/parcels/my'),
+  myParcel:  (id: string) => api.get(`/parcels/${id}`),
+  myDeliveryRequest: (parcelId: string) =>
+    api.get(`/parcels/${parcelId}/delivery-request`),
+  createMyDeliveryRequest: (parcelId: string, data: { address: string; recipientPhone?: string; notes?: string }) =>
+    api.post(`/parcels/${parcelId}/delivery-request`, data),
+  cancelMyDeliveryRequest: (parcelId: string) =>
+    api.delete(`/parcels/${parcelId}/delivery-request`),
 };
 
 export const luggageApi = {
