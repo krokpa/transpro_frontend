@@ -2,11 +2,11 @@
 
 import { useState } from 'react';
 import { useParams } from 'next/navigation';
-import { useQuery } from '@tanstack/react-query';
-import { stationsApi, ticketTemplatesApi, bookingsApi } from '@/lib/api';
+import { useQuery, useMutation } from '@tanstack/react-query';
+import { stationsApi, ticketTemplatesApi, bookingsApi, luggageApi } from '@/lib/api';
 import { BookingStatus } from '@transpro/shared';
 import { formatCFA } from '@transpro/shared';
-import { Search, Printer, Ticket } from 'lucide-react';
+import { Search, Printer, Ticket, Luggage, X, Plus, Minus, Loader2, ChevronDown, CheckCircle2 } from 'lucide-react';
 import dayjs from 'dayjs';
 import { toast } from 'sonner';
 import { usePagination } from '@/hooks/usePagination';
@@ -95,11 +95,129 @@ function openPrintWindow(booking: any, template: any) {
   else toast.error('Popup bloqué — autorisez les popups pour imprimer');
 }
 
+// ── Luggage declaration modal ─────────────────────────────────────────────────
+
+const FREE_WEIGHT = 20;
+const EXCESS_RATE = 300;
+
+function LuggageModal({ booking, onClose }: { booking: any; onClose: () => void }) {
+  const [bagCount,      setBagCount]      = useState(1);
+  const [totalWeight,   setTotalWeight]   = useState('');
+  const [declared,      setDeclared]      = useState(false);
+
+  const excessKg  = Math.max(0, (parseFloat(totalWeight) || 0) - FREE_WEIGHT);
+  const excessFee = Math.round(excessKg * EXCESS_RATE);
+
+  const declareMut = useMutation({
+    mutationFn: () => luggageApi.declare({
+      bookingId:      booking.id,
+      bagCount,
+      totalWeightKg:  totalWeight ? parseFloat(totalWeight) : undefined,
+      freeWeightKg:   FREE_WEIGHT,
+    }),
+    onSuccess: () => setDeclared(true),
+    onError:   (e: any) => alert(e?.response?.data?.message ?? 'Erreur lors de la déclaration'),
+  });
+
+  return (
+    <div className="fixed inset-0 bg-black/40 z-50 flex items-end sm:items-center justify-center p-4">
+      <div className="bg-white rounded-2xl w-full max-w-sm shadow-xl">
+        {/* Header */}
+        <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
+          <div className="flex items-center gap-2">
+            <Luggage size={18} className="text-brand-500" />
+            <span className="font-semibold text-gray-900 text-sm">Déclarer les bagages</span>
+          </div>
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-600 transition">
+            <X size={18} />
+          </button>
+        </div>
+
+        {declared ? (
+          <div className="px-5 py-8 flex flex-col items-center gap-3 text-center">
+            <CheckCircle2 size={40} className="text-green-500" />
+            <p className="font-semibold text-gray-900">Bagages déclarés</p>
+            <p className="text-xs text-gray-400">
+              {bagCount} sac{bagCount > 1 ? 's' : ''} enregistré{bagCount > 1 ? 's' : ''} pour{' '}
+              <strong>{booking.passenger?.firstName} {booking.passenger?.lastName}</strong>
+            </p>
+            <button onClick={onClose}
+              className="mt-2 px-5 py-2 bg-brand-500 text-white rounded-lg text-sm font-medium">
+              Fermer
+            </button>
+          </div>
+        ) : (
+          <div className="px-5 py-4 space-y-4">
+            {/* Passenger info */}
+            <div className="bg-gray-50 rounded-lg px-3 py-2 text-xs text-gray-600">
+              <p className="font-medium">{booking.passenger?.firstName} {booking.passenger?.lastName}</p>
+              <p className="font-mono text-gray-400">{booking.reference} · {booking.tickets?.map((t: any) => t.seatNumber).join(', ')}</p>
+            </div>
+
+            {/* Bag count */}
+            <div>
+              <label className="block text-xs font-medium text-gray-700 mb-2">Nombre de sacs</label>
+              <div className="flex items-center gap-3">
+                <button onClick={() => setBagCount(Math.max(0, bagCount - 1))}
+                  className="w-8 h-8 rounded-full border border-gray-200 flex items-center justify-center hover:bg-gray-50 transition">
+                  <Minus size={14} />
+                </button>
+                <span className="w-8 text-center font-bold text-lg">{bagCount}</span>
+                <button onClick={() => setBagCount(Math.min(20, bagCount + 1))}
+                  className="w-8 h-8 rounded-full border border-gray-200 flex items-center justify-center hover:bg-gray-50 transition">
+                  <Plus size={14} />
+                </button>
+              </div>
+            </div>
+
+            {/* Weight */}
+            <div>
+              <label className="block text-xs font-medium text-gray-700 mb-1">
+                Poids total (kg) <span className="text-gray-400 font-normal">— franchise {FREE_WEIGHT} kg</span>
+              </label>
+              <input type="number" value={totalWeight}
+                onChange={(e) => setTotalWeight(e.target.value)}
+                placeholder="Ex: 25"
+                min="0" step="0.5"
+                className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
+              />
+            </div>
+
+            {/* Excess fee */}
+            {excessKg > 0 && (
+              <div className="bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 text-xs">
+                <p className="text-amber-700">
+                  Excédent : <strong>{excessKg} kg</strong> × {EXCESS_RATE} F = <strong>{formatCFA(excessFee)}</strong>
+                </p>
+              </div>
+            )}
+
+            <div className="flex gap-2 pt-1">
+              <button onClick={onClose}
+                className="flex-1 py-2.5 border border-gray-200 rounded-lg text-sm text-gray-600 hover:bg-gray-50 transition">
+                Ignorer
+              </button>
+              <button onClick={() => declareMut.mutate()}
+                disabled={declareMut.isPending || bagCount === 0}
+                className="flex-1 py-2.5 bg-brand-500 text-white rounded-lg text-sm font-semibold hover:bg-brand-600 transition disabled:opacity-50 flex items-center justify-center gap-1.5">
+                {declareMut.isPending ? <><Loader2 size={14} className="animate-spin" /> Déclaration...</> : 'Déclarer'}
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ── Page ───────────────────────────────────────────────────────────────────────
+
 export default function StationReservationsPage() {
   const { stationId } = useParams<{ stationId: string }>();
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
   const [printingId, setPrintingId] = useState<string | null>(null);
+  const [declaringBooking, setDeclaringBooking] = useState<any | null>(null);
   const pagination = usePagination();
 
   const { data, isLoading } = useQuery({
@@ -139,6 +257,10 @@ export default function StationReservationsPage() {
 
   return (
     <div className="p-6 space-y-5">
+      {declaringBooking && (
+        <LuggageModal booking={declaringBooking} onClose={() => setDeclaringBooking(null)} />
+      )}
+
       <div className="flex items-center justify-between">
         <h1 className="text-xl font-bold text-gray-900">Réservations</h1>
       </div>
@@ -221,18 +343,29 @@ export default function StationReservationsPage() {
                       </span>
                     </td>
                     <td className="px-4 py-3">
-                      <button
-                        onClick={() => handlePrint(b)}
-                        disabled={printingId === b.id}
-                        title="Imprimer le ticket"
-                        className="p-1.5 text-gray-400 hover:text-brand-600 hover:bg-brand-50 rounded-lg transition disabled:opacity-50"
-                      >
-                        {printingId === b.id ? (
-                          <div className="w-4 h-4 border-2 border-brand-500 border-t-transparent rounded-full animate-spin" />
-                        ) : (
-                          <Printer size={15} />
+                      <div className="flex items-center gap-1">
+                        {['PENDING', 'CONFIRMED'].includes(b.status) && (
+                          <button
+                            onClick={() => setDeclaringBooking(b)}
+                            title="Déclarer les bagages (optionnel)"
+                            className="p-1.5 text-gray-400 hover:text-purple-600 hover:bg-purple-50 rounded-lg transition"
+                          >
+                            <Luggage size={15} />
+                          </button>
                         )}
-                      </button>
+                        <button
+                          onClick={() => handlePrint(b)}
+                          disabled={printingId === b.id}
+                          title="Imprimer le ticket"
+                          className="p-1.5 text-gray-400 hover:text-brand-600 hover:bg-brand-50 rounded-lg transition disabled:opacity-50"
+                        >
+                          {printingId === b.id ? (
+                            <div className="w-4 h-4 border-2 border-brand-500 border-t-transparent rounded-full animate-spin" />
+                          ) : (
+                            <Printer size={15} />
+                          )}
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 );

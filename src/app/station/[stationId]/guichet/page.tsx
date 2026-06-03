@@ -3,12 +3,13 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useParams } from 'next/navigation';
 import { useQuery } from '@tanstack/react-query';
-import { bookingsApi, stationsApi, tripsApi, ticketTemplatesApi } from '@/lib/api';
+import { bookingsApi, stationsApi, tripsApi, ticketTemplatesApi, luggageApi } from '@/lib/api';
+import { useMutation } from '@tanstack/react-query';
 import { qzConnect, qzDisconnect, qzIsActive, qzGetPrinters, qzGetDefault, qzPrintHTML } from '@/lib/qz';
 import { formatCFA } from '@transpro/shared';
 import {
   Search, Ticket, Loader2, CheckCircle, Plus, X,
-  Printer, ChevronDown, Wifi, WifiOff,
+  Printer, ChevronDown, Wifi, WifiOff, Luggage, Minus, CheckCircle2,
 } from 'lucide-react';
 import { PhoneInput } from '@/components/ui/PhoneInput';
 import { SearchableSelect } from '@/components/ui/SearchableSelect';
@@ -132,6 +133,12 @@ export default function StationGuichetPage() {
   const [loading, setLoading] = useState(false);
   const [booking, setBooking] = useState<any>(null);
   const [search, setSearch] = useState('');
+
+  // ── Bagages optionnels ──
+  const [luggageOpen,     setLuggageOpen]     = useState(false);
+  const [luggageBags,     setLuggageBags]     = useState(1);
+  const [luggageWeight,   setLuggageWeight]   = useState('');
+  const [luggageDeclared, setLuggageDeclared] = useState(false);
 
   // ── Templates ──
   const [selectedTemplateId, setSelectedTemplateId] = useState<string>('');
@@ -330,7 +337,22 @@ export default function StationGuichetPage() {
     setPayMethod('CASH');
     setBooking(null);
     setSearch('');
+    setLuggageOpen(false);
+    setLuggageBags(1);
+    setLuggageWeight('');
+    setLuggageDeclared(false);
   }
+
+  const declareLugMut = useMutation({
+    mutationFn: () => luggageApi.declare({
+      bookingId:     booking?.id,
+      bagCount:      luggageBags,
+      totalWeightKg: luggageWeight ? parseFloat(luggageWeight) : undefined,
+      freeWeightKg:  20,
+    }),
+    onSuccess: () => setLuggageDeclared(true),
+    onError:   (e: any) => toast.error(e?.response?.data?.message ?? 'Erreur déclaration bagages'),
+  });
 
   const inputCls = 'w-full border border-gray-300 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500';
 
@@ -441,6 +463,74 @@ export default function StationGuichetPage() {
             <span className="text-gray-500">Paiement</span>
             <span className="font-medium">{booking.payment?.method ?? payMethod}</span>
           </div>
+        </div>
+
+        {/* ── Bagages (optionnel) ── */}
+        <div className="w-full border border-gray-200 rounded-xl overflow-hidden">
+          <button
+            type="button"
+            onClick={() => setLuggageOpen((o) => !o)}
+            className="w-full flex items-center justify-between px-4 py-3 hover:bg-gray-50 transition"
+          >
+            <div className="flex items-center gap-2 text-sm text-gray-700">
+              <Luggage size={16} className="text-purple-500" />
+              <span className="font-medium">Bagages</span>
+              <span className="text-xs text-gray-400 font-normal">(optionnel)</span>
+              {luggageDeclared && <CheckCircle2 size={14} className="text-green-500" />}
+            </div>
+            <ChevronDown size={14} className={`text-gray-400 transition-transform ${luggageOpen ? 'rotate-180' : ''}`} />
+          </button>
+
+          {luggageOpen && (
+            <div className="px-4 pb-4 border-t border-gray-100 space-y-3 pt-3">
+              {luggageDeclared ? (
+                <div className="flex items-center gap-2 py-2 text-sm text-green-700">
+                  <CheckCircle2 size={16} className="text-green-500" />
+                  {luggageBags} sac{luggageBags > 1 ? 's' : ''} déclaré{luggageBags > 1 ? 's' : ''}
+                  {luggageWeight && ` · ${luggageWeight} kg`}
+                </div>
+              ) : (
+                <>
+                  <div>
+                    <p className="text-xs text-gray-500 mb-2">Nombre de sacs</p>
+                    <div className="flex items-center gap-3">
+                      <button onClick={() => setLuggageBags(Math.max(0, luggageBags - 1))}
+                        className="w-8 h-8 rounded-full border border-gray-200 flex items-center justify-center hover:bg-gray-50">
+                        <Minus size={13} />
+                      </button>
+                      <span className="w-6 text-center font-bold">{luggageBags}</span>
+                      <button onClick={() => setLuggageBags(Math.min(20, luggageBags + 1))}
+                        className="w-8 h-8 rounded-full border border-gray-200 flex items-center justify-center hover:bg-gray-50">
+                        <Plus size={13} />
+                      </button>
+                    </div>
+                  </div>
+                  <div>
+                    <p className="text-xs text-gray-500 mb-1">Poids total (kg) — franchise 20 kg</p>
+                    <input type="number" value={luggageWeight}
+                      onChange={(e) => setLuggageWeight(e.target.value)}
+                      placeholder="Ex: 25" min="0" step="0.5"
+                      className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
+                    />
+                    {parseFloat(luggageWeight) > 20 && (
+                      <p className="mt-1 text-xs text-amber-600">
+                        Excédent {(parseFloat(luggageWeight) - 20).toFixed(1)} kg → {formatCFA(Math.round((parseFloat(luggageWeight) - 20) * 300))}
+                      </p>
+                    )}
+                  </div>
+                  <button
+                    onClick={() => declareLugMut.mutate()}
+                    disabled={declareLugMut.isPending || luggageBags === 0}
+                    className="w-full py-2 bg-purple-500 hover:bg-purple-600 text-white rounded-lg text-sm font-medium transition disabled:opacity-50 flex items-center justify-center gap-1.5"
+                  >
+                    {declareLugMut.isPending
+                      ? <><Loader2 size={13} className="animate-spin" /> Déclaration...</>
+                      : <><Luggage size={13} /> Déclarer</>}
+                  </button>
+                </>
+              )}
+            </div>
+          )}
         </div>
 
         {/* Config impression */}
