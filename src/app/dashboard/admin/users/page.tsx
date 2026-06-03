@@ -89,7 +89,11 @@ export default function AdminUsersPage() {
       {/* Table */}
       <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden">
         {isLoading ? (
-          <div className="p-12 text-center text-gray-300">Chargement…</div>
+          <div className="p-6 space-y-3">
+            {Array.from({ length: 8 }).map((_, i) => (
+              <div key={i} className="h-14 bg-gray-100 rounded-xl animate-pulse" />
+            ))}
+          </div>
         ) : users.length === 0 ? (
           <div className="p-12 text-center text-gray-400">Aucun utilisateur trouvé</div>
         ) : (

@@ -66,9 +66,11 @@ export default function LoginPage() {
   function finishLogin(res: any) {
     setAuth(res.user, res.accessToken, res.refreshToken);
     toast.success('Connexion réussie !');
-    if (res.user?.role === 'PASSENGER')          router.push('/passenger');
+    const role = res.user?.role;
+    if (role === 'SUPER_ADMIN')                  router.push('/dashboard/admin');
+    else if (role === 'PASSENGER')               router.push('/passenger');
     else if (!res.user?.tenantId)                router.push('/register');
-    else if (res.user?.role === 'COMPANY_AGENT') router.push('/station');
+    else if (role === 'COMPANY_AGENT')           router.push('/station');
     else                                         router.push('/dashboard');
   }
 

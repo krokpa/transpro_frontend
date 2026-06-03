@@ -222,7 +222,9 @@ export default function DriversPage() {
                           disabled={toggleAvailabilityMutation.isPending}
                           className="text-gray-400 hover:text-brand-500 transition disabled:opacity-50 flex items-center gap-1.5 text-xs"
                         >
-                          {driver.isAvailable ? (
+                          {toggleAvailabilityMutation.isPending && toggleAvailabilityMutation.variables?.id === driver.id ? (
+                            <Loader2 size={14} className="animate-spin" />
+                          ) : driver.isAvailable ? (
                             <>
                               <UserX size={15} />
                               Désactiver

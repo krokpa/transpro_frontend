@@ -319,6 +319,20 @@ export const smsPackagesApi = {
   confirmRedirect: (purchaseId: string) => api.get(`/sms-packages/purchase/${purchaseId}/confirm`),
 };
 
+export const adminSmsApi = {
+  overview:   (days?: number)  => api.get('/admin/sms/overview', { params: days ? { days } : {} }),
+  logs:       (params?: { page?: number; limit?: number; tenantId?: string; provider?: string; status?: string; search?: string; dateFrom?: string; dateTo?: string }) =>
+    api.get('/admin/sms/logs', { params }),
+  credits:    ()               => api.get('/admin/sms/credits'),
+  grant:      (tenantId: string, smsCount: number, customSender?: string, note?: string) =>
+    api.post(`/admin/sms/credits/${tenantId}/grant`, { smsCount, customSender, note }),
+  providers:  ()               => api.get('/admin/sms/providers'),
+  test:       (to: string, message: string) => api.post('/admin/sms/test', { to, message }),
+  listPackages:   ()           => api.get('/admin/sms/packages'),
+  createPackage:  (data: any)  => api.post('/admin/sms/packages', data),
+  updatePackage:  (id: string, data: any) => api.patch(`/admin/sms/packages/${id}`, data),
+};
+
 export const stationsApi = {
   list: () => api.get('/stations'),
   byCity: (city: string) => api.get('/stations/by-city', { params: { city } }),

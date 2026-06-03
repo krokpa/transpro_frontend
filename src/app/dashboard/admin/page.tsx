@@ -7,7 +7,7 @@ import { useRouter } from 'next/navigation';
 import { formatCFA } from '@transpro/shared';
 import {
   Building2, Users, Ticket, Bus, TrendingUp, CreditCard,
-  CheckCircle2, Clock, XCircle, AlertCircle, ArrowRight,
+  CheckCircle2, Clock, XCircle, AlertCircle, ArrowRight, MessageSquare,
 } from 'lucide-react';
 import Link from 'next/link';
 import dayjs from 'dayjs';
@@ -124,6 +124,7 @@ export default function SuperAdminHomePage() {
           { label: 'Gérer les compagnies', href: '/dashboard/admin/tenants', icon: Building2 },
           { label: 'Gérer les utilisateurs', href: '/dashboard/admin/users',   icon: Users },
           { label: 'Facturation',           href: '/dashboard/admin/billing',  icon: CreditCard },
+          { label: 'SMS & Providers',       href: '/dashboard/admin/sms',      icon: MessageSquare },
           { label: 'Villes',                href: '/dashboard/cities',         icon: Building2 },
         ].map((a) => (
           <Link

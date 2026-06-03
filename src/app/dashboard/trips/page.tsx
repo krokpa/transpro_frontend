@@ -5,7 +5,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { tripsApi, routesApi, vehiclesApi, driversApi, stationsApi } from '@/lib/api';
 import { TripStatus } from '@transpro/shared';
 import { formatCFA } from '@transpro/shared';
-import { Plus, Bus, ChevronRight, Users, ToggleLeft, ToggleRight } from 'lucide-react';
+import { Plus, Bus, ChevronRight, Users, ToggleLeft, ToggleRight, Loader2 } from 'lucide-react';
 import dayjs from 'dayjs';
 import 'dayjs/locale/fr';
 import { SeatMap } from '@/components/trips/SeatMap';
@@ -273,9 +273,13 @@ export default function TripsPage() {
                           key={next}
                           onClick={() => updateStatus.mutate({ id: trip.id, status: next })}
                           disabled={updateStatus.isPending}
-                          className={`text-xs px-3 py-1 rounded-lg font-medium transition disabled:opacity-50 ${statusConfig[next].className}`}
+                          className={`text-xs px-3 py-1 rounded-lg font-medium transition disabled:opacity-50 flex items-center gap-1 ${statusConfig[next].className}`}
                         >
-                          → {statusConfig[next].label}
+                          {updateStatus.isPending && updateStatus.variables?.status === next
+                            ? <Loader2 size={11} className="animate-spin" />
+                            : '→'
+                          }
+                          {statusConfig[next].label}
                         </button>
                       ))}
                     </div>
@@ -336,8 +340,9 @@ export default function TripsPage() {
             <button
               onClick={handleSubmit}
               disabled={createTrip.isPending}
-              className="px-4 py-2 text-sm bg-brand-500 hover:bg-brand-600 text-white rounded-lg font-medium transition disabled:opacity-50"
+              className="px-4 py-2 text-sm bg-brand-500 hover:bg-brand-600 text-white rounded-lg font-medium transition disabled:opacity-50 flex items-center gap-2"
             >
+              {createTrip.isPending && <Loader2 size={14} className="animate-spin" />}
               {createTrip.isPending ? 'Création...' : 'Créer le voyage'}
             </button>
           </>

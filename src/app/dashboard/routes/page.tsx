@@ -292,9 +292,12 @@ export default function RoutesPage() {
                           disabled={toggleMutation.isPending}
                           className="text-gray-500 hover:text-brand-500 transition disabled:opacity-50"
                         >
-                          {route.isActive
-                            ? <ToggleRight size={20} className="text-green-500" />
-                            : <ToggleLeft size={20} />}
+                          {toggleMutation.isPending && toggleMutation.variables?.id === route.id
+                            ? <Loader2 size={16} className="animate-spin text-gray-400" />
+                            : route.isActive
+                              ? <ToggleRight size={20} className="text-green-500" />
+                              : <ToggleLeft size={20} />
+                          }
                         </button>
                         <button
                           title="Supprimer"
@@ -302,7 +305,10 @@ export default function RoutesPage() {
                           disabled={deleteMutation.isPending}
                           className="text-gray-400 hover:text-red-500 transition disabled:opacity-50"
                         >
-                          <Trash2 size={16} />
+                          {deleteMutation.isPending && deleteMutation.variables === route.id
+                            ? <Loader2 size={14} className="animate-spin" />
+                            : <Trash2 size={16} />
+                          }
                         </button>
                       </div>
                     </td>

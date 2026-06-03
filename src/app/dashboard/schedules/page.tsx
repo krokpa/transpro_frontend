@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { schedulesApi, routesApi, vehiclesApi, driversApi, stationsApi } from '@/lib/api';
-import { Plus, Play, RefreshCw, Trash2, Pencil, CalendarClock, Zap, Star, Clock, MapPin } from 'lucide-react';
+import { Plus, Play, RefreshCw, Trash2, Pencil, CalendarClock, Zap, Star, Clock, MapPin, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 
 const DAYS = ['Dim', 'Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam'];
@@ -344,10 +344,14 @@ export default function SchedulesPage() {
                       onClick={() =>
                         toggleMutation.mutate({ id: s.id, isActive: !s.isActive })
                       }
+                      disabled={toggleMutation.isPending}
                       title={s.isActive ? 'Désactiver' : 'Activer'}
-                      className="p-2 text-gray-400 hover:bg-gray-50 rounded-lg transition text-xs font-medium"
+                      className="p-2 text-gray-400 hover:bg-gray-50 rounded-lg transition text-xs font-medium disabled:opacity-50"
                     >
-                      {s.isActive ? '⏸' : '▶'}
+                      {toggleMutation.isPending && toggleMutation.variables?.id === s.id
+                        ? <Loader2 size={14} className="animate-spin" />
+                        : s.isActive ? '⏸' : '▶'
+                      }
                     </button>
                     <button
                       onClick={() => openEdit(s)}
@@ -359,9 +363,13 @@ export default function SchedulesPage() {
                       onClick={() => {
                         if (confirm('Supprimer ce planning ?')) deleteMutation.mutate(s.id);
                       }}
-                      className="p-2 text-gray-400 hover:bg-red-50 hover:text-red-600 rounded-lg transition"
+                      disabled={deleteMutation.isPending}
+                      className="p-2 text-gray-400 hover:bg-red-50 hover:text-red-600 rounded-lg transition disabled:opacity-50"
                     >
-                      <Trash2 size={15} />
+                      {deleteMutation.isPending && deleteMutation.variables === s.id
+                        ? <Loader2 size={14} className="animate-spin" />
+                        : <Trash2 size={15} />
+                      }
                     </button>
                   </div>
                 </div>
@@ -620,8 +628,9 @@ export default function SchedulesPage() {
               <button
                 onClick={handleSubmit}
                 disabled={createMutation.isPending || updateMutation.isPending}
-                className="px-5 py-2 text-sm bg-brand-500 hover:bg-brand-600 text-white rounded-lg font-medium transition disabled:opacity-50"
+                className="px-5 py-2 text-sm bg-brand-500 hover:bg-brand-600 text-white rounded-lg font-medium transition disabled:opacity-50 flex items-center gap-2"
               >
+                {(createMutation.isPending || updateMutation.isPending) && <Loader2 size={14} className="animate-spin" />}
                 {createMutation.isPending || updateMutation.isPending
                   ? 'Enregistrement...'
                   : editId ? 'Enregistrer' : 'Créer le planning'}

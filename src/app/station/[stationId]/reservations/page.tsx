@@ -168,8 +168,10 @@ export default function StationReservationsPage() {
 
       <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
         {isLoading ? (
-          <div className="flex items-center justify-center h-32 text-gray-400 text-sm">
-            Chargement...
+          <div className="p-4 space-y-2">
+            {Array.from({ length: 6 }).map((_, i) => (
+              <div key={i} className="h-12 bg-gray-100 rounded-lg animate-pulse" />
+            ))}
           </div>
         ) : bookings.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-32 gap-2 text-gray-400">

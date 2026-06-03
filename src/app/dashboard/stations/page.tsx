@@ -3,7 +3,7 @@
 import { useState, lazy, Suspense } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
-import { Building2, Plus, Pencil, Trash2, Users, MapPin, Phone } from 'lucide-react';
+import { Building2, Plus, Pencil, Trash2, Users, MapPin, Phone, Loader2 } from 'lucide-react';
 import { stationsApi, citiesApi } from '@/lib/api';
 import { SearchableSelect, SelectOption } from '@/components/ui/SearchableSelect';
 import Link from 'next/link';
@@ -116,7 +116,11 @@ export default function StationsPage() {
       </div>
 
       {isLoading ? (
-        <div className="flex items-center justify-center h-40 text-gray-400">Chargement...</div>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {Array.from({ length: 6 }).map((_, i) => (
+            <div key={i} className="h-40 bg-gray-100 rounded-xl animate-pulse" />
+          ))}
+        </div>
       ) : stations.length === 0 ? (
         <div className="flex flex-col items-center justify-center h-40 text-gray-400 gap-2">
           <Building2 size={40} className="text-gray-200" />
@@ -182,7 +186,8 @@ export default function StationsPage() {
                   </button>
                   <button
                     onClick={() => { if (confirm(`Supprimer "${s.name}" ?`)) deleteMut.mutate(s.id); }}
-                    className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded transition"
+                    disabled={deleteMut.isPending}
+                    className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded transition disabled:opacity-50"
                   >
                     <Trash2 size={13} />
                   </button>
@@ -264,7 +269,8 @@ export default function StationsPage() {
                   Annuler
                 </button>
                 <button type="submit" disabled={pending}
-                  className="flex-1 bg-brand-500 hover:bg-brand-600 text-white rounded-lg py-2.5 text-sm font-semibold transition disabled:opacity-70">
+                  className="flex-1 bg-brand-500 hover:bg-brand-600 text-white rounded-lg py-2.5 text-sm font-semibold transition disabled:opacity-70 flex items-center justify-center gap-2">
+                  {pending && <Loader2 size={14} className="animate-spin" />}
                   {pending ? 'Enregistrement...' : modal === 'create' ? 'Créer' : 'Mettre à jour'}
                 </button>
               </div>

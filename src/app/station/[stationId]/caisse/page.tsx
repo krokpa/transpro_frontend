@@ -5,7 +5,7 @@ import { useParams } from 'next/navigation';
 import { useQuery } from '@tanstack/react-query';
 import { stationsApi } from '@/lib/api';
 import { formatCFA } from '@transpro/shared';
-import { Banknote, Ticket, ChevronDown } from 'lucide-react';
+import { Ticket } from 'lucide-react';
 import dayjs from 'dayjs';
 import 'dayjs/locale/fr';
 dayjs.locale('fr');
@@ -75,7 +75,11 @@ export default function StationCaissePage() {
           <span className="text-xs bg-gray-100 text-gray-600 rounded-full px-2 py-0.5">{bookings.length}</span>
         </div>
         {isLoading ? (
-          <div className="flex items-center justify-center h-24 text-gray-400 text-sm">Chargement...</div>
+          <div className="p-4 space-y-2">
+            {Array.from({ length: 5 }).map((_, i) => (
+              <div key={i} className="h-10 bg-gray-100 rounded-lg animate-pulse" />
+            ))}
+          </div>
         ) : bookings.length === 0 ? (
           <div className="flex items-center justify-center h-24 text-gray-400 text-sm">Aucune vente ce jour</div>
         ) : (
