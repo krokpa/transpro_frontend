@@ -190,8 +190,9 @@ export default function ParcelsPage() {
     setSenderLooking(true);
     const t = setTimeout(async () => {
       try {
-        const res = await usersApi.lookupByPhone(phone) as any;
-        setSenderMatch(res ?? null);
+        const raw = await usersApi.lookupByPhone(phone) as any;
+        const res = raw?.id ? raw : null;
+        setSenderMatch(res);
         if (res) {
           setForm((p) => ({
             ...p,
@@ -214,8 +215,9 @@ export default function ParcelsPage() {
     setRecipientLooking(true);
     const t = setTimeout(async () => {
       try {
-        const res = await usersApi.lookupByPhone(phone) as any;
-        setRecipientMatch(res ?? null);
+        const raw = await usersApi.lookupByPhone(phone) as any;
+        const res = raw?.id ? raw : null;
+        setRecipientMatch(res);
         if (res) {
           setForm((p) => ({
             ...p,

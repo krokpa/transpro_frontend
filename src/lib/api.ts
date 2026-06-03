@@ -32,7 +32,12 @@ api.interceptors.request.use((config) => {
 
 // Gestion expiration token — refresh automatique
 api.interceptors.response.use(
-  (res) => res.data.data ?? res.data,
+  (res) => {
+    // TransformInterceptor NestJS wraps responses as { success, data, timestamp }.
+    // Use 'data' key presence (not ??) so null data values are preserved correctly.
+    const d = res.data;
+    return d !== null && typeof d === 'object' && 'data' in d ? d.data : d;
+  },
   async (error: AxiosError) => {
     const original = error.config as any;
     if (error.response?.status === 401 && !original._retry) {
