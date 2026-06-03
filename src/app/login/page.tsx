@@ -133,6 +133,13 @@ export default function LoginPage() {
     }
     setSendingOtp(true);
     try {
+      // Vérifier que le numéro est inscrit avant d'envoyer l'OTP (économise les SMS)
+      const check = await otpApi.checkPhone(phone) as any;
+      if (!check?.exists) {
+        toast.error('Aucun compte avec ce numéro. Inscrivez-vous d\'abord.', { duration: 5000 });
+        setSendingOtp(false);
+        return;
+      }
       await otpApi.send(phone);
       setPhoneStep('otp');
       setOtpCode('');

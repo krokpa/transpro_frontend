@@ -77,8 +77,9 @@ export const authApi = {
 };
 
 export const otpApi = {
-  send:   (phone: string)                => api.post('/otp/send',   { phone }),
-  verify: (phone: string, code: string)  => api.post('/otp/verify', { phone, code }),
+  send:        (phone: string)                => api.post('/otp/send',          { phone }),
+  verify:      (phone: string, code: string)  => api.post('/otp/verify',        { phone, code }),
+  checkPhone:  (phone: string)                => api.post('/auth/check-phone',  { phone }),
 };
 
 export const twoFactorApi = {
