@@ -50,17 +50,18 @@ function OverviewTab() {
   });
 
   // Préparer la timeline pour recharts (pivot par jour)
-  const timelineMap = new Map<string, Record<string, number>>();
-  for (const r of (data?.timeline ?? [])) {
+  const d = data as any;
+  const timelineMap = new Map<string, Record<string, number | string>>();
+  for (const r of (d?.timeline ?? [])) {
     const day = dayjs(r.day).format('DD/MM');
     if (!timelineMap.has(day)) timelineMap.set(day, { day });
     timelineMap.get(day)![r.provider] = r.count;
   }
   const chartData = Array.from(timelineMap.values());
 
-  const total = data?.total ?? 0;
-  const sent  = data?.byStatus?.find((s: any) => s.status === 'sent')?.count  ?? 0;
-  const failed = data?.byStatus?.find((s: any) => s.status === 'failed')?.count ?? 0;
+  const total = d?.total ?? 0;
+  const sent  = d?.byStatus?.find((s: any) => s.status === 'sent')?.count  ?? 0;
+  const failed = d?.byStatus?.find((s: any) => s.status === 'failed')?.count ?? 0;
   const successRate = total > 0 ? Math.round((sent / total) * 100) : 100;
 
   const kpis = [
@@ -140,7 +141,7 @@ function OverviewTab() {
             <div className="space-y-3">{Array.from({ length: 4 }).map((_, i) => <div key={i} className="h-8 bg-gray-100 rounded animate-pulse" />)}</div>
           ) : (
             <div className="space-y-3">
-              {(data?.byProvider ?? []).sort((a: any, b: any) => b.count - a.count).map((r: any) => {
+              {(d?.byProvider ?? []).sort((a: any, b: any) => b.count - a.count).map((r: any) => {
                 const pct = total > 0 ? Math.round((r.count / total) * 100) : 0;
                 return (
                   <div key={r.provider}>
@@ -160,18 +161,18 @@ function OverviewTab() {
       </div>
 
       {/* Top compagnies */}
-      {!isLoading && (data?.topTenants?.length ?? 0) > 0 && (
+      {!isLoading && (d?.topTenants?.length ?? 0) > 0 && (
         <div className="bg-white border border-gray-100 rounded-xl p-5">
           <h3 className="text-sm font-semibold text-gray-700 mb-4">Top compagnies envoyeuses</h3>
           <ResponsiveContainer width="100%" height={180}>
-            <BarChart data={data.topTenants} layout="vertical" margin={{ left: 10, right: 20, top: 0, bottom: 0 }}>
+            <BarChart data={d.topTenants} layout="vertical" margin={{ left: 10, right: 20, top: 0, bottom: 0 }}>
               <CartesianGrid strokeDasharray="3 3" stroke="#f3f4f6" horizontal={false} />
               <XAxis type="number" tick={{ fontSize: 11 }} tickLine={false} axisLine={false} />
               <YAxis type="category" dataKey="name" tick={{ fontSize: 11 }} tickLine={false} axisLine={false} width={120}
                 tickFormatter={(v: string) => v?.length > 16 ? `${v.slice(0, 16)}…` : v} />
               <Tooltip formatter={(v: any) => [v, 'SMS']} />
               <Bar dataKey="count" radius={[0, 6, 6, 0]} maxBarSize={20}>
-                {data.topTenants.map((_: any, i: number) => <Cell key={i} fill={PROVIDER_COLORS.ORANGE} />)}
+                {d.topTenants.map((_: any, i: number) => <Cell key={i} fill={PROVIDER_COLORS.ORANGE} />)}
               </Bar>
             </BarChart>
           </ResponsiveContainer>
@@ -193,13 +194,14 @@ function LogsTab() {
   const [dateFrom, setDateFrom]   = useState('');
   const [dateTo, setDateTo]       = useState('');
 
-  const { data, isLoading } = useQuery({
+  const { data: logsData, isLoading } = useQuery({
     queryKey: ['admin-sms-logs', page, tenantId, provider, status, search, dateFrom, dateTo],
     queryFn:  () => adminSmsApi.logs({ page, limit: 25, tenantId: tenantId || undefined,
       provider: provider || undefined, status: status || undefined,
       search: search || undefined, dateFrom: dateFrom || undefined, dateTo: dateTo || undefined }) as any,
     keepPreviousData: true,
   } as any);
+  const data = logsData as any;
 
   function applySearch() { setSearch(searchInput); setPage(1); }
   function resetFilters() {

@@ -13,6 +13,7 @@ import { useQuery } from '@tanstack/react-query';
 import { authApi, tenantsApi, citiesApi } from '@/lib/api';
 import { useAuthStore } from '@/store/auth.store';
 import { SearchableSelect, SelectOption } from '@/components/ui/SearchableSelect';
+import { PhoneInput } from '@/components/ui/PhoneInput';
 import { BrandPanel } from '@/components/auth/BrandPanel';
 import { OtpStep } from '@/components/auth/OtpStep';
 
@@ -349,13 +350,11 @@ export default function RegisterPage() {
                     {!otpStarted ? (
                       <>
                         <Field label="Numéro de téléphone *" error={phoneError}>
-                          <input
+                          <PhoneInput
                             value={phone}
-                            onChange={(e) => { setPhone(e.target.value); setPhoneError(''); }}
-                            placeholder="+2250712345678"
-                            className={`${inputBase} ${phoneError ? inputErr : ''}`}
+                            onChange={(v) => { setPhone(v); setPhoneError(''); }}
+                            className={phoneError ? 'border-red-400' : ''}
                           />
-                          <p className="text-xs text-slate-400 mt-1">Format international requis : +225XXXXXXXXXX</p>
                         </Field>
                         <div className="flex gap-3">
                           <button type="button" onClick={() => go(1)}
@@ -420,8 +419,11 @@ export default function RegisterPage() {
 
                     <div className="grid grid-cols-2 gap-3">
                       <Field label="Téléphone compagnie *" error={e3.phone}>
-                        <input value={s3.phone} onChange={(e) => setS3((p) => ({ ...p, phone: e.target.value }))}
-                          placeholder="+225 07 00 00 00" className={`${inputBase} ${e3.phone ? inputErr : ''}`} />
+                        <PhoneInput
+                          value={s3.phone}
+                          onChange={(v) => setS3((p) => ({ ...p, phone: v }))}
+                          className={e3.phone ? 'border-red-400' : ''}
+                        />
                       </Field>
                       <Field label="Email compagnie *" error={e3.email}>
                         <input type="email" value={s3.email} onChange={(e) => setS3((p) => ({ ...p, email: e.target.value }))}

@@ -5,6 +5,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { Users, UserPlus, Trash2, ShieldCheck, User, Eye, EyeOff, Loader2 } from 'lucide-react';
 import { teamApi } from '@/lib/api';
+import { PhoneInput } from '@/components/ui/PhoneInput';
 import { useAuthStore } from '@/store/auth.store';
 import dayjs from 'dayjs';
 import 'dayjs/locale/fr';
@@ -299,11 +300,9 @@ export default function TeamPage() {
 
               <div>
                 <label className="block text-xs font-medium text-gray-700 mb-1">Téléphone <span className="text-gray-400">(optionnel)</span></label>
-                <input
+                <PhoneInput
                   value={form.phone}
-                  onChange={(e) => setForm((p) => ({ ...p, phone: e.target.value }))}
-                  placeholder="+2250700000000"
-                  className={inputCls}
+                  onChange={(v) => setForm((p) => ({ ...p, phone: v }))}
                 />
               </div>
 

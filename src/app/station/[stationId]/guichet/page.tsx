@@ -10,6 +10,7 @@ import {
   Search, Ticket, Loader2, CheckCircle, Plus, X,
   Printer, ChevronDown, Wifi, WifiOff,
 } from 'lucide-react';
+import { PhoneInput } from '@/components/ui/PhoneInput';
 import { toast } from 'sonner';
 import dayjs from 'dayjs';
 import 'dayjs/locale/fr';
@@ -681,9 +682,10 @@ export default function StationGuichetPage() {
         </div>
         <div>
           <label className="block text-xs font-medium text-gray-700 mb-1">Téléphone</label>
-          <input value={passenger.phone}
-            onChange={(e) => setPassenger((p) => ({ ...p, phone: e.target.value }))}
-            placeholder="+2250700000000" className={inputCls} />
+          <PhoneInput
+            value={passenger.phone}
+            onChange={(v) => setPassenger((p) => ({ ...p, phone: v }))}
+          />
         </div>
         <div>
           <label className="block text-xs font-medium text-gray-700 mb-1">Mode de paiement</label>

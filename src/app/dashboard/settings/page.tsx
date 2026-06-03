@@ -13,6 +13,7 @@ import dayjs from 'dayjs';
 
 const MapPicker = lazy(() => import('@/components/ui/MapPicker'));
 import { SearchableSelect, SelectOption } from '@/components/ui/SearchableSelect';
+import { PhoneInput } from '@/components/ui/PhoneInput';
 
 type Tab = 'company' | 'profile' | 'subscription' | 'permissions' | 'security';
 
@@ -442,11 +443,9 @@ export default function SettingsPage() {
                     <label className="block text-sm font-medium text-gray-700 mb-1">
                       Téléphone
                     </label>
-                    <input
-                      type="tel"
+                    <PhoneInput
                       value={companyForm.phone}
-                      onChange={(e) => setCompanyForm((p) => ({ ...p, phone: e.target.value }))}
-                      className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
+                      onChange={(v) => setCompanyForm((p) => ({ ...p, phone: v }))}
                     />
                   </div>
                   <div className="col-span-2">

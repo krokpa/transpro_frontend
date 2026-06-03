@@ -9,6 +9,7 @@ import { Loader2, ArrowRight, ArrowLeft, Check, Eye, EyeOff, UserRound, Phone, C
 import { authApi } from '@/lib/api';
 import { useAuthStore } from '@/store/auth.store';
 import { OtpStep } from '@/components/auth/OtpStep';
+import { PhoneInput } from '@/components/ui/PhoneInput';
 
 const inputBase =
   'w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm ' +
@@ -233,9 +234,11 @@ export default function PassengerRegisterPage() {
                   {!otpStarted ? (
                     <>
                       <Field label="Numéro de téléphone *" error={phoneError}>
-                        <input value={phone} onChange={(e) => { setPhone(e.target.value); setPhoneError(''); }}
-                          placeholder="+2250712345678" className={`${inputBase} ${phoneError ? inputErr : ''}`} />
-                        <p className="text-xs text-slate-400 mt-1">Format international : +225XXXXXXXXXX</p>
+                        <PhoneInput
+                          value={phone}
+                          onChange={(v) => { setPhone(v); setPhoneError(''); }}
+                          className={phoneError ? 'border-red-400' : ''}
+                        />
                       </Field>
                       <div className="flex gap-3">
                         <button type="button" onClick={() => go(1)}

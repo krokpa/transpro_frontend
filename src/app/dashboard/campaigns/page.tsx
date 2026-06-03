@@ -13,6 +13,7 @@ import clsx from 'clsx';
 // ── Types ─────────────────────────────────────────────────────────────────────
 
 interface CampaignConfig {
+  [key: string]: unknown;
   morningReminderEnabled: boolean;
   morningReminderHour: number;
   morningReminderMinute: number;
