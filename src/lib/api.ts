@@ -297,7 +297,7 @@ export const parcelsApi = {
   // Passenger-facing
   myParcels:          () => api.get('/parcels/my'),
   myReceivedParcels:  () => api.get('/parcels/my/received'),
-  myParcel:           (id: string) => api.get(`/parcels/${id}`),
+  myParcel:           (id: string) => api.get(`/parcels/my/${id}`),
   myDeliveryRequest: (parcelId: string) =>
     api.get(`/parcels/${parcelId}/delivery-request`),
   createMyDeliveryRequest: (parcelId: string, data: { address: string; recipientPhone?: string; notes?: string }) =>
