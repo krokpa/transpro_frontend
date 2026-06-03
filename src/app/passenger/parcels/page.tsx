@@ -28,24 +28,29 @@ const STATUS_CFG: Record<string, { label: string; cls: string; dot: string }> = 
 const ACTIVE_STATUSES  = ['PENDING', 'COLLECTED', 'IN_TRANSIT', 'ARRIVED', 'DELIVERING'];
 const DONE_STATUSES    = ['DELIVERED', 'RETURNED'];
 
-type Tab = 'active' | 'done' | 'track';
+type Tab = 'sent' | 'received' | 'track';
 
 // ── Page ─────────────────────────────────────────────────────────────────────
 
 export default function PassengerParcelsPage() {
-  const router     = useRouter();
-  const [tab, setTab]           = useState<Tab>('active');
+  const router = useRouter();
+  const [tab,       setTab]       = useState<Tab>('sent');
   const [trackCode, setTrackCode] = useState('');
   const [searched,  setSearched]  = useState('');
 
-  // ── Mes envois ──
-  const { data: raw, isLoading } = useQuery({
-    queryKey: ['my-parcels'],
+  // ── Envoyés ──
+  const { data: sentRaw, isLoading: sentLoading } = useQuery({
+    queryKey: ['my-parcels-sent'],
     queryFn:  () => parcelsApi.myParcels() as any,
   });
-  const all: any[] = Array.isArray(raw) ? raw : [];
-  const active = all.filter((p) => ACTIVE_STATUSES.includes(p.status));
-  const done   = all.filter((p) => DONE_STATUSES.includes(p.status));
+  const sent: any[] = Array.isArray(sentRaw) ? sentRaw : [];
+
+  // ── Reçus ──
+  const { data: recvRaw, isLoading: recvLoading } = useQuery({
+    queryKey: ['my-parcels-received'],
+    queryFn:  () => parcelsApi.myReceivedParcels() as any,
+  });
+  const received: any[] = Array.isArray(recvRaw) ? recvRaw : [];
 
   // ── Tracking public ──
   const { data: tracked, isLoading: tracking, error: trackErr } = useQuery({
@@ -55,13 +60,17 @@ export default function PassengerParcelsPage() {
     retry:    false,
   });
 
-  const TABS: { key: Tab; label: string; count?: number }[] = [
-    { key: 'active', label: 'En cours',  count: active.length },
-    { key: 'done',   label: 'Terminés',  count: done.length },
-    { key: 'track',  label: 'Suivre un colis' },
+  const TABS: { key: Tab; label: string; count: number }[] = [
+    { key: 'sent',     label: 'Envoyés',          count: sent.length },
+    { key: 'received', label: 'Reçus',             count: received.length },
+    { key: 'track',    label: 'Suivre un colis',   count: 0 },
   ];
 
-  const displayed = tab === 'active' ? active : done;
+  const displayed   = tab === 'sent' ? sent : received;
+  const listLoading = tab === 'sent' ? sentLoading : recvLoading;
+  const emptyLabel  = tab === 'sent'
+    ? { title: 'Aucun colis envoyé', sub: 'Les colis dont vous êtes l\'expéditeur apparaîtront ici' }
+    : { title: 'Aucun colis reçu',   sub: 'Les colis dont vous êtes le destinataire apparaîtront ici' };
 
   return (
     <div className="space-y-6 max-w-3xl">
@@ -69,7 +78,9 @@ export default function PassengerParcelsPage() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-xl font-bold text-gray-900">Mes colis</h1>
-          <p className="text-sm text-gray-500 mt-0.5">{all.length} colis envoyé{all.length !== 1 ? 's' : ''}</p>
+          <p className="text-sm text-gray-500 mt-0.5">
+            {sent.length} envoyé{sent.length !== 1 ? 's' : ''} · {received.length} reçu{received.length !== 1 ? 's' : ''}
+          </p>
         </div>
       </div>
 
@@ -84,7 +95,7 @@ export default function PassengerParcelsPage() {
             }`}
           >
             {t.label}
-            {t.count !== undefined && t.count > 0 && (
+            {t.count > 0 && (
               <span className={`ml-1.5 text-xs px-1.5 py-0.5 rounded-full font-semibold ${
                 tab === t.key ? 'bg-brand-100 text-brand-600' : 'bg-gray-200 text-gray-500'
               }`}>
@@ -95,9 +106,9 @@ export default function PassengerParcelsPage() {
         ))}
       </div>
 
-      {/* ── Liste envois ── */}
+      {/* ── Liste envois / reçus ── */}
       {tab !== 'track' && (
-        isLoading ? (
+        listLoading ? (
           <div className="space-y-3">
             {Array.from({ length: 3 }).map((_, i) => (
               <div key={i} className="h-24 bg-gray-100 rounded-xl animate-pulse" />
@@ -106,19 +117,18 @@ export default function PassengerParcelsPage() {
         ) : displayed.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-16 gap-3 text-center">
             <Package size={40} className="text-gray-200" />
-            <p className="font-semibold text-gray-500">
-              {tab === 'active' ? 'Aucun colis en cours' : 'Aucun colis terminé'}
-            </p>
-            <p className="text-sm text-gray-400">
-              {tab === 'active'
-                ? 'Vos colis envoyés apparaîtront ici'
-                : 'Les colis livrés ou retournés apparaîtront ici'}
-            </p>
+            <p className="font-semibold text-gray-500">{emptyLabel.title}</p>
+            <p className="text-sm text-gray-400">{emptyLabel.sub}</p>
           </div>
         ) : (
           <div className="space-y-3">
             {displayed.map((p: any) => (
-              <ParcelCard key={p.id} parcel={p} onClick={() => router.push(`/passenger/parcels/${p.id}`)} />
+              <ParcelCard
+                key={p.id}
+                parcel={p}
+                role={tab as 'sent' | 'received'}
+                onClick={() => router.push(`/passenger/parcels/${p.id}`)}
+              />
             ))}
           </div>
         )
@@ -177,7 +187,7 @@ export default function PassengerParcelsPage() {
 
 // ── Parcel card (my parcels) ──────────────────────────────────────────────────
 
-function ParcelCard({ parcel, onClick }: { parcel: any; onClick: () => void }) {
+function ParcelCard({ parcel, role = 'sent', onClick }: { parcel: any; role?: 'sent' | 'received'; onClick: () => void }) {
   const cfg    = STATUS_CFG[parcel.status] ?? STATUS_CFG.PENDING;
   const origin = parcel.trip?.route?.originCity?.name ?? '?';
   const dest   = parcel.trip?.route?.destinationCity?.name ?? '?';
@@ -194,14 +204,27 @@ function ParcelCard({ parcel, onClick }: { parcel: any; onClick: () => void }) {
         </div>
         <div className="flex-1 min-w-0">
           <div className="flex items-center justify-between gap-2 mb-1">
-            <span className="font-mono text-xs font-semibold text-gray-500 truncate">
-              {parcel.trackingCode}
-            </span>
+            <div className="flex items-center gap-1.5 min-w-0">
+              <span className="font-mono text-xs font-semibold text-gray-500 truncate">
+                {parcel.trackingCode}
+              </span>
+              <span className={`text-[10px] px-1.5 py-0.5 rounded font-semibold shrink-0 ${
+                role === 'received' ? 'bg-purple-100 text-purple-700' : 'bg-gray-100 text-gray-500'
+              }`}>
+                {role === 'received' ? 'Reçu' : 'Envoyé'}
+              </span>
+            </div>
             <span className={`text-xs px-2 py-0.5 rounded-full font-semibold ${cfg.cls} shrink-0`}>
               {cfg.label}
             </span>
           </div>
           <p className="text-sm font-semibold text-gray-900 truncate">{parcel.description}</p>
+          {role === 'received' && parcel.senderName && (
+            <p className="text-xs text-gray-400 mt-0.5">De : {parcel.senderName}</p>
+          )}
+          {role === 'sent' && parcel.recipientName && (
+            <p className="text-xs text-gray-400 mt-0.5">Pour : {parcel.recipientName}</p>
+          )}
           <div className="flex items-center gap-1.5 mt-1 text-xs text-gray-500">
             <MapPin size={11} />
             <span className="truncate">{origin} → {parcel.deliveryCity || dest}</span>

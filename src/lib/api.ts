@@ -295,8 +295,9 @@ export const parcelsApi = {
     api.post(`/parcels/track/${code}/delivery-request`, data),
 
   // Passenger-facing
-  myParcels: () => api.get('/parcels/my'),
-  myParcel:  (id: string) => api.get(`/parcels/${id}`),
+  myParcels:          () => api.get('/parcels/my'),
+  myReceivedParcels:  () => api.get('/parcels/my/received'),
+  myParcel:           (id: string) => api.get(`/parcels/${id}`),
   myDeliveryRequest: (parcelId: string) =>
     api.get(`/parcels/${parcelId}/delivery-request`),
   createMyDeliveryRequest: (parcelId: string, data: { address: string; recipientPhone?: string; notes?: string }) =>
