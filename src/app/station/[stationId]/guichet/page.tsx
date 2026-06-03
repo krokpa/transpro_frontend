@@ -11,6 +11,7 @@ import {
   Printer, ChevronDown, Wifi, WifiOff,
 } from 'lucide-react';
 import { PhoneInput } from '@/components/ui/PhoneInput';
+import { SearchableSelect } from '@/components/ui/SearchableSelect';
 import { toast } from 'sonner';
 import dayjs from 'dayjs';
 import 'dayjs/locale/fr';
@@ -446,21 +447,15 @@ export default function StationGuichetPage() {
         <div className="w-full space-y-2">
           {QzBar}
           {(templates as any[]).length > 0 && (
-            <div className="relative">
-              <select
-                value={selectedTemplateId}
-                onChange={(e) => setSelectedTemplateId(e.target.value)}
-                className="w-full appearance-none border border-gray-200 rounded-lg pl-3 pr-8 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500 bg-white"
-              >
-                {(templates as any[]).map((t: any) => (
-                  <option key={t.id} value={t.id}>
-                    {t.name}{t.isDefault ? ' (par défaut)' : ''}
-                    {' — '}{t.paperSize?.replace('_', ' ')}
-                  </option>
-                ))}
-              </select>
-              <ChevronDown size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
-            </div>
+            <SearchableSelect
+              value={selectedTemplateId}
+              onChange={setSelectedTemplateId}
+              options={(templates as any[]).map((t: any) => ({
+                value: t.id,
+                label: t.name + (t.isDefault ? ' (par défaut)' : ''),
+                sub: t.paperSize?.replace('_', ' '),
+              }))}
+            />
           )}
         </div>
 
@@ -500,20 +495,15 @@ export default function StationGuichetPage() {
           </div>
           <div className="flex items-center gap-2 shrink-0">
             {(templates as any[]).length > 0 && (
-              <div className="relative">
-                <select
-                  value={selectedTemplateId}
-                  onChange={(e) => setSelectedTemplateId(e.target.value)}
-                  className="appearance-none bg-white border border-gray-200 rounded-lg pl-3 pr-7 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-brand-500 text-gray-700"
-                >
-                  {(templates as any[]).map((t: any) => (
-                    <option key={t.id} value={t.id}>
-                      {t.name}{t.isDefault ? ' ★' : ''}
-                    </option>
-                  ))}
-                </select>
-                <ChevronDown size={11} className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
-              </div>
+              <SearchableSelect
+                value={selectedTemplateId}
+                onChange={setSelectedTemplateId}
+                className="min-w-[160px]"
+                options={(templates as any[]).map((t: any) => ({
+                  value: t.id,
+                  label: t.name + (t.isDefault ? ' ★' : ''),
+                }))}
+              />
             )}
             {QzBar}
           </div>

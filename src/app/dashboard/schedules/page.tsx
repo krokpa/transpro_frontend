@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { schedulesApi, routesApi, vehiclesApi, driversApi, stationsApi } from '@/lib/api';
+import { SearchableSelect } from '@/components/ui/SearchableSelect';
 import { Plus, Play, RefreshCw, Trash2, Pencil, CalendarClock, Zap, Star, Clock, MapPin, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -398,18 +399,15 @@ export default function SchedulesPage() {
                   <label className="block text-sm font-medium text-gray-700 mb-1">
                     Itinéraire <span className="text-red-500">*</span>
                   </label>
-                  <select
+                  <SearchableSelect
                     value={form.routeId}
-                    onChange={(e) => setForm((p) => ({ ...p, routeId: e.target.value }))}
-                    className="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
-                  >
-                    <option value="">Sélectionner</option>
-                    {(routes as any[]).map((r: any) => (
-                      <option key={r.id} value={r.id}>
-                        {r.originCity?.name} → {r.destinationCity?.name}
-                      </option>
-                    ))}
-                  </select>
+                    onChange={(v) => setForm((p) => ({ ...p, routeId: v }))}
+                    placeholder="Sélectionner un itinéraire..."
+                    options={(routes as any[]).map((r: any) => ({
+                      value: r.id,
+                      label: `${r.originCity?.name ?? '?'} → ${r.destinationCity?.name ?? '?'}`,
+                    }))}
+                  />
                   {errors.routeId && <p className="text-red-500 text-xs mt-1">{errors.routeId}</p>}
                 </div>
                 <div>
@@ -529,35 +527,32 @@ export default function SchedulesPage() {
                     Véhicule par défaut
                     <span className="text-gray-400 font-normal ml-1">(requis pour la génération)</span>
                   </label>
-                  <select
+                  <SearchableSelect
                     value={form.vehicleId}
-                    onChange={(e) => setForm((p) => ({ ...p, vehicleId: e.target.value }))}
-                    className="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
-                  >
-                    <option value="">Aucun</option>
-                    {(vehicles as any[])
+                    onChange={(v) => setForm((p) => ({ ...p, vehicleId: v }))}
+                    placeholder="Aucun"
+                    clearable
+                    options={(vehicles as any[])
                       .filter((v: any) => v.status === 'ACTIVE')
-                      .map((v: any) => (
-                        <option key={v.id} value={v.id}>
-                          {v.brand} {v.model} — {v.plate}
-                        </option>
-                      ))}
-                  </select>
+                      .map((v: any) => ({
+                        value: v.id,
+                        label: `${v.brand} ${v.model}`,
+                        sub: v.plate,
+                      }))}
+                  />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Chauffeur par défaut</label>
-                  <select
+                  <SearchableSelect
                     value={form.driverId}
-                    onChange={(e) => setForm((p) => ({ ...p, driverId: e.target.value }))}
-                    className="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
-                  >
-                    <option value="">Aucun</option>
-                    {(drivers as any[]).map((d: any) => (
-                      <option key={d.id} value={d.id}>
-                        {d.firstName} {d.lastName}
-                      </option>
-                    ))}
-                  </select>
+                    onChange={(v) => setForm((p) => ({ ...p, driverId: v }))}
+                    placeholder="Aucun"
+                    clearable
+                    options={(drivers as any[]).map((d: any) => ({
+                      value: d.id,
+                      label: `${d.firstName} ${d.lastName}`,
+                    }))}
+                  />
                 </div>
               </div>
 
@@ -568,36 +563,34 @@ export default function SchedulesPage() {
                     <MapPin size={13} className="text-brand-500" /> Gare de départ
                     <span className="text-gray-400 font-normal">(propagée aux voyages)</span>
                   </label>
-                  <select
+                  <SearchableSelect
                     value={form.departureStationId}
-                    onChange={(e) => setForm((p) => ({ ...p, departureStationId: e.target.value }))}
-                    className="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
-                  >
-                    <option value="">Aucune (gare non définie)</option>
-                    {(stations as any[]).map((s: any) => (
-                      <option key={s.id} value={s.id}>
-                        {s.name}{s.city?.name ? ` — ${s.city.name}` : ''}
-                      </option>
-                    ))}
-                  </select>
+                    onChange={(v) => setForm((p) => ({ ...p, departureStationId: v }))}
+                    placeholder="Aucune (gare non définie)"
+                    clearable
+                    options={(stations as any[]).map((s: any) => ({
+                      value: s.id,
+                      label: s.name,
+                      sub: s.city?.name,
+                    }))}
+                  />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1 flex items-center gap-1">
                     <MapPin size={13} className="text-gray-400" /> Gare d&apos;arrivée
                     <span className="text-gray-400 font-normal">(propagée aux voyages)</span>
                   </label>
-                  <select
+                  <SearchableSelect
                     value={form.arrivalStationId}
-                    onChange={(e) => setForm((p) => ({ ...p, arrivalStationId: e.target.value }))}
-                    className="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
-                  >
-                    <option value="">Aucune (gare non définie)</option>
-                    {(stations as any[]).map((s: any) => (
-                      <option key={s.id} value={s.id}>
-                        {s.name}{s.city?.name ? ` — ${s.city.name}` : ''}
-                      </option>
-                    ))}
-                  </select>
+                    onChange={(v) => setForm((p) => ({ ...p, arrivalStationId: v }))}
+                    placeholder="Aucune (gare non définie)"
+                    clearable
+                    options={(stations as any[]).map((s: any) => ({
+                      value: s.id,
+                      label: s.name,
+                      sub: s.city?.name,
+                    }))}
+                  />
                 </div>
               </div>
 

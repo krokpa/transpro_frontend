@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { bookingsApi, ticketTemplatesApi, tripsApi } from '@/lib/api';
+import { SearchableSelect } from '@/components/ui/SearchableSelect';
 import { qzConnect, qzDisconnect, qzIsActive, qzGetPrinters, qzGetDefault, qzPrintHTML } from '@/lib/qz';
 import { formatCFA } from '@transpro/shared';
 import { Search, Printer, Plus, X, Loader2, CheckCircle, Ticket, Wifi, WifiOff, ChevronDown } from 'lucide-react';
@@ -450,19 +451,15 @@ export default function BilletteriePage() {
         <div className="flex items-center gap-3 px-4 py-2.5 rounded-xl border border-gray-200 bg-white text-sm">
           <Ticket size={15} className="text-brand-500 shrink-0" />
           <span className="text-gray-600 font-medium shrink-0">Modèle de ticket</span>
-          <div className="relative flex-1 max-w-xs">
-            <select
+          <div className="flex-1 max-w-xs">
+            <SearchableSelect
               value={selectedTemplateId}
-              onChange={(e) => setSelectedTemplateId(e.target.value)}
-              className="w-full appearance-none border border-gray-200 rounded-lg pl-3 pr-8 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500 bg-white text-gray-700"
-            >
-              {(templates as any[]).map((t: any) => (
-                <option key={t.id} value={t.id}>
-                  {t.name}{t.isDefault ? ' (par défaut)' : ''}
-                </option>
-              ))}
-            </select>
-            <ChevronDown size={13} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
+              onChange={setSelectedTemplateId}
+              options={(templates as any[]).map((t: any) => ({
+                value: t.id,
+                label: t.name + (t.isDefault ? ' (par défaut)' : ''),
+              }))}
+            />
           </div>
           {activeTemplate && (
             <span className="text-xs text-gray-400 shrink-0">
@@ -522,18 +519,17 @@ export default function BilletteriePage() {
             <h2 className="font-semibold text-gray-800">1. Choisir le voyage</h2>
 
             <div>
-              <select
+              <SearchableSelect
                 value={selectedTripId}
-                onChange={(e) => { setSelectedTripId(e.target.value); setSelectedSeats([]); }}
-                className={inputCls(formErrors.trip)}
-              >
-                <option value="">— Sélectionner un voyage du jour —</option>
-                {availableTrips.map((t: any) => (
-                  <option key={t.id} value={t.id}>
-                    {t.route?.originCity?.name} → {t.route?.destinationCity?.name} — {dayjs(t.departureAt).format('HH:mm')} — {formatCFA(t.price)} — {t.availableSeats} places
-                  </option>
-                ))}
-              </select>
+                onChange={(v) => { setSelectedTripId(v); setSelectedSeats([]); }}
+                placeholder="— Sélectionner un voyage du jour —"
+                className={formErrors.trip ? 'border border-red-400 rounded-lg' : ''}
+                options={availableTrips.map((t: any) => ({
+                  value: t.id,
+                  label: `${t.route?.originCity?.name ?? '?'} → ${t.route?.destinationCity?.name ?? '?'} — ${dayjs(t.departureAt).format('HH:mm')}`,
+                  sub: `${formatCFA(t.price)} · ${t.availableSeats} places`,
+                }))}
+              />
               {formErrors.trip && <p className="text-red-500 text-xs mt-1">{formErrors.trip}</p>}
             </div>
           </div>

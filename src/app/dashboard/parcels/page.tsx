@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import { parcelsApi, tripsApi, tenantsApi, usersApi } from '@/lib/api';
 import { formatCFA } from '@transpro/shared';
 import { PlanGate } from '@/components/ui/PlanGate';
+import { SearchableSelect } from '@/components/ui/SearchableSelect';
 import {
   Plus, Package, X, Loader2, Search, ChevronRight,
   MapPin, Scale, Phone, User, AlertCircle, CheckCircle2,
@@ -425,20 +426,16 @@ export default function ParcelsPage() {
                     <label className="block text-sm font-medium text-gray-700 mb-1">
                       Voyage de départ <span className="text-red-500">*</span>
                     </label>
-                    <select
+                    <SearchableSelect
                       value={form.tripId}
-                      onChange={(e) => setForm((p) => ({ ...p, tripId: e.target.value, fee: '' }))}
-                      className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
-                      required
-                    >
-                      <option value="">Sélectionner un voyage...</option>
-                      {(upcomingTrips as any[]).map((t: any) => (
-                        <option key={t.id} value={t.id}>
-                          {t.route?.originCity?.name ?? '?'} → {t.route?.destinationCity?.name ?? '?'} —{' '}
-                          {dayjs(t.departureAt).format('D MMM HH[h]mm')}
-                        </option>
-                      ))}
-                    </select>
+                      onChange={(v) => setForm((p) => ({ ...p, tripId: v, fee: '' }))}
+                      placeholder="Sélectionner un voyage..."
+                      options={(upcomingTrips as any[]).map((t: any) => ({
+                        value: t.id,
+                        label: `${t.route?.originCity?.name ?? '?'} → ${t.route?.destinationCity?.name ?? '?'}`,
+                        sub: dayjs(t.departureAt).format('D MMM HH[h]mm'),
+                      }))}
+                    />
                   </div>
                 </section>
 

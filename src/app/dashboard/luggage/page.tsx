@@ -3,6 +3,7 @@
 import { useState, useRef } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { luggageApi, tripsApi } from '@/lib/api';
+import { SearchableSelect } from '@/components/ui/SearchableSelect';
 import { formatCFA } from '@transpro/shared';
 import {
   Luggage, Package, Loader2, Search, QrCode, Check,
@@ -116,18 +117,18 @@ export default function LuggagePage() {
 
       {/* Filters + scan */}
       <div className="flex flex-wrap gap-3 items-center">
-        <select
+        <SearchableSelect
           value={tripId}
-          onChange={(e) => setTripId(e.target.value)}
-          className="border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500 bg-white"
-        >
-          <option value="">Tous les voyages</option>
-          {(trips as any[]).map((t) => (
-            <option key={t.id} value={t.id}>
-              {t.route?.originCity?.name ?? '?'} → {t.route?.destinationCity?.name ?? '?'} — {dayjs(t.departureAt).format('HH[h]mm')}
-            </option>
-          ))}
-        </select>
+          onChange={setTripId}
+          placeholder="Tous les voyages"
+          clearable
+          className="min-w-[220px]"
+          options={(trips as any[]).map((t) => ({
+            value: t.id,
+            label: `${t.route?.originCity?.name ?? '?'} → ${t.route?.destinationCity?.name ?? '?'}`,
+            sub: dayjs(t.departureAt).format('HH[h]mm'),
+          }))}
+        />
 
         {/* QR scan input (press Enter or use barcode scanner) */}
         <div className="flex items-center gap-2 bg-white border border-brand-300 rounded-lg px-3 py-2 focus-within:ring-2 focus-within:ring-brand-500">
