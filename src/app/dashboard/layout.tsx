@@ -26,6 +26,11 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       return;
     }
 
+    if (user?.role === 'DRIVER') {
+      router.replace('/driver');
+      return;
+    }
+
     if (user?.role === 'COMPANY_AGENT') {
       router.replace('/station');
       return;

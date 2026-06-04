@@ -42,20 +42,17 @@ export default function VehicleDetailPage() {
     queryKey: ['vehicle-fuel', id],
     queryFn: () => vehiclesApi.getFuelLogs(id) as any,
     enabled: tab === 'fuel',
-    select: (d: any) => d?.data ?? [],
   });
 
   const { data: maintLogs = [], isLoading: loadingMaint } = useQuery({
     queryKey: ['vehicle-maint', id],
     queryFn: () => vehiclesApi.getMaintenanceLogs(id) as any,
     enabled: tab === 'maintenance',
-    select: (d: any) => d?.data ?? [],
   });
 
   const { data: drivers = [] } = useQuery({
     queryKey: ['drivers'],
     queryFn: () => driversApi.list() as any,
-    select: (d: any) => d?.data ?? [],
   });
 
   const addFuelMut = useMutation({
@@ -80,7 +77,7 @@ export default function VehicleDetailPage() {
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['vehicle-maint', id] }); toast.success('Supprimé'); },
   });
 
-  const v = (vehicle as any)?.data;
+  const v = vehicle as any;
 
   if (loadingVehicle) return (
     <div className="flex items-center justify-center h-64">

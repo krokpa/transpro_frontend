@@ -12,8 +12,8 @@ export const metadata: Metadata = {
   },
   description: 'Gestion des compagnies de transport en Côte d\'Ivoire',
   icons: {
-    icon: '/transpro-logo-transparent.png',
-    apple: '/transpro-logo-transparent.png',
+    icon: '/favicon.png',
+    apple: '/favicon.png',
   },
 };
 

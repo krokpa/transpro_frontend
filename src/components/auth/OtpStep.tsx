@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Loader2, Phone, RefreshCw, CheckCircle2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { OtpInput } from './OtpInput';
+import { otpApi } from '@/lib/api';
 
 interface Props {
   phone: string;
@@ -25,15 +26,7 @@ export function OtpStep({ phone, onVerified }: Props) {
     setSending(true);
     setOtpError(undefined);
     try {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/v1/otp/send`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ phone }),
-      });
-      if (!res.ok) {
-        const data = await res.json();
-        throw new Error(data?.message ?? 'Erreur envoi OTP');
-      }
+      await otpApi.send(phone);
       setSent(true);
       setCountdown(RESEND_COOLDOWN);
       toast.success(`Code envoyé au ${phone}`);
@@ -61,15 +54,9 @@ export function OtpStep({ phone, onVerified }: Props) {
       setVerifying(true);
       setOtpError(undefined);
       try {
-        const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/v1/otp/verify`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ phone, code }),
-        });
-        const data = await res.json();
-        if (!res.ok) throw new Error(data?.message ?? 'Code incorrect');
+        const result = await otpApi.verify(phone, code) as any;
         setVerified(true);
-        onVerified(data.phoneVerificationToken);
+        onVerified(result.phoneVerificationToken);
       } catch (err: any) {
         setOtpError(err.message);
       } finally {

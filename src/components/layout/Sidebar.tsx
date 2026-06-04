@@ -106,8 +106,8 @@ export function Sidebar() {
   return (
     <aside className="w-64 bg-[#0c1425] flex flex-col h-full shrink-0 border-r border-white/[0.04]">
       {/* ── Logo area ── */}
-      <div className="px-5 py-5 border-b border-white/[0.06]">
-        <div className="flex items-center gap-3 min-w-0">
+      <Link href="/dashboard" className="px-5 py-5 border-b border-white/[0.06] flex hover:bg-white/[0.03] transition-colors duration-150">
+        <div className="flex items-center gap-3 min-w-0 w-full">
           {tenant?.logo ? (
             <img
               src={tenant.logo}
@@ -133,7 +133,7 @@ export function Sidebar() {
             </p>
           </div>
         </div>
-      </div>
+      </Link>
 
       {/* ── Nav ── */}
       <nav className="flex-1 px-3 py-5 overflow-y-auto space-y-5 scrollbar-dark">

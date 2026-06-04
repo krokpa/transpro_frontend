@@ -8,11 +8,12 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { toast } from 'sonner';
 import Image from 'next/image';
-import { Loader2, Eye, EyeOff, ArrowRight, ShieldCheck, ArrowLeft, Phone, Mail } from 'lucide-react';
+import { Loader2, Eye, EyeOff, ArrowRight, ShieldCheck, ArrowLeft, Phone, Mail, Bus } from 'lucide-react';
 import { authApi, otpApi, twoFactorApi } from '@/lib/api';
 import { useAuthStore } from '@/store/auth.store';
 import { BrandPanel } from '@/components/auth/BrandPanel';
 import { PhoneInput } from '@/components/ui/PhoneInput';
+import { SocialButtons } from '@/components/auth/SocialButtons';
 
 // ── Schemas ───────────────────────────────────────────────────────────────────
 
@@ -84,6 +85,7 @@ export default function LoginPage() {
     if (role === 'SUPER_ADMIN')        router.push('/dashboard/admin');
     else if (role === 'PASSENGER')     router.push('/passenger');
     else if (!res.user?.tenantId)      router.push('/register');
+    else if (role === 'DRIVER')        router.push('/driver');
     else if (role === 'COMPANY_AGENT') router.push('/station');
     else                               router.push('/dashboard');
   }
@@ -234,6 +236,19 @@ export default function LoginPage() {
               <div className="mb-7">
                 <h1 className="text-[1.6rem] font-bold text-slate-900 leading-tight">Connexion</h1>
                 <p className="text-slate-500 text-sm mt-1.5">Accédez à votre espace de gestion</p>
+              </div>
+
+              {/* ── Hint chauffeur ── */}
+              <div className="mb-5 bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 flex items-start gap-2.5">
+                <Bus size={14} className="text-amber-600 mt-0.5 flex-shrink-0" />
+                <p className="text-xs text-amber-800 leading-relaxed">
+                  <span className="font-semibold">Chauffeur ?</span> Utilisez l&apos;onglet{' '}
+                  <button type="button" onClick={() => setMode('phone')}
+                    className="font-semibold underline underline-offset-2 hover:text-amber-900">
+                    Téléphone
+                  </button>{' '}
+                  pour vous connecter avec votre numéro et un code SMS.
+                </p>
               </div>
 
               {/* ── Mode toggle ── */}
@@ -410,6 +425,18 @@ export default function LoginPage() {
                       </button>
                     </>
                   )}
+                </div>
+              )}
+
+              {/* ── Social login ── */}
+              {mode === 'email' && !twoFactor && (
+                <div className="mt-6">
+                  <div className="relative flex items-center gap-3 mb-4">
+                    <div className="flex-1 h-px bg-slate-100" />
+                    <span className="text-xs text-slate-400 font-medium shrink-0">ou continuer avec</span>
+                    <div className="flex-1 h-px bg-slate-100" />
+                  </div>
+                  <SocialButtons />
                 </div>
               )}
 

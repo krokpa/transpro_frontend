@@ -10,7 +10,7 @@ import {
   Building2, User, Phone, ClipboardList,
 } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
-import { authApi, tenantsApi, citiesApi } from '@/lib/api';
+import { authApi, tenantsApi, citiesApi, otpApi } from '@/lib/api';
 import { useAuthStore } from '@/store/auth.store';
 import { SearchableSelect, SelectOption } from '@/components/ui/SearchableSelect';
 import { PhoneInput } from '@/components/ui/PhoneInput';
@@ -118,15 +118,27 @@ export default function RegisterPage() {
 
   // ── Validations ──────────────────────────────────────────────────────────────
 
-  function validateStep1() {
+  async function validateStep1() {
     const e: Partial<Step1> = {};
-    if (!s1.firstName.trim())              e.firstName = 'Requis';
-    if (!s1.lastName.trim())               e.lastName = 'Requis';
-    if (!s1.email.includes('@'))           e.email = 'Email invalide';
-    if (s1.password.length < 8)            e.password = 'Minimum 8 caractères';
-    if (s1.password !== s1.confirmPassword) e.confirmPassword = 'Mots de passe différents';
+    if (!s1.firstName.trim())               e.firstName = 'Requis';
+    if (!s1.lastName.trim())                e.lastName = 'Requis';
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(s1.email)) {
+      e.email = 'Email invalide';
+    }
+    if (s1.password.length < 8)             e.password = 'Minimum 8 caractères';
+    if (s1.password !== s1.confirmPassword)  e.confirmPassword = 'Mots de passe différents';
     setE1(e);
-    return Object.keys(e).length === 0;
+    if (Object.keys(e).length > 0) return false;
+    try {
+      const res = await otpApi.checkEmail(s1.email) as any;
+      if (res?.exists) {
+        setE1((prev) => ({ ...prev, email: 'Cet email est déjà utilisé' }));
+        return false;
+      }
+    } catch {
+      // En cas d'erreur réseau on laisse passer, l'API register rejettera
+    }
+    return true;
   }
 
   function validatePhone() {
@@ -149,15 +161,23 @@ export default function RegisterPage() {
 
   // ── Navigation étapes ────────────────────────────────────────────────────────
 
-  function nextStep1() {
-    if (!validateStep1()) return;
+  async function nextStep1() {
+    if (!await validateStep1()) return;
     go(2);
   }
 
-  function nextStep2() {
+  async function nextStep2() {
     if (!otpStarted) {
-      // Première fois : valider le numéro et démarrer l'OTP
       if (!validatePhone()) return;
+      try {
+        const res = await otpApi.checkPhone(phone) as any;
+        if (res?.exists) {
+          setPhoneError('Ce numéro est déjà associé à un compte');
+          return;
+        }
+      } catch {
+        // En cas d'erreur réseau on laisse passer
+      }
       setOtpStarted(true);
       return;
     }
@@ -371,24 +391,11 @@ export default function RegisterPage() {
                       <>
                         <OtpStep
                           phone={phone}
-                          onVerified={(token) => setPhoneVerificationToken(token)}
+                          onVerified={(token) => {
+                            setPhoneVerificationToken(token);
+                            setTimeout(() => go(3), 1200);
+                          }}
                         />
-                        {phoneVerificationToken && (
-                          <motion.div
-                            initial={{ opacity: 0, y: 8 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            className="flex gap-3 pt-2"
-                          >
-                            <button type="button" onClick={() => { setOtpStarted(false); setPhoneVerificationToken(''); go(2); }}
-                              className="flex items-center gap-1.5 px-4 py-3 border border-slate-200 bg-slate-50 text-slate-700 rounded-xl text-sm font-medium hover:bg-slate-100 transition">
-                              <ArrowLeft size={15} /> Changer
-                            </button>
-                            <button type="button" onClick={() => go(3)}
-                              className="flex-1 bg-brand-500 hover:bg-brand-600 text-white font-semibold rounded-xl py-3 transition-all flex items-center justify-center gap-2 shadow-lg shadow-brand-500/20">
-                              Continuer <ArrowRight size={16} />
-                            </button>
-                          </motion.div>
-                        )}
                       </>
                     )}
                   </div>

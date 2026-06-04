@@ -74,12 +74,15 @@ export const authApi = {
   forgotPassword: (email: string) => api.post('/auth/forgot-password', { email }),
   resetPassword: (token: string, password: string) =>
     api.post('/auth/reset-password', { token, password }),
+  socialLogin: (provider: 'google' | 'facebook', idToken: string) =>
+    api.post('/auth/social', { provider, idToken }),
 };
 
 export const otpApi = {
   send:        (phone: string)                => api.post('/otp/send',          { phone }),
   verify:      (phone: string, code: string)  => api.post('/otp/verify',        { phone, code }),
   checkPhone:  (phone: string)                => api.post('/auth/check-phone',  { phone }),
+  checkEmail:  (email: string)               => api.post('/auth/check-email',  { email }),
 };
 
 export const twoFactorApi = {
@@ -94,7 +97,8 @@ export const tripsApi = {
   create: (data: any) => api.post('/trips', data),
   list: (params?: any) => api.get('/trips', { params }),
   get: (id: string) => api.get(`/trips/${id}`),
-  getSeats: (id: string) => api.get(`/trips/${id}/seats`),
+  getSeats:        (id: string) => api.get(`/trips/${id}/seats`),
+  getLastLocation: (id: string) => api.get(`/trips/${id}/location`),
   updateStatus: (id: string, data: any) => api.patch(`/trips/${id}/status`, data),
   toggleSeatBlock: (tripId: string, seatNumber: string) =>
     api.patch(`/trips/${tripId}/seats/${seatNumber}/toggle-block`),
@@ -167,9 +171,23 @@ export const driversApi = {
   addAbsence: (id: string, data: any) => api.post(`/drivers/${id}/absences`, data),
   updateAbsence: (id: string, absenceId: string, data: any) => api.patch(`/drivers/${id}/absences/${absenceId}`, data),
   deleteAbsence: (id: string, absenceId: string) => api.delete(`/drivers/${id}/absences/${absenceId}`),
+  getStats: (id: string) => api.get(`/drivers/${id}/stats`),
+  invite: (id: string) => api.post(`/drivers/${id}/invite`),
   getEvaluations: (id: string) => api.get(`/drivers/${id}/evaluations`),
   addEvaluation: (id: string, data: any) => api.post(`/drivers/${id}/evaluations`, data),
   deleteEvaluation: (id: string, evalId: string) => api.delete(`/drivers/${id}/evaluations/${evalId}`),
+};
+
+export const driverSpaceApi = {
+  me:               ()                          => api.get('/driver-space/me'),
+  setAvailability:  (isAvailable: boolean)      => api.patch('/driver-space/availability', { isAvailable }),
+  todayTrips:       ()                          => api.get('/driver-space/trips/today'),
+  upcomingTrips:    ()                          => api.get('/driver-space/trips/upcoming'),
+  schedule:         (month: string)             => api.get('/driver-space/schedule', { params: { month } }),
+  updateTripStatus: (tripId: string, status: string) => api.patch(`/driver-space/trips/${tripId}/status`, { status }),
+  evaluations:      ()                          => api.get('/driver-space/evaluations'),
+  absences:         ()                          => api.get('/driver-space/absences'),
+  addAbsence:       (data: any)                 => api.post('/driver-space/absences', data),
 };
 
 export const tenantsApi = {

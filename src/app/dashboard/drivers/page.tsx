@@ -7,6 +7,7 @@ import { driversApi } from '@/lib/api';
 import { UserCheck, UserX, Plus, X, Loader2, AlertTriangle, ExternalLink } from 'lucide-react';
 import { toast } from 'sonner';
 import dayjs from 'dayjs';
+import { PhoneInput } from '@/components/ui/PhoneInput';
 
 interface Driver {
   id: string;
@@ -310,12 +311,9 @@ export default function DriversPage() {
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   Téléphone <span className="text-red-500">*</span>
                 </label>
-                <input
-                  type="tel"
+                <PhoneInput
                   value={form.phone}
-                  onChange={(e) => handleField('phone', e.target.value)}
-                  placeholder="Ex: +2250700000000"
-                  className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
+                  onChange={(val) => handleField('phone', val)}
                   required
                 />
               </div>

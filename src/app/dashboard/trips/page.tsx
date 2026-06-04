@@ -87,21 +87,22 @@ export default function TripsPage() {
     enabled: showCreate,
   });
 
+  const { data: myStations = [] } = useQuery({
+    queryKey: ['my-stations'],
+    queryFn: () => stationsApi.list() as any,
+    enabled: showCreate,
+  });
+
   const selectedRoute = (routes as any[]).find((r: any) => r.id === form.routeId);
   const originCity: string = selectedRoute?.originCity?.name ?? '';
   const destinationCity: string = selectedRoute?.destinationCity?.name ?? '';
 
-  const { data: departureStations = [] } = useQuery({
-    queryKey: ['stations-by-city', originCity],
-    queryFn: () => stationsApi.byCity(originCity) as any,
-    enabled: showCreate && !!originCity,
-  });
-
-  const { data: arrivalStations = [] } = useQuery({
-    queryKey: ['stations-by-city', destinationCity],
-    queryFn: () => stationsApi.byCity(destinationCity) as any,
-    enabled: showCreate && !!destinationCity,
-  });
+  const departureStations = (myStations as any[]).filter(
+    (s: any) => s.city?.name?.toLowerCase() === originCity.toLowerCase(),
+  );
+  const arrivalStations = (myStations as any[]).filter(
+    (s: any) => s.city?.name?.toLowerCase() === destinationCity.toLowerCase(),
+  );
 
   const createTrip = useMutation({
     mutationFn: (data: any) => tripsApi.create(data) as any,
