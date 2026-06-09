@@ -1,12 +1,20 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import dynamic from 'next/dynamic';
 import { useRouter } from 'next/navigation';
 import { useAuthStore } from '@/store/auth.store';
 import { Sidebar } from '@/components/layout/Sidebar';
 import { Header } from '@/components/layout/Header';
 import { connectSocket, joinCompanyRoom } from '@/lib/socket';
 import { ErrorBoundary } from '@/components/ui/ErrorBoundary';
+import { ownerSteps } from '@/lib/walkthrough';
+
+// SSR désactivé car react-joyride accède à window/document
+const WalkthroughGuide = dynamic(
+  () => import('@/components/walkthrough/WalkthroughGuide').then((m) => m.WalkthroughGuide),
+  { ssr: false },
+);
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
@@ -59,6 +67,10 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           <ErrorBoundary>{children}</ErrorBoundary>
         </main>
       </div>
+      {/* Walkthrough première connexion — owner/admin uniquement */}
+      {(user?.role === 'COMPANY_OWNER' || user?.role === 'COMPANY_ADMIN') && (
+        <WalkthroughGuide role={user.role} steps={ownerSteps} />
+      )}
     </div>
   );
 }

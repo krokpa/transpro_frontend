@@ -5,6 +5,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { luggageApi, tripsApi } from '@/lib/api';
 import { SearchableSelect } from '@/components/ui/SearchableSelect';
 import { formatCFA } from '@transpro/shared';
+import { confirm } from '@/lib/confirm';
 import {
   Luggage, Package, Loader2, Search, QrCode, Check,
   AlertTriangle, ChevronDown, ChevronUp, User, Ticket, Scale, Camera,
@@ -231,8 +232,8 @@ export default function LuggagePage() {
                             </span>
                             {bag.status !== 'MISSING' && bag.status !== 'CLAIMED' && (
                               <button
-                                onClick={() => {
-                                  if (confirm(`Signaler "${bag.label || bag.qrCode}" comme manquant ?`)) {
+                                onClick={async () => {
+                                  if (await confirm({ title: `Signaler "${bag.label || bag.qrCode}" comme manquant ?`, description: 'Une alerte sera créée pour ce bagage.', variant: 'warning', confirmLabel: 'Signaler' })) {
                                     missingMut.mutate({ bagId: bag.id });
                                   }
                                 }}

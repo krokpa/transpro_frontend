@@ -9,6 +9,7 @@ import {
   Loader2, Pencil, MapPin, ChevronRight, GripVertical,
 } from 'lucide-react';
 import { toast } from 'sonner';
+import { confirm } from '@/lib/confirm';
 import { SearchableSelect, SelectOption } from '@/components/ui/SearchableSelect';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -301,7 +302,7 @@ export default function RoutesPage() {
                         </button>
                         <button
                           title="Supprimer"
-                          onClick={() => { if (confirm('Supprimer cet itinéraire ?')) deleteMutation.mutate(route.id); }}
+                          onClick={async () => { if (await confirm({ title: 'Supprimer cet itinéraire ?', description: 'Cette action est irréversible.', variant: 'danger' })) deleteMutation.mutate(route.id); }}
                           disabled={deleteMutation.isPending}
                           className="text-gray-400 hover:text-red-500 transition disabled:opacity-50"
                         >

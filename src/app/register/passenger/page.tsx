@@ -10,6 +10,7 @@ import { authApi } from '@/lib/api';
 import { useAuthStore } from '@/store/auth.store';
 import { OtpStep } from '@/components/auth/OtpStep';
 import { PhoneInput } from '@/components/ui/PhoneInput';
+import { SocialButtons } from '@/components/auth/SocialButtons';
 
 const inputBase =
   'w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm ' +
@@ -181,6 +182,15 @@ export default function PassengerRegisterPage() {
               {/* ── Étape 1 : Identité ──────────────────────────────── */}
               {step === 1 && (
                 <div className="space-y-4">
+
+                  {/* Social signup */}
+                  <SocialButtons />
+                  <div className="relative flex items-center gap-3">
+                    <div className="flex-1 h-px bg-slate-200" />
+                    <span className="text-xs text-slate-400 font-medium shrink-0">ou créer un compte</span>
+                    <div className="flex-1 h-px bg-slate-200" />
+                  </div>
+
                   <div className="grid grid-cols-2 gap-3">
                     <Field label="Prénom *" error={e1.firstName}>
                       <input value={s1.firstName} onChange={(e) => setS1((p) => ({ ...p, firstName: e.target.value }))}

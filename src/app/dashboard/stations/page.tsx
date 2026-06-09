@@ -3,6 +3,7 @@
 import { useState, lazy, Suspense } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
+import { confirm } from '@/lib/confirm';
 import { Building2, Plus, Pencil, Trash2, Users, MapPin, Phone, Loader2 } from 'lucide-react';
 import { stationsApi, citiesApi } from '@/lib/api';
 import { SearchableSelect, SelectOption } from '@/components/ui/SearchableSelect';
@@ -185,7 +186,7 @@ export default function StationsPage() {
                     <Pencil size={13} />
                   </button>
                   <button
-                    onClick={() => { if (confirm(`Supprimer "${s.name}" ?`)) deleteMut.mutate(s.id); }}
+                    onClick={async () => { if (await confirm({ title: `Supprimer "${s.name}" ?`, description: 'Cette action est irréversible.', variant: 'danger' })) deleteMut.mutate(s.id); }}
                     disabled={deleteMut.isPending}
                     className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded transition disabled:opacity-50"
                   >

@@ -21,9 +21,9 @@ const CLASS_CONFIG: Record<string, {
   label: string; icon: React.ReactNode; badgeCls: string;
   cardBorder: string; cardBg: string; accentCls: string; priceCls: string;
 }> = {
-  STANDARD: { label: 'Standard', icon: <Bus size={13} />, badgeCls: 'bg-gray-100 text-gray-600', cardBorder: 'border-gray-100', cardBg: '', accentCls: 'text-gray-500', priceCls: 'text-brand-600' },
-  VIP:      { label: 'VIP',      icon: <Crown size={13} />, badgeCls: 'bg-amber-100 text-amber-700', cardBorder: 'border-amber-200', cardBg: 'bg-amber-50/40', accentCls: 'text-amber-600', priceCls: 'text-amber-600' },
-  EXPRESS:  { label: 'Express',  icon: <Zap size={13} />, badgeCls: 'bg-blue-100 text-blue-700', cardBorder: 'border-blue-200', cardBg: 'bg-blue-50/30', accentCls: 'text-blue-600', priceCls: 'text-blue-600' },
+  STANDARD: { label: 'Standard', icon: <Bus size={13} />,   badgeCls: 'bg-gray-100 text-gray-600',   cardBorder: 'border-gray-100',   cardBg: '',             accentCls: 'text-gray-500',   priceCls: 'text-brand-600' },
+  VIP:      { label: 'VIP',      icon: <Crown size={13} />, badgeCls: 'bg-amber-100 text-amber-700', cardBorder: 'border-amber-200',  cardBg: 'bg-amber-50/40', accentCls: 'text-amber-600',  priceCls: 'text-amber-600' },
+  EXPRESS:  { label: 'Express',  icon: <Zap size={13} />,   badgeCls: 'bg-blue-100 text-blue-700',   cardBorder: 'border-blue-200',   cardBg: 'bg-blue-50/30',  accentCls: 'text-blue-600',   priceCls: 'text-blue-600' },
 };
 
 const AMENITY_ICONS: Record<string, React.ReactNode> = {
@@ -41,14 +41,180 @@ const CLASS_FILTERS = [
   { key: 'EXPRESS', label: 'Express' },
 ];
 
+// ── Bus seat map ──────────────────────────────────────────────────────────────
+
+type Seat = { id: string; seatNumber: string; status: string };
+
+const SEAT_ACCENT: Record<string, { sel: string; hover: string; ring: string }> = {
+  VIP:      { sel: 'bg-amber-500 border-amber-500 text-white shadow-amber-200', hover: 'hover:border-amber-400 hover:bg-amber-50',  ring: 'shadow-amber-200' },
+  EXPRESS:  { sel: 'bg-blue-500  border-blue-500  text-white shadow-blue-200',  hover: 'hover:border-blue-400  hover:bg-blue-50',   ring: 'shadow-blue-200' },
+  STANDARD: { sel: 'bg-brand-500 border-brand-500 text-white shadow-brand-200', hover: 'hover:border-brand-400 hover:bg-brand-50',  ring: 'shadow-brand-200' },
+};
+
+function SeatBtn({ seat, selected, onToggle, accent }: {
+  seat: Seat; selected: boolean; onToggle: (s: string) => void;
+  accent: typeof SEAT_ACCENT[string];
+}) {
+  const avail = seat.status === 'AVAILABLE';
+  return (
+    <button
+      disabled={!avail}
+      onClick={() => avail && onToggle(seat.seatNumber)}
+      title={`Siège ${seat.seatNumber}${!avail ? ' — occupé' : ''}`}
+      className={`w-8 h-9 rounded-t-lg rounded-b-sm text-[10px] font-bold border-2 transition-all relative flex items-center justify-center
+        ${!avail
+          ? 'bg-gray-200 border-gray-300 text-gray-400 cursor-not-allowed'
+          : selected
+          ? `${accent.sel} shadow-sm scale-105`
+          : `bg-white border-gray-300 text-gray-600 ${accent.hover} hover:shadow-sm`
+        }`}
+    >
+      {seat.seatNumber}
+    </button>
+  );
+}
+
+function BusSeatMap({ seats, selectedSeats, onToggle, tripClass, totalCapacity }: {
+  seats: Seat[]; selectedSeats: string[]; onToggle: (s: string) => void;
+  tripClass: string; totalCapacity?: number;
+}) {
+  const accent = SEAT_ACCENT[tripClass] ?? SEAT_ACCENT.STANDARD;
+
+  // Sort numerically then alpha
+  const sorted = [...seats].sort((a, b) => {
+    const na = parseInt(a.seatNumber, 10);
+    const nb = parseInt(b.seatNumber, 10);
+    if (!isNaN(na) && !isNaN(nb)) return na - nb;
+    return a.seatNumber.localeCompare(b.seatNumber);
+  });
+
+  // Detect back row: if n % 4 === 1 and we have at least 5 seats, the last 5 are the back bench
+  const hasBackBench = sorted.length >= 5 && sorted.length % 4 === 1;
+  const backBench: Seat[] = hasBackBench ? sorted.slice(-5) : [];
+  const mainSeats: Seat[] = hasBackBench ? sorted.slice(0, -5) : sorted;
+
+  // Split main seats into rows of 4
+  const rows: Seat[][] = [];
+  for (let i = 0; i < mainSeats.length; i += 4) {
+    rows.push(mainSeats.slice(i, i + 4));
+  }
+
+  const availCount = seats.filter((s) => s.status === 'AVAILABLE').length;
+
+  return (
+    <div className="flex flex-col items-center gap-3">
+
+      {/* Bus wrap */}
+      <div className="relative bg-gray-50 border-2 border-gray-300 rounded-[20px] p-4 overflow-hidden"
+        style={{ minWidth: 230 }}>
+
+        {/* Side windows strip */}
+        <div className="absolute left-0 top-12 bottom-12 w-2 bg-gray-200 rounded-r-sm" />
+        <div className="absolute right-0 top-12 bottom-12 w-2 bg-gray-200 rounded-l-sm" />
+
+        {/* Front of bus */}
+        <div className="flex items-center justify-between mb-3 pb-3 border-b-2 border-dashed border-gray-300">
+          {/* Door */}
+          <div className="flex flex-col items-center gap-0.5">
+            <div className="w-5 h-4 border-2 border-gray-400 rounded-sm bg-white flex items-end justify-center pb-0.5">
+              <div className="w-px h-2 bg-gray-400" />
+            </div>
+            <span className="text-[8px] text-gray-400 font-medium">Porte</span>
+          </div>
+          {/* Center label */}
+          <span className="text-[9px] font-bold text-gray-400 tracking-widest uppercase">Avant</span>
+          {/* Steering wheel */}
+          <div className="flex flex-col items-center gap-0.5">
+            <div className="w-6 h-6 rounded-full border-2 border-gray-500 flex items-center justify-center">
+              <div className="w-1.5 h-1.5 rounded-full bg-gray-500" />
+            </div>
+            <span className="text-[8px] text-gray-400 font-medium">Chauf.</span>
+          </div>
+        </div>
+
+        {/* Seat rows */}
+        <div className="space-y-1.5 px-1">
+          {rows.map((row, rIdx) => {
+            const left  = row.slice(0, 2);
+            const right = row.slice(2, 4);
+            return (
+              <div key={rIdx} className="flex items-center">
+                {/* Row number */}
+                <span className="text-[8px] text-gray-300 w-4 text-right mr-1 shrink-0">{rIdx + 1}</span>
+
+                {/* Left pair */}
+                <div className="flex gap-1">
+                  {left.map((s) => (
+                    <SeatBtn key={s.id} seat={s} selected={selectedSeats.includes(s.seatNumber)} onToggle={onToggle} accent={accent} />
+                  ))}
+                  {/* Filler if last row has only 1 seat on left */}
+                  {left.length < 2 && <div className="w-8" />}
+                </div>
+
+                {/* Aisle */}
+                <div className="flex-1 flex items-center justify-center min-w-[20px]">
+                  <div className="h-px w-full border-t border-dashed border-gray-200" />
+                </div>
+
+                {/* Right pair */}
+                <div className="flex gap-1">
+                  {/* Filler if last row has 0 seats on right */}
+                  {right.length === 0 && <><div className="w-8" /><div className="w-8" /></>}
+                  {right.length === 1 && <div className="w-8" />}
+                  {right.map((s) => (
+                    <SeatBtn key={s.id} seat={s} selected={selectedSeats.includes(s.seatNumber)} onToggle={onToggle} accent={accent} />
+                  ))}
+                </div>
+                <div className="w-4 ml-1 shrink-0" />
+              </div>
+            );
+          })}
+
+          {/* Back bench (5 seats across) */}
+          {backBench.length > 0 && (
+            <div className="mt-1 pt-1.5 border-t border-dashed border-gray-300">
+              <div className="flex items-center justify-center gap-1">
+                {backBench.map((s) => (
+                  <SeatBtn key={s.id} seat={s} selected={selectedSeats.includes(s.seatNumber)} onToggle={onToggle} accent={accent} />
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Back of bus */}
+        <div className="mt-3 pt-2 border-t-2 border-dashed border-gray-300 text-center">
+          <span className="text-[8px] font-bold text-gray-400 tracking-widest uppercase">Arrière</span>
+        </div>
+      </div>
+
+      {/* Stats + legend */}
+      <div className="flex items-center gap-4 text-xs text-gray-500 flex-wrap justify-center">
+        <span className="flex items-center gap-1.5">
+          <span className="w-4 h-4 rounded border-2 border-gray-300 bg-white inline-block" />
+          Libre ({availCount})
+        </span>
+        <span className="flex items-center gap-1.5">
+          <span className={`w-4 h-4 rounded inline-block ${
+            tripClass === 'VIP' ? 'bg-amber-500' : tripClass === 'EXPRESS' ? 'bg-blue-500' : 'bg-brand-500'
+          }`} />
+          Sélectionné
+        </span>
+        <span className="flex items-center gap-1.5">
+          <span className="w-4 h-4 rounded border-2 border-gray-300 bg-gray-200 inline-block" />
+          Occupé ({seats.length - availCount})
+        </span>
+      </div>
+    </div>
+  );
+}
+
 // ── TenantLogo ────────────────────────────────────────────────────────────────
 
 function TenantLogo({ logo, name, size = 32 }: { logo?: string; name?: string; size?: number }) {
   if (logo) {
     return (
-      <img
-        src={logo}
-        alt={name ?? 'Compagnie'}
+      <img src={logo} alt={name ?? 'Compagnie'}
         style={{ width: size, height: size }}
         className="rounded-lg object-cover shrink-0"
         onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
@@ -56,10 +222,8 @@ function TenantLogo({ logo, name, size = 32 }: { logo?: string; name?: string; s
     );
   }
   return (
-    <div
-      style={{ width: size, height: size }}
-      className="rounded-lg bg-brand-50 flex items-center justify-center shrink-0"
-    >
+    <div style={{ width: size, height: size }}
+      className="rounded-lg bg-brand-50 flex items-center justify-center shrink-0">
       <Building2 size={size * 0.5} className="text-brand-400" />
     </div>
   );
@@ -71,10 +235,10 @@ function SearchContent() {
   const router = useRouter();
   const params = useSearchParams();
 
-  const [origin, setOrigin]           = useState(params.get('origin') ?? '');
-  const [destination, setDestination] = useState(params.get('destination') ?? '');
-  const [date, setDate]               = useState(params.get('date') ?? dayjs().format('YYYY-MM-DD'));
-  const [classFilter, setClassFilter] = useState(params.get('class') ?? '');
+  const [origin, setOrigin]             = useState(params.get('origin') ?? '');
+  const [destination, setDestination]   = useState(params.get('destination') ?? '');
+  const [date, setDate]                 = useState(params.get('date') ?? dayjs().format('YYYY-MM-DD'));
+  const [classFilter, setClassFilter]   = useState(params.get('class') ?? '');
   const [companyFilter, setCompanyFilter] = useState(params.get('company') ?? '');
 
   const [selectedTrip, setSelectedTrip]   = useState<any>(null);
@@ -104,10 +268,7 @@ function SearchContent() {
 
   const { data: results, isLoading, refetch } = useQuery({
     queryKey: ['trip-search', origin, destination, date, companyFilter],
-    queryFn: () => tripsApi.search({
-      origin, destination, date,
-      tenantSlug: companyFilter || undefined,
-    }) as any,
+    queryFn: () => tripsApi.search({ origin, destination, date, tenantSlug: companyFilter || undefined }) as any,
     enabled: !!(origin && destination && date),
   });
 
@@ -119,7 +280,7 @@ function SearchContent() {
     queryFn: async () => ((await tripsApi.getSeats(selectedTrip.id)) ?? []) as any[],
     enabled: !!selectedTrip?.id,
   });
-  const seats: any[] = seatsRaw ?? [];
+  const seats: Seat[] = (seatsRaw ?? []) as Seat[];
 
   function handleSearch(e: React.FormEvent) {
     e.preventDefault();
@@ -190,8 +351,7 @@ function SearchContent() {
           {companies.length > 0 && (
             <div className="flex items-center gap-2 flex-wrap">
               <span className="text-xs text-gray-400 shrink-0">Compagnie :</span>
-              <button type="button"
-                onClick={() => setCompanyFilter('')}
+              <button type="button" onClick={() => setCompanyFilter('')}
                 className={`flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold border transition ${
                   companyFilter === '' ? 'bg-brand-500 border-brand-500 text-white' : 'bg-white border-gray-200 text-gray-600 hover:border-gray-300'
                 }`}>
@@ -282,7 +442,7 @@ function SearchContent() {
           )}
 
           {trips.map((trip) => {
-            const cfg = CLASS_CONFIG[trip.tripClass] ?? CLASS_CONFIG.STANDARD;
+            const cfg   = CLASS_CONFIG[trip.tripClass] ?? CLASS_CONFIG.STANDARD;
             const isOpen = selectedTrip?.id === trip.id;
             const duration = trip.route?.durationMinutes
               ? `${Math.floor(trip.route.durationMinutes / 60)}h${String(trip.route.durationMinutes % 60).padStart(2, '0')}`
@@ -377,7 +537,7 @@ function SearchContent() {
                           trip.availableSeats === 0
                             ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
                             : isOpen ? 'bg-gray-100 text-gray-700'
-                            : trip.tripClass === 'VIP' ? 'bg-amber-500 hover:bg-amber-600 text-white'
+                            : trip.tripClass === 'VIP'     ? 'bg-amber-500 hover:bg-amber-600 text-white'
                             : trip.tripClass === 'EXPRESS' ? 'bg-blue-500 hover:bg-blue-600 text-white'
                             : 'bg-brand-500 hover:bg-brand-600 text-white'
                         }`}>
@@ -389,52 +549,57 @@ function SearchContent() {
                   </div>
                 </div>
 
-                {/* Seat picker */}
+                {/* ── Seat picker ──────────────────────────────────────── */}
                 {isOpen && (
-                  <div className="border-t border-gray-100 p-4 bg-white/80 space-y-4">
+                  <div className="border-t border-gray-100 bg-gray-50/50 p-5 space-y-5">
                     {effectiveASM(trip) ? (
                       <>
-                        <p className="text-sm font-semibold text-gray-700">Choisissez vos sièges</p>
-                        {seatsLoading ? (
-                          <div className="flex justify-center py-4">
-                            <Loader2 size={20} className="animate-spin text-brand-500" />
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <p className="text-sm font-semibold text-gray-800">Choisissez vos sièges</p>
+                            <p className="text-xs text-gray-400 mt-0.5">
+                              {trip.vehicle?.brand} {trip.vehicle?.model}
+                              {trip.vehicle?.totalSeats ? ` · ${trip.vehicle.totalSeats} places` : ''}
+                            </p>
                           </div>
+                          {selectedSeats.length > 0 && (
+                            <button onClick={() => setSelectedSeats([])}
+                              className="text-xs text-gray-400 hover:text-gray-600 underline">
+                              Tout désélectionner
+                            </button>
+                          )}
+                        </div>
+
+                        {seatsLoading ? (
+                          <div className="flex justify-center py-8">
+                            <Loader2 size={24} className="animate-spin text-brand-500" />
+                          </div>
+                        ) : seats.length === 0 ? (
+                          <p className="text-sm text-center text-gray-400 py-4">Aucun siège disponible</p>
                         ) : (
-                          <div className="flex flex-wrap gap-2">
-                            {seats.map((s) => {
-                              const avail = s.status === 'AVAILABLE';
-                              const sel = selectedSeats.includes(s.seatNumber);
-                              return (
-                                <button key={s.id} disabled={!avail} onClick={() => avail && toggleSeat(s.seatNumber)}
-                                  className={`w-10 h-10 rounded-lg text-xs font-bold border transition ${
-                                    !avail ? 'bg-gray-100 border-gray-200 text-gray-300 cursor-not-allowed'
-                                    : sel
-                                      ? trip.tripClass === 'VIP' ? 'bg-amber-500 border-amber-500 text-white shadow'
-                                        : trip.tripClass === 'EXPRESS' ? 'bg-blue-500 border-blue-500 text-white shadow'
-                                        : 'bg-brand-500 border-brand-600 text-white shadow'
-                                      : 'bg-white border-gray-200 text-gray-700 hover:border-brand-400'
-                                  }`}
-                                  title={s.seatNumber}>{s.seatNumber}
-                                </button>
-                              );
-                            })}
+                          <div className="overflow-x-auto">
+                            <BusSeatMap
+                              seats={seats}
+                              selectedSeats={selectedSeats}
+                              onToggle={toggleSeat}
+                              tripClass={trip.tripClass}
+                              totalCapacity={trip.vehicle?.totalSeats ?? seats.length}
+                            />
                           </div>
                         )}
-                        <div className="flex gap-4 text-xs text-gray-500">
-                          <span className="flex items-center gap-1.5"><span className="w-3 h-3 rounded bg-white border border-gray-200 inline-block" /> Libre</span>
-                          <span className="flex items-center gap-1.5"><span className={`w-3 h-3 rounded inline-block ${trip.tripClass === 'VIP' ? 'bg-amber-500' : trip.tripClass === 'EXPRESS' ? 'bg-blue-500' : 'bg-brand-500'}`} /> Sélectionné</span>
-                          <span className="flex items-center gap-1.5"><span className="w-3 h-3 rounded bg-gray-100 border border-gray-200 inline-block" /> Occupé</span>
-                        </div>
+
+                        {/* Booking summary */}
                         {selectedSeats.length > 0 && (
                           <div className={`rounded-xl border p-4 ${
-                            trip.tripClass === 'VIP' ? 'bg-amber-50 border-amber-200'
+                            trip.tripClass === 'VIP'     ? 'bg-amber-50 border-amber-200'
                             : trip.tripClass === 'EXPRESS' ? 'bg-blue-50 border-blue-200'
                             : 'bg-white border-brand-200'
                           }`}>
                             <div className="flex items-center justify-between flex-wrap gap-3">
                               <div>
                                 <p className="text-sm text-gray-600">
-                                  {selectedSeats.length} siège{selectedSeats.length > 1 ? 's' : ''} : <span className="font-semibold">{selectedSeats.join(', ')}</span>
+                                  {selectedSeats.length} siège{selectedSeats.length > 1 ? 's' : ''} :{' '}
+                                  <span className="font-semibold font-mono">{selectedSeats.join(', ')}</span>
                                 </p>
                                 <p className={`text-lg font-bold mt-0.5 ${cfg.priceCls}`}>
                                   Total : {formatCFA(trip.price * selectedSeats.length)}
@@ -443,17 +608,20 @@ function SearchContent() {
                               </div>
                               <button onClick={handleBook} disabled={booking}
                                 className={`px-6 py-2.5 rounded-lg font-semibold text-sm flex items-center gap-2 transition disabled:opacity-60 text-white ${
-                                  trip.tripClass === 'VIP' ? 'bg-amber-500 hover:bg-amber-600'
+                                  trip.tripClass === 'VIP'     ? 'bg-amber-500 hover:bg-amber-600'
                                   : trip.tripClass === 'EXPRESS' ? 'bg-blue-500 hover:bg-blue-600'
                                   : 'bg-brand-500 hover:bg-brand-600'
                                 }`}>
-                                {booking ? <><Loader2 size={15} className="animate-spin" /> Création...</> : 'Confirmer la réservation'}
+                                {booking
+                                  ? <><Loader2 size={15} className="animate-spin" /> Création...</>
+                                  : 'Confirmer la réservation'}
                               </button>
                             </div>
                           </div>
                         )}
                       </>
                     ) : (
+                      /* Simple count mode */
                       <div className="space-y-4">
                         <p className="text-sm font-semibold text-gray-700">Nombre de places</p>
                         <p className="text-xs text-gray-400">Les sièges vous seront attribués automatiquement.</p>
@@ -463,10 +631,10 @@ function SearchContent() {
                           <span className="text-2xl font-bold text-gray-900 w-8 text-center">{passengerCount}</span>
                           <button onClick={() => setPassengerCount((n) => Math.min(trip.availableSeats, n + 1))}
                             className="w-9 h-9 rounded-lg border border-gray-200 text-gray-600 font-bold text-lg hover:bg-gray-50 transition flex items-center justify-center">+</button>
-                          <span className="text-xs text-gray-400 ml-1">/ {trip.availableSeats} places disponibles</span>
+                          <span className="text-xs text-gray-400 ml-1">/ {trip.availableSeats} places dispo.</span>
                         </div>
                         <div className={`rounded-xl border p-4 ${
-                          trip.tripClass === 'VIP' ? 'bg-amber-50 border-amber-200'
+                          trip.tripClass === 'VIP'     ? 'bg-amber-50 border-amber-200'
                           : trip.tripClass === 'EXPRESS' ? 'bg-blue-50 border-blue-200'
                           : 'bg-white border-brand-200'
                         }`}>
@@ -480,11 +648,13 @@ function SearchContent() {
                             </div>
                             <button onClick={handleBook} disabled={booking}
                               className={`px-6 py-2.5 rounded-lg font-semibold text-sm flex items-center gap-2 transition disabled:opacity-60 text-white ${
-                                trip.tripClass === 'VIP' ? 'bg-amber-500 hover:bg-amber-600'
+                                trip.tripClass === 'VIP'     ? 'bg-amber-500 hover:bg-amber-600'
                                 : trip.tripClass === 'EXPRESS' ? 'bg-blue-500 hover:bg-blue-600'
                                 : 'bg-brand-500 hover:bg-brand-600'
                               }`}>
-                              {booking ? <><Loader2 size={15} className="animate-spin" /> Création...</> : 'Confirmer la réservation'}
+                              {booking
+                                ? <><Loader2 size={15} className="animate-spin" /> Création...</>
+                                : 'Confirmer la réservation'}
                             </button>
                           </div>
                         </div>

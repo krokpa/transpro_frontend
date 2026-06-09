@@ -6,6 +6,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { schedulesApi, routesApi, vehiclesApi, driversApi } from '@/lib/api';
 import { Plus, Play, RefreshCw, Trash2, Pencil, CalendarClock, Zap, Star, Clock } from 'lucide-react';
 import { toast } from 'sonner';
+import { confirm } from '@/lib/confirm';
 
 const DAYS = ['Dim', 'Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam'];
 const DAYS_FULL = ['Dimanche', 'Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi'];
@@ -321,8 +322,8 @@ export default function StationPlanningsPage() {
                       <Pencil size={15} />
                     </button>
                     <button
-                      onClick={() => {
-                        if (confirm('Supprimer ce planning ?')) deleteMutation.mutate(s.id);
+                      onClick={async () => {
+                        if (await confirm({ title: 'Supprimer ce planning ?', description: 'Cette action est irréversible.', variant: 'danger' })) deleteMutation.mutate(s.id);
                       }}
                       className="p-2 text-gray-400 hover:bg-red-50 hover:text-red-600 rounded-lg transition"
                     >

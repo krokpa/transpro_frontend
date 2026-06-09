@@ -8,7 +8,7 @@ import {
   ArrowLeft, ArrowRight, Clock, Loader2,
   XCircle, CheckCircle, QrCode, AlertTriangle, CreditCard,
   MapPin, Users, Calendar, Bus, Building2, Navigation2,
-  Star, Share2, Copy, Check,
+  Star, Share2, Check, Download, Maximize2, X, Ticket,
 } from 'lucide-react';
 import Link from 'next/link';
 import dayjs from 'dayjs';
@@ -35,6 +35,7 @@ export default function BookingDetailPage() {
   const [selectedRating, setSelectedRating] = useState(0);
   const [ratingComment, setRatingComment] = useState('');
   const [copied, setCopied] = useState(false);
+  const [fullscreenTicket, setFullscreenTicket] = useState<any>(null);
 
   async function handlePay() {
     setPaying(true);
@@ -115,8 +116,48 @@ export default function BookingDetailPage() {
   const canCancel = ['PENDING', 'CONFIRMED'].includes(booking.status) && dayjs(booking.trip?.departureAt).isAfter(dayjs());
   const tickets: any[] = Array.isArray(booking.tickets) ? booking.tickets : [];
 
+  function downloadQR(ticket: any) {
+    const a = document.createElement('a');
+    a.href = ticket.qrCode;
+    a.download = `ticket-${ticket.seatNumber}-${booking.reference ?? id}.png`;
+    a.click();
+  }
+
   return (
     <div className="space-y-5">
+      {/* Fullscreen QR overlay */}
+      {fullscreenTicket && (
+        <div
+          className="fixed inset-0 z-50 bg-black flex flex-col items-center justify-center gap-6 p-6"
+          onClick={() => setFullscreenTicket(null)}
+        >
+          <button
+            onClick={() => setFullscreenTicket(null)}
+            className="absolute top-5 right-5 text-white/70 hover:text-white bg-white/10 rounded-full p-2"
+          >
+            <X size={22} />
+          </button>
+          <p className="text-white/60 text-xs uppercase tracking-widest font-semibold">Siège {fullscreenTicket.seatNumber}</p>
+          <div className="bg-white rounded-3xl p-5 shadow-2xl">
+            <img
+              src={fullscreenTicket.qrCode}
+              alt={`QR Siège ${fullscreenTicket.seatNumber}`}
+              className="w-72 h-72 sm:w-80 sm:h-80"
+              onClick={(e) => e.stopPropagation()}
+            />
+          </div>
+          <p className="text-white/50 text-sm text-center max-w-xs">
+            Présentez ce code à l'agent lors de l'embarquement
+          </p>
+          <button
+            onClick={(e) => { e.stopPropagation(); downloadQR(fullscreenTicket); }}
+            className="flex items-center gap-2 bg-white/10 hover:bg-white/20 text-white text-sm font-medium px-5 py-2.5 rounded-full transition"
+          >
+            <Download size={15} /> Télécharger
+          </button>
+        </div>
+      )}
+
       {/* Back */}
       <button onClick={() => router.back()} className="flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-700 transition">
         <ArrowLeft size={15} /> Retour aux réservations
@@ -276,14 +317,17 @@ export default function BookingDetailPage() {
           </div>
 
           {/* Tickets / QR codes */}
-          {tickets.length > 0 && (
+          {tickets.length > 0 ? (
             <div className="space-y-3">
-              <h2 className="font-bold text-gray-900">Vos tickets ({tickets.length})</h2>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <h2 className="font-semibold text-gray-900 flex items-center gap-2">
+                <Ticket size={16} className="text-brand-500" />
+                Ticket{tickets.length > 1 ? 's' : ''} ({tickets.length})
+              </h2>
+              <div className="space-y-3">
                 {tickets.map((ticket) => (
-                  <div key={ticket.id} className="bg-white rounded-2xl border border-gray-100 overflow-hidden">
-                    {/* Ticket header with company branding */}
-                    <div className="bg-gradient-to-r from-brand-500 to-brand-600 p-4">
+                  <div key={ticket.id} className="bg-white rounded-2xl border border-gray-100 overflow-hidden shadow-sm">
+                    {/* Header */}
+                    <div className="bg-gradient-to-r from-brand-600 to-brand-500 px-5 py-4 flex items-center justify-between">
                       <div className="flex items-center gap-3">
                         {tenant?.logo ? (
                           <img src={tenant.logo} alt={tenant.name}
@@ -294,47 +338,106 @@ export default function BookingDetailPage() {
                             <Bus size={18} className="text-white" />
                           </div>
                         )}
-                        <div className="flex-1 min-w-0">
-                          <p className="text-white font-semibold text-sm truncate">{tenant?.name ?? 'TransPro'}</p>
-                          <p className="text-white/70 text-xs truncate">
+                        <div>
+                          <p className="text-white font-semibold text-sm">{tenant?.name ?? 'TransPro CI'}</p>
+                          <p className="text-white/70 text-xs mt-0.5">
                             {booking.trip?.route?.originCity?.name} → {booking.trip?.route?.destinationCity?.name}
                           </p>
                         </div>
-                        <div className="text-right shrink-0">
-                          <p className="text-white/70 text-xs">Siège</p>
-                          <p className="text-white font-bold text-lg leading-none">{ticket.seatNumber}</p>
-                        </div>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-white/60 text-[10px] uppercase tracking-wide">Siège</p>
+                        <p className="text-white font-bold text-2xl leading-none">{ticket.seatNumber}</p>
                       </div>
                     </div>
 
-                    {/* QR + meta */}
-                    <div className="p-4 space-y-3">
-                      <div className="flex items-center justify-between text-xs text-gray-500">
-                        <span>{dayjs(booking.trip?.departureAt).format('ddd D MMM · HH:mm')}</span>
-                        <span className={`px-2 py-0.5 rounded-full font-medium ${
-                          ticket.isScanned ? 'bg-gray-100 text-gray-500' : 'bg-green-100 text-green-700'
-                        }`}>
-                          {ticket.isScanned ? 'Utilisé' : 'Valide'}
-                        </span>
-                      </div>
+                    {/* QR code — main zone */}
+                    <div className="p-5">
                       {ticket.qrCode ? (
-                        <div className="flex justify-center">
-                          <img src={ticket.qrCode} alt={`QR Siège ${ticket.seatNumber}`}
-                            className="w-40 h-40 rounded-xl border border-gray-100" />
-                        </div>
+                        <>
+                          {/* Large QR */}
+                          <button
+                            onClick={() => setFullscreenTicket(ticket)}
+                            className="group relative w-full flex justify-center"
+                            title="Agrandir pour scanner"
+                          >
+                            <div className="relative inline-block">
+                              <img
+                                src={ticket.qrCode}
+                                alt={`QR Siège ${ticket.seatNumber}`}
+                                className="w-56 h-56 sm:w-64 sm:h-64 rounded-2xl border border-gray-100"
+                              />
+                              {/* Expand hint overlay */}
+                              <div className="absolute inset-0 rounded-2xl bg-black/0 group-hover:bg-black/10 transition flex items-center justify-center">
+                                <div className="opacity-0 group-hover:opacity-100 transition bg-black/60 text-white rounded-xl px-3 py-1.5 text-xs font-medium flex items-center gap-1.5">
+                                  <Maximize2 size={12} /> Agrandir
+                                </div>
+                              </div>
+                            </div>
+                          </button>
+
+                          {/* Meta row */}
+                          <div className="flex items-center justify-between mt-4">
+                            <div className="space-y-0.5">
+                              <p className="text-xs text-gray-500">
+                                {dayjs(booking.trip?.departureAt).format('ddd D MMM · HH:mm')}
+                              </p>
+                              <span className={`inline-flex items-center gap-1 text-xs font-semibold px-2.5 py-0.5 rounded-full ${
+                                ticket.isScanned
+                                  ? 'bg-gray-100 text-gray-500'
+                                  : 'bg-green-100 text-green-700'
+                              }`}>
+                                {ticket.isScanned ? '✓ Utilisé' : '● Valide'}
+                              </span>
+                            </div>
+                            <div className="flex items-center gap-1.5">
+                              <button
+                                onClick={() => downloadQR(ticket)}
+                                title="Télécharger le QR code"
+                                className="p-2 text-gray-400 hover:text-brand-600 hover:bg-brand-50 rounded-xl transition"
+                              >
+                                <Download size={16} />
+                              </button>
+                              <button
+                                onClick={() => setFullscreenTicket(ticket)}
+                                title="Afficher en plein écran"
+                                className="p-2 text-gray-400 hover:text-brand-600 hover:bg-brand-50 rounded-xl transition"
+                              >
+                                <Maximize2 size={16} />
+                              </button>
+                            </div>
+                          </div>
+
+                          <p className="text-center text-xs text-gray-400 mt-3 flex items-center justify-center gap-1.5">
+                            <QrCode size={11} />
+                            Appuyez pour agrandir · Présentez à l'agent lors de l'embarquement
+                          </p>
+                        </>
                       ) : (
-                        <div className="flex flex-col items-center justify-center py-6 text-gray-300 gap-2">
-                          <QrCode size={36} />
-                          <p className="text-xs">QR disponible après confirmation</p>
+                        <div className="flex flex-col items-center justify-center py-10 gap-3">
+                          <div className="w-16 h-16 bg-gray-50 rounded-2xl flex items-center justify-center">
+                            <QrCode size={28} className="text-gray-300" />
+                          </div>
+                          <div className="text-center">
+                            <p className="text-sm font-medium text-gray-500">QR code non disponible</p>
+                            <p className="text-xs text-gray-400 mt-0.5">Le QR sera généré après confirmation du paiement</p>
+                          </div>
                         </div>
                       )}
-                      <p className="text-center text-xs text-gray-400">Présentez ce QR à l'agent à l'embarquement</p>
                     </div>
                   </div>
                 ))}
               </div>
             </div>
-          )}
+          ) : booking.status === 'CONFIRMED' ? (
+            <div className="bg-blue-50 border border-blue-100 rounded-2xl p-5 flex items-center gap-3">
+              <Loader2 size={18} className="animate-spin text-blue-500 shrink-0" />
+              <div>
+                <p className="text-sm font-semibold text-blue-800">Tickets en cours de génération</p>
+                <p className="text-xs text-blue-600 mt-0.5">Actualisez la page dans quelques secondes</p>
+              </div>
+            </div>
+          ) : null}
         </div>
 
         {/* Right column — actions */}

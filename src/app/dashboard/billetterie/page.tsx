@@ -1,12 +1,14 @@
 ﻿'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { bookingsApi, ticketTemplatesApi, tripsApi } from '@/lib/api';
+import { bookingsApi, ticketTemplatesApi, tripsApi, usersApi } from '@/lib/api';
 import { SearchableSelect } from '@/components/ui/SearchableSelect';
+import { PhoneInput } from '@/components/ui/PhoneInput';
 import { qzConnect, qzDisconnect, qzIsActive, qzGetPrinters, qzGetDefault, qzPrintHTML } from '@/lib/qz';
 import { formatCFA } from '@transpro/shared';
-import { Search, Printer, Plus, X, Loader2, CheckCircle, Ticket, Wifi, WifiOff, ChevronDown } from 'lucide-react';
+import { Search, Printer, Plus, X, Loader2, CheckCircle, Ticket, Wifi, WifiOff, ChevronDown, UserCheck, UserX, Bus, Crown, Zap, Clock, MapPin } from 'lucide-react';
+import { BusSeatMap } from '@/components/ui/BusSeatMap';
 import dayjs from 'dayjs';
 import { toast } from 'sonner';
 
@@ -181,10 +183,18 @@ export default function BilletteriePage() {
   // ── Mode vente ──
   const [selectedTripId, setSelectedTripId] = useState('');
   const [selectedSeats, setSelectedSeats] = useState<string[]>([]);
+  const [passengerCount, setPassengerCount] = useState(1);
   const [form, setForm] = useState({ firstName: '', lastName: '', phone: '', paymentMethod: 'CASH' });
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
   const [selling, setSelling] = useState(false);
   const [soldBooking, setSoldBooking] = useState<any>(null);
+
+  // ── Lookup passager par téléphone ──
+  type PassengerFound = { id: string; firstName: string; lastName: string; email: string; phone: string; avatar?: string };
+  const [passengerLookup, setPassengerLookup] = useState<{ loading: boolean; found: PassengerFound | null; notFound: boolean }>({
+    loading: false, found: null, notFound: false,
+  });
+  const lookupTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // ── QZ Tray connexion ──────────────────────────────────────────────────────
 
@@ -238,6 +248,37 @@ export default function BilletteriePage() {
     }
   }
 
+  // ── Lookup passager (debounce 500 ms) ────────────────────────────────────────
+
+  useEffect(() => {
+    const phone = form.phone;
+    if (lookupTimerRef.current) clearTimeout(lookupTimerRef.current);
+
+    if (!phone || phone.replace(/\D/g, '').length < 8) {
+      setPassengerLookup({ loading: false, found: null, notFound: false });
+      return;
+    }
+
+    setPassengerLookup((s) => ({ ...s, loading: true, found: null, notFound: false }));
+
+    lookupTimerRef.current = setTimeout(async () => {
+      try {
+        const user = await usersApi.lookupByPhone(phone) as unknown as PassengerFound | null;
+        if (user?.id) {
+          setPassengerLookup({ loading: false, found: user, notFound: false });
+          setForm((prev) => ({ ...prev, firstName: user.firstName, lastName: user.lastName }));
+        } else {
+          setPassengerLookup({ loading: false, found: null, notFound: true });
+        }
+      } catch {
+        setPassengerLookup({ loading: false, found: null, notFound: false });
+      }
+    }, 500);
+
+    return () => { if (lookupTimerRef.current) clearTimeout(lookupTimerRef.current); };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [form.phone]);
+
   const { data: templates = [] } = useQuery<any[]>({
     queryKey: ['ticket-templates'],
     queryFn: async () => ((await ticketTemplatesApi.list()) ?? []) as any[],
@@ -269,11 +310,24 @@ export default function BilletteriePage() {
 
   const selectedTrip = availableTrips.find((t: any) => t.id === selectedTripId);
 
-  // Sièges du voyage sélectionné
+  // Trip complet (avec vehicle.advancedSeatManagement) pour la valeur définitive de l'ASM
+  const { data: selectedTripFull } = useQuery({
+    queryKey: ['trip-full', selectedTripId],
+    queryFn: () => selectedTripId ? tripsApi.get(selectedTripId) as any : Promise.resolve(null),
+    enabled: !!selectedTripId,
+  });
+
+  // Valeur définitive : trip override → vehicle default → true
+  const useAdvancedSeats: boolean =
+    selectedTripFull
+      ? (selectedTripFull.advancedSeatManagement ?? selectedTripFull.vehicle?.advancedSeatManagement ?? true)
+      : (selectedTrip?.advancedSeatManagement ?? true);
+
+  // Sièges du voyage sélectionné (seulement si ASM activée)
   const { data: seatsRaw } = useQuery({
     queryKey: ['trip-seats', selectedTripId],
     queryFn: () => selectedTripId ? tripsApi.getSeats(selectedTripId) as any : Promise.resolve([]),
-    enabled: !!selectedTripId,
+    enabled: !!selectedTripId && useAdvancedSeats,
   });
   const seats: any[] = seatsRaw ?? [];
   const availableSeats = seats.filter((s: any) => s.status === 'AVAILABLE');
@@ -321,8 +375,9 @@ export default function BilletteriePage() {
   function validateForm() {
     const e: Record<string, string> = {};
     if (!selectedTripId) e.trip = 'Sélectionnez un voyage';
-    if (selectedSeats.length === 0) e.seats = 'Sélectionnez au moins un siège';
-    if (form.phone && form.phone.length < 8) e.phone = 'Numéro invalide';
+    if (useAdvancedSeats && selectedSeats.length === 0) e.seats = 'Sélectionnez au moins un siège';
+    if (!useAdvancedSeats && passengerCount < 1) e.seats = 'Nombre de passagers invalide';
+    if (form.phone && form.phone.replace(/\D/g, '').length < 8) e.phone = 'Numéro invalide';
     setFormErrors(e);
     return Object.keys(e).length === 0;
   }
@@ -334,7 +389,9 @@ export default function BilletteriePage() {
     try {
       const booking = await bookingsApi.guichet({
         tripId: selectedTripId,
-        seatNumbers: selectedSeats,
+        ...(useAdvancedSeats
+          ? { seatNumbers: selectedSeats }
+          : { passengerCount }),
         firstName: form.firstName,
         lastName: form.lastName,
         phone: form.phone,
@@ -349,7 +406,9 @@ export default function BilletteriePage() {
       // Réinitialiser le formulaire
       setSelectedTripId('');
       setSelectedSeats([]);
+      setPassengerCount(1);
       setForm({ firstName: '', lastName: '', phone: '', paymentMethod: 'CASH' });
+      setPassengerLookup({ loading: false, found: null, notFound: false });
     } catch (err: any) {
       const raw = err?.response?.data;
       const msg = raw?.error ?? raw?.message ?? err?.message ?? 'Erreur inconnue';
@@ -515,60 +574,121 @@ export default function BilletteriePage() {
             </div>
           )}
 
-          <div className="bg-white rounded-xl border border-gray-100 p-5 space-y-4">
-            <h2 className="font-semibold text-gray-800">1. Choisir le voyage</h2>
-
-            <div>
-              <SearchableSelect
-                value={selectedTripId}
-                onChange={(v) => { setSelectedTripId(v); setSelectedSeats([]); }}
-                placeholder="— Sélectionner un voyage du jour —"
-                className={formErrors.trip ? 'border border-red-400 rounded-lg' : ''}
-                options={availableTrips.map((t: any) => ({
-                  value: t.id,
-                  label: `${t.route?.originCity?.name ?? '?'} → ${t.route?.destinationCity?.name ?? '?'} — ${dayjs(t.departureAt).format('HH:mm')}`,
-                  sub: `${formatCFA(t.price)} · ${t.availableSeats} places`,
-                }))}
-              />
-              {formErrors.trip && <p className="text-red-500 text-xs mt-1">{formErrors.trip}</p>}
+          <div className="bg-white rounded-xl border border-gray-100 p-5 space-y-3">
+            <div className="flex items-center justify-between">
+              <h2 className="font-semibold text-gray-800">1. Choisir le voyage</h2>
+              <span className="text-xs text-gray-400">{availableTrips.length} voyage{availableTrips.length !== 1 ? 's' : ''} disponible{availableTrips.length !== 1 ? 's' : ''}</span>
             </div>
+
+            {availableTrips.length === 0 ? (
+              <div className="text-center py-6 text-gray-400">
+                <Bus size={28} className="mx-auto mb-2 opacity-30" />
+                <p className="text-sm">Aucun voyage disponible aujourd'hui</p>
+              </div>
+            ) : (
+              <div className="space-y-2 max-h-64 overflow-y-auto pr-1">
+                {availableTrips.map((t: any) => {
+                  const tc = t.tripClass ?? 'STANDARD';
+                  const isSelected = selectedTripId === t.id;
+                  const classColors: Record<string, { border: string; badge: string; icon: React.ReactNode }> = {
+                    VIP:      { border: 'border-l-amber-400', badge: 'bg-amber-100 text-amber-700', icon: <Crown size={10} /> },
+                    EXPRESS:  { border: 'border-l-blue-400',  badge: 'bg-blue-100 text-blue-700',   icon: <Zap size={10} /> },
+                    STANDARD: { border: 'border-l-gray-300',  badge: 'bg-gray-100 text-gray-600',   icon: <Bus size={10} /> },
+                  };
+                  const cc = classColors[tc] ?? classColors.STANDARD;
+                  return (
+                    <button key={t.id}
+                      onClick={() => { setSelectedTripId(t.id); setSelectedSeats([]); setPassengerCount(1); }}
+                      className={`w-full text-left rounded-xl border-l-4 border border-gray-100 px-3 py-2.5 transition-all ${
+                        isSelected
+                          ? `${cc.border} bg-brand-50 border-brand-200`
+                          : `${cc.border} hover:bg-gray-50 hover:border-gray-200`
+                      }`}
+                    >
+                      <div className="flex items-center justify-between gap-2">
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center gap-1.5 mb-0.5">
+                            <span className={`inline-flex items-center gap-0.5 px-1.5 py-px rounded text-[9px] font-semibold ${cc.badge}`}>
+                              {cc.icon} {tc}
+                            </span>
+                            {t.status === 'BOARDING' && (
+                              <span className="text-[9px] font-semibold text-green-600 bg-green-50 px-1.5 py-px rounded">● Embarquement</span>
+                            )}
+                          </div>
+                          <p className={`text-sm font-semibold truncate ${isSelected ? 'text-brand-700' : 'text-gray-800'}`}>
+                            {t.route?.originCity?.name ?? '?'} → {t.route?.destinationCity?.name ?? '?'}
+                          </p>
+                          <div className="flex items-center gap-2 mt-0.5 text-xs text-gray-400">
+                            <span className="flex items-center gap-0.5"><Clock size={10} /> {dayjs(t.departureAt).format('HH:mm')}</span>
+                            {t.vehicle?.plate && <span className="flex items-center gap-0.5"><MapPin size={10} /> {t.vehicle.plate}</span>}
+                          </div>
+                        </div>
+                        <div className="shrink-0 text-right">
+                          <p className={`text-sm font-bold ${isSelected ? 'text-brand-600' : 'text-gray-700'}`}>{formatCFA(t.price)}</p>
+                          <p className={`text-xs mt-0.5 font-medium ${t.availableSeats <= 5 ? 'text-amber-600' : 'text-green-600'}`}>
+                            {t.availableSeats} pl.
+                          </p>
+                        </div>
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+            {formErrors.trip && <p className="text-red-500 text-xs">{formErrors.trip}</p>}
           </div>
 
-          {/* Sièges */}
+          {/* Sièges / Nombre de passagers */}
           {selectedTrip && (
-            <div className="bg-white rounded-xl border border-gray-100 p-5 space-y-3">
-              <h2 className="font-semibold text-gray-800">2. Choisir les sièges</h2>
-              {availableSeats.length === 0 ? (
-                <p className="text-sm text-gray-500">Aucun siège disponible</p>
+            <div className="bg-white rounded-xl border border-gray-100 p-5 space-y-4">
+              {useAdvancedSeats ? (
+                <>
+                  <div className="flex items-center justify-between">
+                    <h2 className="font-semibold text-gray-800">2. Choisir les sièges</h2>
+                    {selectedSeats.length > 0 && (
+                      <span className="text-xs font-semibold text-brand-600 bg-brand-50 px-2 py-0.5 rounded-full">
+                        {selectedSeats.length} sélectionné{selectedSeats.length > 1 ? 's' : ''} · {formatCFA(selectedTrip.price * selectedSeats.length)}
+                      </span>
+                    )}
+                  </div>
+                  {seats.length === 0 ? (
+                    <div className="flex items-center justify-center py-6 text-gray-400 gap-2">
+                      <Loader2 size={16} className="animate-spin" />
+                      <span className="text-sm">Chargement des sièges…</span>
+                    </div>
+                  ) : (
+                    <div className="overflow-x-auto flex justify-center py-2">
+                      <BusSeatMap
+                        seats={seats}
+                        selectedSeats={selectedSeats}
+                        onToggle={toggleSeat}
+                        tripClass={selectedTrip.tripClass ?? 'STANDARD'}
+                      />
+                    </div>
+                  )}
+                </>
               ) : (
-                <div className="flex flex-wrap gap-2">
-                  {seats.map((seat: any) => {
-                    const isAvail = seat.status === 'AVAILABLE';
-                    const isSelected = selectedSeats.includes(seat.seatNumber);
-                    return (
-                      <button
-                        key={seat.id}
-                        disabled={!isAvail}
-                        onClick={() => isAvail && toggleSeat(seat.seatNumber)}
-                        className={`w-10 h-10 rounded-lg border text-xs font-semibold transition-all ${
-                          !isAvail
-                            ? 'bg-gray-100 border-gray-200 text-gray-300 cursor-not-allowed'
-                            : isSelected
-                            ? 'bg-brand-500 border-brand-600 text-white shadow-md'
-                            : 'bg-green-50 border-green-200 text-green-700 hover:bg-green-100'
-                        }`}
-                        title={isAvail ? seat.seatNumber : `${seat.seatNumber} (${seat.status})`}
-                      >
-                        {seat.seatNumber}
-                      </button>
-                    );
-                  })}
-                </div>
-              )}
-              {selectedSeats.length > 0 && (
-                <p className="text-xs text-brand-600 font-medium">
-                  Sièges sélectionnés : {selectedSeats.join(', ')} — Total : {formatCFA(selectedTrip.price * selectedSeats.length)}
-                </p>
+                <>
+                  <div className="flex items-center justify-between">
+                    <h2 className="font-semibold text-gray-800">2. Nombre de passagers</h2>
+                    <span className="text-xs text-gray-400">
+                      {selectedTrip.availableSeats} place{selectedTrip.availableSeats !== 1 ? 's' : ''} disponible{selectedTrip.availableSeats !== 1 ? 's' : ''}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-4">
+                    <div className="flex items-center border border-gray-200 rounded-xl overflow-hidden">
+                      <button type="button" onClick={() => setPassengerCount((n) => Math.max(1, n - 1))}
+                        disabled={passengerCount <= 1}
+                        className="w-10 h-10 flex items-center justify-center text-lg font-bold text-gray-600 hover:bg-gray-50 disabled:opacity-30 transition">−</button>
+                      <span className="w-12 text-center font-bold text-gray-900 text-lg tabular-nums">{passengerCount}</span>
+                      <button type="button" onClick={() => setPassengerCount((n) => Math.min(selectedTrip.availableSeats, n + 1))}
+                        disabled={passengerCount >= selectedTrip.availableSeats}
+                        className="w-10 h-10 flex items-center justify-center text-lg font-bold text-gray-600 hover:bg-gray-50 disabled:opacity-30 transition">+</button>
+                    </div>
+                    <p className="text-sm text-brand-600 font-medium">Total : {formatCFA(selectedTrip.price * passengerCount)}</p>
+                  </div>
+                  <p className="text-xs text-gray-400 italic">Ce voyage utilise le mode sans numérotation des sièges.</p>
+                </>
               )}
               {formErrors.seats && <p className="text-red-500 text-xs">{formErrors.seats}</p>}
             </div>
@@ -580,36 +700,95 @@ export default function BilletteriePage() {
               <h2 className="font-semibold text-gray-800">3. Informations passager</h2>
               <span className="text-xs text-gray-400 italic">optionnel</span>
             </div>
+
+            {/* ── Téléphone + lookup ─────────────────────────────────────── */}
+            <div className="space-y-2">
+              <label className="block text-xs font-medium text-gray-600">Téléphone</label>
+              <div className="relative">
+                <PhoneInput
+                  value={form.phone}
+                  onChange={(v) => {
+                    setForm((p) => ({ ...p, phone: v, firstName: '', lastName: '' }));
+                    setPassengerLookup({ loading: false, found: null, notFound: false });
+                  }}
+                  className={formErrors.phone ? 'border-red-400' : ''}
+                />
+                {passengerLookup.loading && (
+                  <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                    <Loader2 size={15} className="animate-spin text-gray-400" />
+                  </div>
+                )}
+              </div>
+              {formErrors.phone && <p className="text-red-500 text-xs">{formErrors.phone}</p>}
+
+              {/* Passager trouvé */}
+              {passengerLookup.found && (
+                <div className="flex items-center gap-3 px-3 py-2.5 bg-green-50 border border-green-200 rounded-xl">
+                  <div className="w-8 h-8 rounded-full bg-green-100 flex items-center justify-center flex-shrink-0">
+                    {passengerLookup.found.avatar ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img src={passengerLookup.found.avatar} alt="" className="w-8 h-8 rounded-full object-cover" />
+                    ) : (
+                      <span className="text-xs font-bold text-green-700">
+                        {passengerLookup.found.firstName?.[0]}{passengerLookup.found.lastName?.[0]}
+                      </span>
+                    )}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-semibold text-green-800 truncate">
+                      {passengerLookup.found.firstName} {passengerLookup.found.lastName}
+                    </p>
+                    <p className="text-xs text-green-600 truncate">{passengerLookup.found.email}</p>
+                  </div>
+                  <div className="flex items-center gap-1 text-green-600 flex-shrink-0">
+                    <UserCheck size={15} />
+                    <span className="text-xs font-medium">Identifié</span>
+                  </div>
+                </div>
+              )}
+
+              {/* Passager inconnu */}
+              {passengerLookup.notFound && (
+                <div className="flex items-center gap-2 px-3 py-2 bg-gray-50 border border-gray-200 rounded-xl">
+                  <UserX size={14} className="text-gray-400 flex-shrink-0" />
+                  <p className="text-xs text-gray-500">
+                    Numéro inconnu — un nouveau compte passager sera créé automatiquement.
+                  </p>
+                </div>
+              )}
+            </div>
+
+            {/* ── Prénom / Nom ────────────────────────────────────────────── */}
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="block text-xs font-medium text-gray-600 mb-1">Prénom</label>
+                <label className="block text-xs font-medium text-gray-600 mb-1">
+                  Prénom
+                  {passengerLookup.found && <span className="ml-1 text-green-600 font-normal">(depuis le compte)</span>}
+                </label>
                 <input
                   value={form.firstName}
                   onChange={(e) => setForm((p) => ({ ...p, firstName: e.target.value }))}
                   placeholder="Kouassi"
-                  className={inputCls()}
+                  readOnly={!!passengerLookup.found}
+                  className={`${inputCls()} ${passengerLookup.found ? 'bg-gray-50 text-gray-500 cursor-default' : ''}`}
                 />
               </div>
               <div>
-                <label className="block text-xs font-medium text-gray-600 mb-1">Nom</label>
+                <label className="block text-xs font-medium text-gray-600 mb-1">
+                  Nom
+                  {passengerLookup.found && <span className="ml-1 text-green-600 font-normal">(depuis le compte)</span>}
+                </label>
                 <input
                   value={form.lastName}
                   onChange={(e) => setForm((p) => ({ ...p, lastName: e.target.value }))}
                   placeholder="Yao"
-                  className={inputCls()}
+                  readOnly={!!passengerLookup.found}
+                  className={`${inputCls()} ${passengerLookup.found ? 'bg-gray-50 text-gray-500 cursor-default' : ''}`}
                 />
               </div>
             </div>
-            <div>
-              <label className="block text-xs font-medium text-gray-600 mb-1">Téléphone</label>
-              <input
-                value={form.phone}
-                onChange={(e) => setForm((p) => ({ ...p, phone: e.target.value }))}
-                placeholder="+2250712345678"
-                className={inputCls(formErrors.phone)}
-              />
-              {formErrors.phone && <p className="text-red-500 text-xs mt-1">{formErrors.phone}</p>}
-            </div>
+
+            {/* ── Mode de paiement ────────────────────────────────────────── */}
             <div>
               <label className="block text-xs font-medium text-gray-600 mb-1">Mode de paiement</label>
               <div className="flex flex-wrap gap-2">

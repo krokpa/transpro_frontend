@@ -24,6 +24,7 @@ export interface DataTableProps<T> {
   onSort?: (key: string, direction: 'asc' | 'desc') => void;
   emptyMessage?: string;
   actions?: (row: T) => ReactNode;
+  onRowClick?: (row: T) => void;
 }
 
 type SortDir = 'asc' | 'desc' | null;
@@ -39,6 +40,7 @@ export function DataTable<T>({
   onSort,
   emptyMessage = 'Aucun résultat',
   actions,
+  onRowClick,
 }: DataTableProps<T>) {
   const [sortKey, setSortKey] = useState<string | null>(null);
   const [sortDir, setSortDir] = useState<SortDir>(null);
@@ -98,7 +100,11 @@ export function DataTable<T>({
               </tr>
             ) : (
               data.map((row) => (
-                <tr key={keyExtractor(row)} className="hover:bg-gray-50 transition-colors">
+                <tr
+                  key={keyExtractor(row)}
+                  onClick={() => onRowClick?.(row)}
+                  className={`hover:bg-gray-50 transition-colors ${onRowClick ? 'cursor-pointer' : ''}`}
+                >
                   {columns.map((col) => (
                     <td key={col.key} className="px-4 py-3 text-gray-700">
                       {col.render

@@ -2,11 +2,12 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { paymentsApi } from '@/lib/api';
-import { formatCFA } from '@transpro/shared';
 import {
   ScanLine, CheckCircle, XCircle, Loader2, RotateCcw,
-  User, MapPin, Clock, Hash,
+  User, MapPin, Clock, Hash, Smartphone,
 } from 'lucide-react';
+import { getSocket, SocketEvent } from '@/lib/socket';
+import { Wifi, WifiOff } from 'lucide-react';
 import dayjs from 'dayjs';
 import 'dayjs/locale/fr';
 dayjs.locale('fr');
@@ -18,6 +19,8 @@ export default function ScannerPage() {
   const [result, setResult] = useState<any>(null);
   const [errorMsg, setErrorMsg] = useState('');
   const [manualInput, setManualInput] = useState('');
+  const [fromMobile, setFromMobile] = useState(false);
+  const [socketConnected, setSocketConnected] = useState(false);
   const scannerRef = useRef<any>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -26,6 +29,28 @@ export default function ScannerPage() {
       if (scannerRef.current) {
         try { scannerRef.current.stop(); } catch {}
       }
+    };
+  }, []);
+
+  useEffect(() => {
+    const socket = getSocket();
+    setSocketConnected(socket.connected);
+    socket.on('connect',    () => setSocketConnected(true));
+    socket.on('disconnect', () => setSocketConnected(false));
+    function onTicketScanned(data: any) {
+      if (scannerRef.current) {
+        try { scannerRef.current.stop(); } catch {}
+        scannerRef.current = null;
+      }
+      setResult(data);
+      setState('success');
+      setFromMobile(true);
+    }
+    socket.on(SocketEvent.TICKET_SCANNED, onTicketScanned);
+    return () => {
+      socket.off('connect');
+      socket.off('disconnect');
+      socket.off(SocketEvent.TICKET_SCANNED, onTicketScanned);
     };
   }, []);
 
@@ -85,13 +110,24 @@ export default function ScannerPage() {
     setResult(null);
     setErrorMsg('');
     setManualInput('');
+    setFromMobile(false);
   }
 
   return (
     <div className="max-w-lg mx-auto space-y-5">
-      <div>
-        <h1 className="text-2xl font-bold text-gray-900">Scanner de billets</h1>
-        <p className="text-sm text-gray-500 mt-1">Validez l'embarquement des passagers en scannant leur QR code</p>
+      <div className="flex items-start justify-between">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">Scanner de billets</h1>
+          <p className="text-sm text-gray-500 mt-1">Validez l'embarquement des passagers en scannant leur QR code</p>
+        </div>
+        <div className={`flex items-center gap-1.5 text-xs font-medium px-2.5 py-1 rounded-full border ${
+          socketConnected
+            ? 'text-green-700 bg-green-50 border-green-200'
+            : 'text-gray-400 bg-gray-50 border-gray-200'
+        }`}>
+          {socketConnected ? <Wifi size={11} /> : <WifiOff size={11} />}
+          {socketConnected ? 'Connecté' : 'Hors ligne'}
+        </div>
       </div>
 
       {/* IDLE */}
@@ -160,6 +196,12 @@ export default function ScannerPage() {
       {/* SUCCESS */}
       {state === 'success' && result && (
         <div className="space-y-4">
+          {fromMobile && (
+            <div className="flex items-center gap-2 text-xs font-medium text-blue-700 bg-blue-50 border border-blue-100 rounded-xl px-3 py-2">
+              <Smartphone size={13} />
+              Scan reçu depuis l'application mobile
+            </div>
+          )}
           <div className="bg-green-50 border border-green-200 rounded-2xl p-5 flex items-center gap-4">
             <div className="w-14 h-14 bg-green-100 rounded-full flex items-center justify-center shrink-0">
               <CheckCircle size={28} className="text-green-500" />

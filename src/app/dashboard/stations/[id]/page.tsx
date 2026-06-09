@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { useParams } from 'next/navigation';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
+import { confirm } from '@/lib/confirm';
 import {
   Building2, Users, UserPlus, Trash2, ArrowLeft, Star,
   Bus, Ticket, TrendingUp, Clock, ChevronRight,
@@ -477,7 +478,7 @@ export default function StationDetailPage() {
                       )}
                     </div>
                     <button
-                      onClick={() => { if (confirm(`Retirer ${m.user.firstName} ${m.user.lastName} ?`)) removeMut.mutate(m.userId); }}
+                      onClick={async () => { if (await confirm({ title: `Retirer ${m.user.firstName} ${m.user.lastName} ?`, description: 'Cette personne n\'aura plus accès à cette gare.', variant: 'danger', confirmLabel: 'Retirer' })) removeMut.mutate(m.userId); }}
                       disabled={removeMut.isPending}
                       className="p-1.5 text-gray-300 hover:text-red-500 hover:bg-red-50 rounded-lg transition disabled:opacity-50"
                     >

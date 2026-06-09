@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
+import { confirm } from '@/lib/confirm';
 import { Users, UserPlus, Trash2, ShieldCheck, User, Eye, EyeOff, Loader2 } from 'lucide-react';
 import { teamApi } from '@/lib/api';
 import { PhoneInput } from '@/components/ui/PhoneInput';
@@ -229,8 +230,8 @@ export default function TeamPage() {
                         ))}
                       </select>
                       <button
-                        onClick={() => {
-                          if (confirm(`Retirer ${m.firstName} ${m.lastName} de la compagnie ?`))
+                        onClick={async () => {
+                          if (await confirm({ title: `Retirer ${m.firstName} ${m.lastName} ?`, description: 'Cette personne n\'aura plus accès à la compagnie.', variant: 'danger', confirmLabel: 'Retirer' }))
                             removeMut.mutate(m.id);
                         }}
                         disabled={removeMut.isPending}

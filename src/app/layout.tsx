@@ -19,8 +19,15 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="fr">
+    <html lang="fr" suppressHydrationWarning>
       <body className={inter.className}>
+        {/* Script synchrone anti-flash : applique le thème avant le premier rendu */}
+        <script
+          suppressHydrationWarning
+          dangerouslySetInnerHTML={{
+            __html: `(function(){try{var t=JSON.parse(localStorage.getItem('transpro-theme')||'{}');var s=t.state||{};if(s.accent)document.documentElement.setAttribute('data-accent',s.accent);if(s.sidebar)document.documentElement.setAttribute('data-sidebar',s.sidebar);}catch(e){}})()`,
+          }}
+        />
         <Providers>{children}</Providers>
       </body>
     </html>

@@ -2,8 +2,9 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { paymentsApi } from '@/lib/api';
-import { formatCFA } from '@transpro/shared';
-import { ScanLine, CheckCircle, XCircle, Loader2, RotateCcw, User, MapPin, Clock, Hash } from 'lucide-react';
+import { ScanLine, CheckCircle, XCircle, Loader2, RotateCcw, User, MapPin, Clock, Hash, Smartphone, Wifi, WifiOff } from 'lucide-react';
+import { connectSocket, SocketEvent } from '@/lib/socket';
+import { useAuthStore } from '@/store/auth.store';
 import dayjs from 'dayjs';
 import 'dayjs/locale/fr';
 dayjs.locale('fr');
@@ -11,10 +12,13 @@ dayjs.locale('fr');
 type ScanState = 'idle' | 'scanning' | 'loading' | 'success' | 'error';
 
 export default function StationScannerPage() {
+  const { accessToken } = useAuthStore();
   const [state, setState] = useState<ScanState>('idle');
   const [result, setResult] = useState<any>(null);
   const [errorMsg, setErrorMsg] = useState('');
   const [manualInput, setManualInput] = useState('');
+  const [fromMobile, setFromMobile] = useState(false);
+  const [socketConnected, setSocketConnected] = useState(false);
   const scannerRef = useRef<any>(null);
 
   useEffect(() => {
@@ -22,6 +26,30 @@ export default function StationScannerPage() {
       if (scannerRef.current) { try { scannerRef.current.stop(); } catch {} }
     };
   }, []);
+
+  useEffect(() => {
+    const socket = connectSocket(accessToken ?? undefined);
+
+    setSocketConnected(socket.connected);
+    socket.on('connect',    () => setSocketConnected(true));
+    socket.on('disconnect', () => setSocketConnected(false));
+
+    function onTicketScanned(data: any) {
+      if (scannerRef.current) {
+        try { scannerRef.current.stop(); } catch {}
+        scannerRef.current = null;
+      }
+      setResult(data);
+      setState('success');
+      setFromMobile(true);
+    }
+    socket.on(SocketEvent.TICKET_SCANNED, onTicketScanned);
+    return () => {
+      socket.off('connect');
+      socket.off('disconnect');
+      socket.off(SocketEvent.TICKET_SCANNED, onTicketScanned);
+    };
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   async function startScanner() {
     setState('scanning');
@@ -64,13 +92,23 @@ export default function StationScannerPage() {
     setManualInput('');
   }
 
-  function reset() { setState('idle'); setResult(null); setErrorMsg(''); setManualInput(''); }
+  function reset() { setState('idle'); setResult(null); setErrorMsg(''); setManualInput(''); setFromMobile(false); }
 
   return (
     <div className="p-6 max-w-md mx-auto space-y-5">
-      <div>
-        <h1 className="text-xl font-bold text-gray-900">Scanner billets</h1>
-        <p className="text-gray-400 text-sm">Validez les billets des passagers</p>
+      <div className="flex items-start justify-between">
+        <div>
+          <h1 className="text-xl font-bold text-gray-900">Scanner billets</h1>
+          <p className="text-gray-400 text-sm">Validez les billets des passagers</p>
+        </div>
+        <div className={`flex items-center gap-1.5 text-xs font-medium px-2.5 py-1 rounded-full border ${
+          socketConnected
+            ? 'text-green-700 bg-green-50 border-green-200'
+            : 'text-gray-400 bg-gray-50 border-gray-200'
+        }`}>
+          {socketConnected ? <Wifi size={11} /> : <WifiOff size={11} />}
+          {socketConnected ? 'Connecté' : 'Hors ligne'}
+        </div>
       </div>
 
       {state === 'idle' && (
@@ -114,6 +152,12 @@ export default function StationScannerPage() {
 
       {state === 'success' && result && (
         <div className="space-y-4">
+          {fromMobile && (
+            <div className="flex items-center gap-2 text-xs font-medium text-blue-700 bg-blue-50 border border-blue-100 rounded-xl px-3 py-2">
+              <Smartphone size={13} />
+              Scan reçu depuis l'application mobile
+            </div>
+          )}
           <div className="bg-green-50 border border-green-200 rounded-2xl p-5 text-center">
             <CheckCircle size={48} className="text-green-500 mx-auto mb-3" />
             <p className="text-xl font-bold text-green-800">Billet Valide ✓</p>

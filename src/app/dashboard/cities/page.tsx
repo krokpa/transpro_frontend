@@ -7,6 +7,7 @@ import { useAuthStore } from '@/store/auth.store';
 import { useRouter } from 'next/navigation';
 import { Plus, Search, MapPin, Pencil, Trash2, ToggleLeft, ToggleRight, X, Check } from 'lucide-react';
 import { toast } from 'sonner';
+import { confirm } from '@/lib/confirm';
 
 interface City {
   id: string;
@@ -106,8 +107,12 @@ export default function CitiesPage() {
     updateMut.mutate({ id: city.id, data: { isActive: !city.isActive } });
   }
 
-  function confirmRemove(city: City) {
-    if (confirm(`Supprimer la ville "${city.name}" ? Cette action est irréversible.`)) {
+  async function confirmRemove(city: City) {
+    if (await confirm({
+      title: `Supprimer "${city.name}" ?`,
+      description: 'Cette action est irréversible.',
+      variant: 'danger',
+    })) {
       removeMut.mutate(city.id);
     }
   }

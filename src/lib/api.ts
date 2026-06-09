@@ -127,6 +127,8 @@ export const bookingsApi = {
   getMine: (id: string) => api.get(`/bookings/my/${id}`),
   rate: (id: string, data: { rating: number; comment?: string }) => api.post(`/bookings/my/${id}/rate`, data),
   cancel: (id: string) => api.delete(`/bookings/${id}`),
+  updateStatus: (id: string, status: string) => api.patch(`/bookings/${id}/status`, { status }),
+  generateTickets: (id: string) => api.post(`/bookings/${id}/tickets/generate`),
 };
 
 export const paymentsApi = {
@@ -248,7 +250,7 @@ export const campaignsApi = {
 };
 
 export const usersApi = {
-  updateProfile: (data: { firstName?: string; lastName?: string; phone?: string; preferredLang?: string }) =>
+  updateProfile: (data: { firstName?: string; lastName?: string; phone?: string; preferredLang?: string; themeAccent?: string; themeSidebar?: string }) =>
     api.patch('/users/profile', data),
   changePassword: (currentPassword: string, newPassword: string) =>
     api.post('/users/change-password', { currentPassword, newPassword }),
@@ -256,6 +258,9 @@ export const usersApi = {
     api.patch('/users/avatar', { avatar }),
   lookupByPhone: (phone: string) =>
     api.get('/users/lookup', { params: { phone } }),
+  /** Pour les comptes créés par téléphone : définir un vrai email et/ou un mot de passe. */
+  setCredentials: (data: { email?: string; password?: string }) =>
+    api.patch('/users/set-credentials', data),
 };
 
 export const teamApi = {

@@ -99,22 +99,22 @@ export default function PassengerLayout({ children }: { children: React.ReactNod
   return (
     <div className="flex h-screen bg-slate-50 overflow-hidden">
       {/* ── Sidebar ── */}
-      <aside className="w-64 bg-[#0c1425] flex flex-col h-full shrink-0 border-r border-white/[0.04]">
+      <aside className="w-64 bg-canvas flex flex-col h-full shrink-0 border-r border-white/[0.04]">
         {/* Brand */}
-        <div className="px-5 py-5 border-b border-white/[0.06]">
+        <div className="px-4 py-4 border-b border-white/[0.05]">
           <Link href="/passenger" className="flex items-center gap-3 min-w-0">
-            <div className="bg-brand-500 text-white rounded-xl p-2 shadow-lg shadow-brand-500/30 shrink-0">
+            <div className="bg-brand-500 text-white rounded-xl p-2 shadow-md shadow-brand-500/25 shrink-0">
               <Bus size={18} />
             </div>
             <div className="min-w-0">
-              <p className="font-bold text-white text-sm tracking-wide truncate">TransPro CI</p>
+              <p className="font-semibold text-white text-[13px] truncate">TransPro CI</p>
               <p className="text-[11px] text-slate-500">Espace passager</p>
             </div>
           </Link>
         </div>
 
         {/* Nav */}
-        <nav className="flex-1 px-3 py-5 space-y-0.5 overflow-y-auto scrollbar-dark">
+        <nav className="flex-1 px-2.5 py-3 space-y-px overflow-y-auto scrollbar-dark">
           {NAV.map((item) => {
             const active = pathname === item.href || (item.href !== '/passenger' && pathname.startsWith(item.href + '/'));
             return (
@@ -122,13 +122,13 @@ export default function PassengerLayout({ children }: { children: React.ReactNod
                 key={item.href}
                 href={item.href}
                 className={clsx(
-                  'flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-150',
+                  'flex items-center gap-2.5 px-3 py-2 rounded-lg text-[13px] font-medium transition-colors duration-100',
                   active
-                    ? 'bg-brand-500/[0.12] text-brand-300 shadow-[inset_3px_0_0_#f97316]'
-                    : 'text-slate-400 hover:bg-white/[0.05] hover:text-slate-200',
+                    ? 'bg-white/[0.07] text-white'
+                    : 'text-slate-400/80 hover:text-slate-200 hover:bg-white/[0.04]',
                 )}
               >
-                <item.icon size={16} className={clsx(active ? 'text-brand-400' : 'text-slate-500')} />
+                <item.icon size={15} className={clsx(active ? 'text-brand-400' : 'text-slate-500')} />
                 <span className="flex-1">{item.label}</span>
                 {item.href === '/passenger/notifications' && unreadCount > 0 && (
                   <span className="bg-red-500 text-white text-[9px] font-bold px-1.5 py-0.5 rounded-full min-w-[18px] text-center">
@@ -141,26 +141,26 @@ export default function PassengerLayout({ children }: { children: React.ReactNod
         </nav>
 
         {/* User footer */}
-        <div className="px-3 py-4 border-t border-white/[0.06] space-y-0.5">
-          <div className="flex items-center gap-3 px-3 py-2.5">
+        <div className="px-2.5 py-3 border-t border-white/[0.05]">
+          <div className="flex items-center gap-2.5 px-2 py-2 rounded-lg">
             <UserAvatar
               firstName={user?.firstName}
               lastName={user?.lastName}
               avatar={(user as any)?.avatar}
-              size={32}
-              className="shrink-0 ring-1 ring-brand-500/25"
+              size={28}
+              className="shrink-0"
             />
             <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium text-slate-200 truncate">{user?.firstName} {user?.lastName}</p>
-              <p className="text-[11px] text-slate-500 truncate">{user?.email}</p>
+              <p className="text-[13px] font-medium text-slate-300 truncate">{user?.firstName} {user?.lastName}</p>
             </div>
+            <button
+              onClick={handleLogout}
+              title="Déconnexion"
+              className="p-1.5 text-slate-600 hover:text-red-400 hover:bg-red-500/[0.08] rounded-md transition-colors duration-100"
+            >
+              <LogOut size={14} />
+            </button>
           </div>
-          <button
-            onClick={handleLogout}
-            className="w-full flex items-center gap-2.5 px-3 py-2 text-sm text-slate-400 hover:text-red-400 hover:bg-red-500/[0.06] rounded-lg transition-all duration-150"
-          >
-            <LogOut size={15} /> Déconnexion
-          </button>
         </div>
       </aside>
 

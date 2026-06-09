@@ -45,7 +45,7 @@ export default function DriverLayout({ children }: { children: React.ReactNode }
 
   if (!mounted || !isAuthenticated() || user?.role !== 'DRIVER') {
     return (
-      <div className="min-h-screen bg-[#0c1425] flex items-center justify-center">
+      <div className="min-h-screen bg-canvas flex items-center justify-center">
         <Loader2 size={32} className="text-brand-500 animate-spin" />
       </div>
     );
@@ -59,23 +59,23 @@ export default function DriverLayout({ children }: { children: React.ReactNode }
     <div className="flex h-screen bg-slate-50 overflow-hidden">
 
       {/* ── Sidebar ── */}
-      <aside className="w-60 bg-[#0c1425] flex flex-col h-full shrink-0 border-r border-white/[0.04]">
+      <aside className="w-60 bg-canvas flex flex-col h-full shrink-0 border-r border-white/[0.04]">
 
         {/* Brand */}
-        <div className="px-4 py-5 border-b border-white/[0.06]">
+        <div className="px-4 py-4 border-b border-white/[0.05]">
           <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-brand-500 to-orange-400 flex items-center justify-center shadow-md shadow-brand-500/30">
+            <div className="w-9 h-9 rounded-xl bg-brand-500 flex items-center justify-center shadow-md shadow-brand-500/25 shrink-0">
               <Bus size={16} className="text-white" />
             </div>
             <div>
-              <p className="font-bold text-white text-sm">Espace Chauffeur</p>
-              <p className="text-[10px] text-slate-500">TransPro CI</p>
+              <p className="font-semibold text-white text-[13px]">Espace Chauffeur</p>
+              <p className="text-[11px] text-slate-500">TransPro CI</p>
             </div>
           </div>
         </div>
 
         {/* Nav */}
-        <nav className="flex-1 px-3 py-4 space-y-0.5 overflow-y-auto">
+        <nav className="flex-1 px-2.5 py-3 space-y-px overflow-y-auto">
           {NAV.map((item) => {
             const active = item.href === '/driver'
               ? pathname === '/driver'
@@ -85,10 +85,10 @@ export default function DriverLayout({ children }: { children: React.ReactNode }
                 key={item.href}
                 href={item.href}
                 className={clsx(
-                  'flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-150',
+                  'flex items-center gap-2.5 px-3 py-2 rounded-lg text-[13px] font-medium transition-colors duration-100',
                   active
-                    ? 'bg-brand-500/[0.12] text-brand-300 shadow-[inset_3px_0_0_#f97316]'
-                    : 'text-slate-400 hover:bg-white/[0.05] hover:text-slate-200',
+                    ? 'bg-white/[0.07] text-white'
+                    : 'text-slate-400/80 hover:text-slate-200 hover:bg-white/[0.04]',
                 )}
               >
                 <item.icon size={15} className={clsx(active ? 'text-brand-400' : 'text-slate-500')} />
@@ -99,8 +99,8 @@ export default function DriverLayout({ children }: { children: React.ReactNode }
         </nav>
 
         {/* User footer */}
-        <div className="px-3 py-3 border-t border-white/[0.06]">
-          <div className="flex items-center gap-3 px-2 py-2">
+        <div className="px-2.5 py-3 border-t border-white/[0.05]">
+          <div className="flex items-center gap-2.5 px-2 py-2 rounded-lg">
             <UserAvatar
               firstName={user?.firstName}
               lastName={user?.lastName}
@@ -109,11 +109,17 @@ export default function DriverLayout({ children }: { children: React.ReactNode }
               className="ring-1 ring-white/10 shrink-0"
             />
             <div className="flex-1 min-w-0">
-              <p className="text-xs font-semibold text-slate-200 truncate">
+              <p className="text-[13px] font-medium text-slate-300 truncate">
                 {user?.firstName} {user?.lastName}
               </p>
-              <p className="text-[10px] text-slate-500 truncate">Chauffeur</p>
             </div>
+            <button
+              onClick={handleLogout}
+              title="Déconnexion"
+              className="p-1.5 text-slate-600 hover:text-red-400 hover:bg-red-500/[0.08] rounded-md transition-colors duration-100"
+            >
+              <LogOut size={14} />
+            </button>
           </div>
         </div>
       </aside>

@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { driversApi } from '@/lib/api';
+import { confirm } from '@/lib/confirm';
 import {
   ArrowLeft, Star, Calendar, Loader2, Plus, Check, Trash2,
   AlertTriangle, Phone, ChevronLeft, ChevronRight, Bus,
@@ -591,7 +592,7 @@ export default function DriverDetailPage() {
                             <Check size={15} />
                           </button>
                         )}
-                        <button onClick={() => { if(confirm('Supprimer cette absence ?')) deleteAbsence.mutate(absence.id); }}
+                        <button onClick={async () => { if (await confirm({ title: 'Supprimer cette absence ?', variant: 'danger' })) deleteAbsence.mutate(absence.id); }}
                           disabled={deleteAbsence.isPending}
                           className="p-1.5 text-slate-300 hover:text-red-400 hover:bg-red-50 rounded-lg transition disabled:opacity-50">
                           <Trash2 size={14} />
@@ -672,7 +673,7 @@ export default function DriverDetailPage() {
                           {dayjs(ev.createdAt).format('DD MMM YYYY')}
                         </p>
                       </div>
-                      <button onClick={() => { if(confirm('Supprimer cette évaluation ?')) deleteEval.mutate(ev.id); }}
+                      <button onClick={async () => { if (await confirm({ title: 'Supprimer cette évaluation ?', variant: 'danger' })) deleteEval.mutate(ev.id); }}
                         className="p-1.5 text-slate-300 hover:text-red-400 hover:bg-red-50 rounded-lg transition">
                         <Trash2 size={14} />
                       </button>
