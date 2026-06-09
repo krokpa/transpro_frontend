@@ -288,6 +288,25 @@ export const adminApi = {
   runBillingCheck: () => api.post('/billing/run-check'),
 };
 
+export const settlementsApi = {
+  // Super admin
+  list: (params?: { tenantId?: string; status?: string }) =>
+    api.get('/settlements', { params }),
+  get: (id: string) => api.get(`/settlements/${id}`),
+  markProcessing: (id: string, data: { bankName?: string; bankAccount?: string }) =>
+    api.patch(`/settlements/${id}/processing`, data),
+  markPaid: (id: string, data: { transferRef: string }) =>
+    api.patch(`/settlements/${id}/paid`, data),
+  markFailed: (id: string, data: { notes?: string }) =>
+    api.patch(`/settlements/${id}/failed`, data),
+  trigger: (data: { tenantId: string; year: number; month: number }) =>
+    api.post('/settlements/trigger', data),
+  // Compagnie
+  mySummary: () => api.get('/settlements/my/summary'),
+  submitBankDetails: (id: string, data: { bankName: string; bankAccount: string; notes?: string }) =>
+    api.patch(`/settlements/${id}/bank`, data),
+};
+
 export const citiesApi = {
   list: (search?: string) => api.get('/cities', { params: search ? { search } : {} }),
   create: (data: { name: string; region?: string; code?: string }) => api.post('/cities', data),
@@ -378,6 +397,28 @@ export const adminSmsApi = {
   listPackages:   ()           => api.get('/admin/sms/packages'),
   createPackage:  (data: any)  => api.post('/admin/sms/packages', data),
   updatePackage:  (id: string, data: any) => api.patch(`/admin/sms/packages/${id}`, data),
+};
+
+export const expensesApi = {
+  create: (data: any) => api.post('/expenses', data),
+  list: (params?: { stationId?: string; status?: string; category?: string; from?: string; to?: string }) =>
+    api.get('/expenses', { params }),
+  get: (id: string) => api.get(`/expenses/${id}`),
+  approve: (id: string) => api.patch(`/expenses/${id}/approve`, {}),
+  reject: (id: string, reason: string) => api.patch(`/expenses/${id}/reject`, { reason }),
+  stationSummary: (stationId: string, month?: string) =>
+    api.get(`/expenses/station/${stationId}/summary`, { params: month ? { month } : {} }),
+};
+
+export const cashProvisionsApi = {
+  create: (data: any) => api.post('/cash-provisions', data),
+  list: (params?: { stationId?: string; status?: string }) =>
+    api.get('/cash-provisions', { params }),
+  get: (id: string) => api.get(`/cash-provisions/${id}`),
+  approve: (id: string) => api.patch(`/cash-provisions/${id}/approve`, {}),
+  send: (id: string, notes?: string) => api.patch(`/cash-provisions/${id}/send`, { notes }),
+  receive: (id: string) => api.patch(`/cash-provisions/${id}/receive`, {}),
+  reject: (id: string, reason: string) => api.patch(`/cash-provisions/${id}/reject`, { reason }),
 };
 
 export const stationsApi = {

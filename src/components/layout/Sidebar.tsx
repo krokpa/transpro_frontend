@@ -5,7 +5,7 @@ import { usePathname, useRouter } from 'next/navigation';
 import {
   LayoutDashboard, Bus, Route, Users, Ticket,
   Settings, LogOut, Truck, CalendarClock, TicketCheck, ConciergeBell, ScanLine, BarChart3, FileText, Building2,
-  ShieldCheck, MapPin, CreditCard, UserCog, Package, Lock, Home, Luggage, Megaphone,
+  ShieldCheck, MapPin, CreditCard, UserCog, Package, Lock, Home, Luggage, Megaphone, Banknote, Receipt, Wallet,
 } from 'lucide-react';
 import { useAuthStore } from '@/store/auth.store';
 import { authApi, tenantsApi } from '@/lib/api';
@@ -36,6 +36,8 @@ const navGroups = [
       { label: 'Itinéraires',     icon: Route,         href: '/dashboard/routes',            plan: null,                             walkthroughId: undefined },
       { label: 'Modèles tickets', icon: TicketCheck,   href: '/dashboard/ticket-templates',  plan: null,                             walkthroughId: undefined },
       { label: 'Rapports',        icon: FileText,      href: '/dashboard/reports',           plan: null,                             walkthroughId: undefined },
+      { label: 'Dépenses',        icon: Receipt,       href: '/dashboard/expenses',          plan: null,                             walkthroughId: undefined },
+      { label: 'Approv. caisse',  icon: Wallet,        href: '/dashboard/cash-provisions',   plan: null,                             walkthroughId: undefined },
     ],
   },
   {
@@ -50,9 +52,10 @@ const navGroups = [
   {
     label: 'Compte',
     items: [
-      { label: 'Campagnes',  icon: Megaphone,  href: '/dashboard/campaigns',    plan: null, walkthroughId: undefined },
-      { label: 'Abonnement', icon: CreditCard, href: '/dashboard/subscription', plan: null, walkthroughId: undefined },
-      { label: 'Paramètres', icon: Settings,   href: '/dashboard/settings',     plan: null, walkthroughId: 'nav-settings' },
+      { label: 'Campagnes',    icon: Megaphone,  href: '/dashboard/campaigns',    plan: null, walkthroughId: undefined },
+      { label: 'Reversements', icon: Banknote,   href: '/dashboard/settlements',  plan: null, walkthroughId: undefined },
+      { label: 'Abonnement',   icon: CreditCard, href: '/dashboard/subscription', plan: null, walkthroughId: undefined },
+      { label: 'Paramètres',   icon: Settings,   href: '/dashboard/settings',     plan: null, walkthroughId: 'nav-settings' },
     ],
   },
 ];
@@ -149,6 +152,7 @@ export function Sidebar() {
                 { label: 'Compagnies',      icon: ShieldCheck,     href: '/dashboard/admin/tenants' },
                 { label: 'Utilisateurs',    icon: Users,           href: '/dashboard/admin/users' },
                 { label: 'Facturation',     icon: CreditCard,      href: '/dashboard/admin/billing' },
+                { label: 'Reversements',    icon: Banknote,        href: '/dashboard/admin/settlements' },
                 { label: 'Villes',          icon: MapPin,          href: '/dashboard/cities' },
                 { label: 'Paramètres',      icon: Settings,        href: '/dashboard/settings' },
               ].map((item) => {

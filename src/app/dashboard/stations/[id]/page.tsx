@@ -9,8 +9,10 @@ import {
   Building2, Users, UserPlus, Trash2, ArrowLeft, Star,
   Bus, Ticket, TrendingUp, Clock, ChevronRight,
   Calendar, BarChart2, MapPin, CheckCircle2, XCircle,
+  Wallet, Receipt, Plus, Loader2, Send, PackageCheck,
+  AlertCircle,
 } from 'lucide-react';
-import { stationsApi } from '@/lib/api';
+import { stationsApi, expensesApi, cashProvisionsApi } from '@/lib/api';
 import { api } from '@/lib/api';
 import { formatCFA } from '@transpro/shared';
 import Link from 'next/link';
@@ -36,9 +38,17 @@ const TABS = [
   { key: 'overview', label: 'Vue d\'ensemble', icon: BarChart2 },
   { key: 'trips',    label: 'Voyages du jour', icon: Bus },
   { key: 'agents',   label: 'Agents',          icon: Users },
+  { key: 'caisse',   label: 'Caisse',          icon: Wallet },
 ] as const;
 
 type Tab = typeof TABS[number]['key'];
+
+const EXPENSE_CATEGORY_LABELS: Record<string, string> = {
+  FUEL: 'Carburant', MAINTENANCE: 'Entretien', SALARY: 'Salaires',
+  OFFICE: 'Fournitures', CLEANING: 'Nettoyage', SECURITY: 'Sécurité',
+  MEAL: 'Restauration', BANKING: 'Frais bancaires', COMMUNICATION: 'Communication',
+  TRANSPORT: 'Transport', OTHER: 'Autres',
+};
 
 const TRIP_STATUS: Record<string, { label: string; cls: string }> = {
   SCHEDULED: { label: 'Planifié',  cls: 'bg-blue-100 text-blue-700' },
@@ -54,6 +64,339 @@ const ROLE_LABEL: Record<string, string> = {
   COMPANY_AGENT: 'Agent',
   PASSENGER: 'Passager',
 };
+
+function StationCaisse({ stationId }: { stationId: string }) {
+  const qc = useQueryClient();
+  const [showExpenseForm, setShowExpenseForm] = useState(false);
+  const [showProvisionForm, setShowProvisionForm] = useState(false);
+  const [rejectExpenseId, setRejectExpenseId] = useState<string | null>(null);
+  const [expenseForm, setExpenseForm] = useState({ category: 'FUEL', description: '', amount: '', date: dayjs().format('YYYY-MM-DD'), receiptNote: '' });
+  const [provisionForm, setProvisionForm] = useState({ amount: '', reason: '', notes: '' });
+
+  const currentMonth = dayjs().format('YYYY-MM');
+
+  const { data: summary } = useQuery({
+    queryKey: ['station-cash-summary', stationId, currentMonth],
+    queryFn: () => expensesApi.stationSummary(stationId, currentMonth) as any,
+    staleTime: 30_000,
+  });
+  const sum = summary as any;
+
+  const { data: rawExpenses = [] } = useQuery({
+    queryKey: ['station-expenses', stationId],
+    queryFn: () => expensesApi.list({ stationId }) as any,
+    staleTime: 30_000,
+  });
+  const expenses: any[] = Array.isArray(rawExpenses) ? rawExpenses : (rawExpenses as any)?.data ?? [];
+
+  const { data: rawProvisions = [] } = useQuery({
+    queryKey: ['station-provisions', stationId],
+    queryFn: () => cashProvisionsApi.list({ stationId }) as any,
+    staleTime: 30_000,
+  });
+  const provisions: any[] = Array.isArray(rawProvisions) ? rawProvisions : (rawProvisions as any)?.data ?? [];
+
+  const invalidateAll = () => {
+    qc.invalidateQueries({ queryKey: ['station-expenses', stationId] });
+    qc.invalidateQueries({ queryKey: ['station-provisions', stationId] });
+    qc.invalidateQueries({ queryKey: ['station-cash-summary', stationId] });
+  };
+
+  const createExpense = useMutation({
+    mutationFn: () => expensesApi.create({ stationId, ...expenseForm, amount: parseInt(expenseForm.amount) }) as any,
+    onSuccess: () => { toast.success('Dépense enregistrée'); setShowExpenseForm(false); setExpenseForm({ category: 'FUEL', description: '', amount: '', date: dayjs().format('YYYY-MM-DD'), receiptNote: '' }); invalidateAll(); },
+    onError: (e: any) => toast.error(e?.response?.data?.message ?? 'Erreur'),
+  });
+
+  const createProvision = useMutation({
+    mutationFn: () => cashProvisionsApi.create({ stationId, ...provisionForm, amount: parseInt(provisionForm.amount) }) as any,
+    onSuccess: () => { toast.success('Demande envoyée'); setShowProvisionForm(false); setProvisionForm({ amount: '', reason: '', notes: '' }); invalidateAll(); },
+    onError: (e: any) => toast.error(e?.response?.data?.message ?? 'Erreur'),
+  });
+
+  const approveExpense = useMutation({
+    mutationFn: (id: string) => expensesApi.approve(id) as any,
+    onSuccess: () => { toast.success('Approuvée'); invalidateAll(); },
+    onError: (e: any) => toast.error(e?.response?.data?.message ?? 'Erreur'),
+  });
+
+  const rejectExpenseMut = useMutation({
+    mutationFn: ({ id, reason }: { id: string; reason: string }) => expensesApi.reject(id, reason) as any,
+    onSuccess: () => { toast.success('Rejetée'); setRejectExpenseId(null); invalidateAll(); },
+    onError: (e: any) => toast.error(e?.response?.data?.message ?? 'Erreur'),
+  });
+
+  const [rejectReason, setRejectReason] = useState('');
+
+  const PROV_STATUS: Record<string, { label: string; cls: string }> = {
+    REQUESTED: { label: 'En attente', cls: 'bg-amber-100 text-amber-700' },
+    APPROVED:  { label: 'Approuvée',  cls: 'bg-blue-100 text-blue-700' },
+    SENT:      { label: 'En transit', cls: 'bg-indigo-100 text-indigo-700' },
+    RECEIVED:  { label: 'Reçue',      cls: 'bg-emerald-100 text-emerald-700' },
+    REJECTED:  { label: 'Rejetée',    cls: 'bg-red-100 text-red-600' },
+  };
+
+  const EXP_STATUS: Record<string, { label: string; cls: string }> = {
+    SUBMITTED: { label: 'En attente', cls: 'bg-amber-100 text-amber-700' },
+    APPROVED:  { label: 'Approuvée',  cls: 'bg-emerald-100 text-emerald-700' },
+    REJECTED:  { label: 'Rejetée',    cls: 'bg-red-100 text-red-600' },
+  };
+
+  const balanceColor = sum?.estimatedBalance >= 0 ? 'text-emerald-700' : 'text-red-600';
+
+  return (
+    <div className="space-y-6">
+      {/* Balance + KPIs du mois */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+        <div className="lg:col-span-1 bg-white rounded-xl border border-gray-200 p-4">
+          <p className="text-xs font-medium text-gray-500 mb-1">Solde estimé (caisse)</p>
+          <p className={`text-2xl font-bold ${balanceColor}`}>{formatCFA(sum?.estimatedBalance ?? 0)}</p>
+          <p className="text-xs text-gray-400 mt-0.5">Espèces − dépenses + approv.</p>
+        </div>
+        <div className="bg-white rounded-xl border border-gray-200 p-4">
+          <p className="text-xs font-medium text-gray-500 mb-1">Ventes espèces (mois)</p>
+          <p className="text-lg font-bold text-gray-900">{formatCFA(sum?.cashSales ?? 0)}</p>
+        </div>
+        <div className="bg-white rounded-xl border border-gray-200 p-4">
+          <p className="text-xs font-medium text-gray-500 mb-1">Dépenses approuvées</p>
+          <p className="text-lg font-bold text-red-600">{formatCFA(sum?.totalExpenses ?? 0)}</p>
+          {(sum?.pendingExpenses ?? 0) > 0 && (
+            <p className="text-xs text-amber-600 font-medium mt-0.5">{sum.pendingExpenses} en attente</p>
+          )}
+        </div>
+        <div className="bg-white rounded-xl border border-gray-200 p-4">
+          <p className="text-xs font-medium text-gray-500 mb-1">Approv. reçus (mois)</p>
+          <p className="text-lg font-bold text-blue-700">{formatCFA(sum?.totalProvisions ?? 0)}</p>
+        </div>
+      </div>
+
+      {/* Dépenses par catégorie */}
+      {sum?.byCategory && Object.keys(sum.byCategory).length > 0 && (
+        <div className="bg-white rounded-xl border border-gray-200 p-4">
+          <h3 className="text-sm font-semibold text-gray-900 mb-3">Répartition des dépenses</h3>
+          <div className="space-y-2">
+            {Object.entries(sum.byCategory as Record<string, number>)
+              .sort(([, a], [, b]) => b - a)
+              .map(([cat, amount]) => {
+                const total = sum.totalExpenses || 1;
+                const pct = Math.round((amount / total) * 100);
+                return (
+                  <div key={cat} className="flex items-center gap-3">
+                    <span className="text-xs text-gray-500 w-28 shrink-0">{EXPENSE_CATEGORY_LABELS[cat] ?? cat}</span>
+                    <div className="flex-1 h-1.5 bg-gray-100 rounded-full">
+                      <div className="h-1.5 bg-indigo-400 rounded-full" style={{ width: `${pct}%` }} />
+                    </div>
+                    <span className="text-xs font-semibold text-gray-700 w-24 text-right">{formatCFA(amount)}</span>
+                  </div>
+                );
+              })}
+          </div>
+        </div>
+      )}
+
+      {/* Dépenses récentes */}
+      <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+        <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100">
+          <div className="flex items-center gap-2">
+            <Receipt className="w-4 h-4 text-gray-400" />
+            <h3 className="text-sm font-semibold text-gray-900">Dépenses récentes</h3>
+            <span className="text-xs bg-gray-100 text-gray-600 rounded-full px-1.5">{expenses.length}</span>
+          </div>
+          <button onClick={() => setShowExpenseForm(v => !v)}
+            className="flex items-center gap-1 text-xs font-medium text-indigo-600 hover:text-indigo-800 px-2.5 py-1.5 bg-indigo-50 hover:bg-indigo-100 rounded-lg transition-colors">
+            <Plus className="w-3.5 h-3.5" /> Ajouter
+          </button>
+        </div>
+
+        {showExpenseForm && (
+          <div className="border-b border-gray-100 p-4 bg-gray-50">
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block text-xs font-medium text-gray-600 mb-1">Catégorie</label>
+                <select value={expenseForm.category} onChange={e => setExpenseForm(f => ({ ...f, category: e.target.value }))}
+                  className="w-full text-xs border rounded-lg px-2.5 py-2 focus:outline-none focus:ring-1 focus:ring-indigo-300">
+                  {Object.entries(EXPENSE_CATEGORY_LABELS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+                </select>
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-gray-600 mb-1">Date</label>
+                <input type="date" value={expenseForm.date} onChange={e => setExpenseForm(f => ({ ...f, date: e.target.value }))}
+                  className="w-full text-xs border rounded-lg px-2.5 py-2 focus:outline-none focus:ring-1 focus:ring-indigo-300" />
+              </div>
+              <div className="col-span-2">
+                <label className="block text-xs font-medium text-gray-600 mb-1">Description *</label>
+                <input value={expenseForm.description} onChange={e => setExpenseForm(f => ({ ...f, description: e.target.value }))}
+                  placeholder="Ex: Achat gasoil groupe électrogène"
+                  className="w-full text-xs border rounded-lg px-2.5 py-2 focus:outline-none focus:ring-1 focus:ring-indigo-300" />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-gray-600 mb-1">Montant (FCFA) *</label>
+                <input type="number" value={expenseForm.amount} onChange={e => setExpenseForm(f => ({ ...f, amount: e.target.value }))}
+                  placeholder="0" min="1"
+                  className="w-full text-xs border rounded-lg px-2.5 py-2 focus:outline-none focus:ring-1 focus:ring-indigo-300" />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-gray-600 mb-1">Justificatif</label>
+                <input value={expenseForm.receiptNote} onChange={e => setExpenseForm(f => ({ ...f, receiptNote: e.target.value }))}
+                  placeholder="N° reçu, fournisseur…"
+                  className="w-full text-xs border rounded-lg px-2.5 py-2 focus:outline-none focus:ring-1 focus:ring-indigo-300" />
+              </div>
+            </div>
+            <div className="flex gap-2 mt-3">
+              <button onClick={() => setShowExpenseForm(false)} className="text-xs px-3 py-1.5 text-gray-600 border rounded-lg hover:bg-gray-50">Annuler</button>
+              <button onClick={() => createExpense.mutate()}
+                disabled={!expenseForm.description || !expenseForm.amount || createExpense.isPending}
+                className="text-xs px-4 py-1.5 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-50 flex items-center gap-1">
+                {createExpense.isPending && <Loader2 className="w-3 h-3 animate-spin" />} Enregistrer
+              </button>
+            </div>
+          </div>
+        )}
+
+        {expenses.length === 0 ? (
+          <div className="py-10 flex flex-col items-center text-gray-400 text-sm gap-2">
+            <Receipt className="w-8 h-8 opacity-30" /> Aucune dépense
+          </div>
+        ) : (
+          <table className="min-w-full divide-y divide-gray-50 text-sm">
+            <thead className="bg-gray-50 text-xs text-gray-500 uppercase">
+              <tr>
+                <th className="px-4 py-2 text-left">Date</th>
+                <th className="px-4 py-2 text-left">Catégorie</th>
+                <th className="px-4 py-2 text-left">Description</th>
+                <th className="px-4 py-2 text-right">Montant</th>
+                <th className="px-4 py-2 text-center">Statut</th>
+                <th className="px-4 py-2" />
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-50">
+              {expenses.slice(0, 10).map((e: any) => {
+                const sc = EXP_STATUS[e.status] ?? EXP_STATUS.SUBMITTED;
+                return (
+                  <tr key={e.id} className="hover:bg-gray-50/60">
+                    <td className="px-4 py-2.5 text-gray-500 whitespace-nowrap">{dayjs(e.date).format('D MMM')}</td>
+                    <td className="px-4 py-2.5 text-gray-600">{EXPENSE_CATEGORY_LABELS[e.category] ?? e.category}</td>
+                    <td className="px-4 py-2.5 text-gray-700 max-w-[180px] truncate">{e.description}</td>
+                    <td className="px-4 py-2.5 text-right font-semibold text-gray-900">{formatCFA(e.amount)}</td>
+                    <td className="px-4 py-2.5 text-center">
+                      <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${sc.cls}`}>{sc.label}</span>
+                    </td>
+                    <td className="px-4 py-2.5 text-right">
+                      {e.status === 'SUBMITTED' && (
+                        <div className="flex items-center justify-end gap-1.5">
+                          <button onClick={() => approveExpense.mutate(e.id)}
+                            className="text-[11px] text-emerald-700 bg-emerald-50 hover:bg-emerald-100 px-2 py-0.5 rounded-lg flex items-center gap-1">
+                            <CheckCircle2 className="w-3 h-3" /> OK
+                          </button>
+                          <button onClick={() => { setRejectExpenseId(e.id); setRejectReason(''); }}
+                            className="text-[11px] text-red-600 bg-red-50 hover:bg-red-100 px-2 py-0.5 rounded-lg flex items-center gap-1">
+                            <XCircle className="w-3 h-3" /> Rejeter
+                          </button>
+                        </div>
+                      )}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        )}
+      </div>
+
+      {/* Approvisionnements */}
+      <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+        <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100">
+          <div className="flex items-center gap-2">
+            <Wallet className="w-4 h-4 text-gray-400" />
+            <h3 className="text-sm font-semibold text-gray-900">Approvisionnements</h3>
+            <span className="text-xs bg-gray-100 text-gray-600 rounded-full px-1.5">{provisions.length}</span>
+          </div>
+          <button onClick={() => setShowProvisionForm(v => !v)}
+            className="flex items-center gap-1 text-xs font-medium text-blue-600 hover:text-blue-800 px-2.5 py-1.5 bg-blue-50 hover:bg-blue-100 rounded-lg transition-colors">
+            <Plus className="w-3.5 h-3.5" /> Demander
+          </button>
+        </div>
+
+        {showProvisionForm && (
+          <div className="border-b border-gray-100 p-4 bg-gray-50">
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block text-xs font-medium text-gray-600 mb-1">Montant (FCFA) *</label>
+                <input type="number" value={provisionForm.amount} onChange={e => setProvisionForm(f => ({ ...f, amount: e.target.value }))}
+                  placeholder="Ex: 50000" min="1000"
+                  className="w-full text-xs border rounded-lg px-2.5 py-2 focus:outline-none focus:ring-1 focus:ring-blue-300" />
+              </div>
+              <div className="col-span-2">
+                <label className="block text-xs font-medium text-gray-600 mb-1">Motif *</label>
+                <input value={provisionForm.reason} onChange={e => setProvisionForm(f => ({ ...f, reason: e.target.value }))}
+                  placeholder="Ex: Réapprovisionnement hebdomadaire"
+                  className="w-full text-xs border rounded-lg px-2.5 py-2 focus:outline-none focus:ring-1 focus:ring-blue-300" />
+              </div>
+              <div className="col-span-2">
+                <label className="block text-xs font-medium text-gray-600 mb-1">Notes (optionnel)</label>
+                <input value={provisionForm.notes} onChange={e => setProvisionForm(f => ({ ...f, notes: e.target.value }))}
+                  placeholder="Informations complémentaires…"
+                  className="w-full text-xs border rounded-lg px-2.5 py-2 focus:outline-none focus:ring-1 focus:ring-blue-300" />
+              </div>
+            </div>
+            <div className="flex gap-2 mt-3">
+              <button onClick={() => setShowProvisionForm(false)} className="text-xs px-3 py-1.5 text-gray-600 border rounded-lg hover:bg-gray-50">Annuler</button>
+              <button onClick={() => createProvision.mutate()}
+                disabled={!provisionForm.reason || !provisionForm.amount || createProvision.isPending}
+                className="text-xs px-4 py-1.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 flex items-center gap-1">
+                {createProvision.isPending && <Loader2 className="w-3 h-3 animate-spin" />} Envoyer la demande
+              </button>
+            </div>
+          </div>
+        )}
+
+        {provisions.length === 0 ? (
+          <div className="py-10 flex flex-col items-center text-gray-400 text-sm gap-2">
+            <Wallet className="w-8 h-8 opacity-30" /> Aucun approvisionnement
+          </div>
+        ) : (
+          <div className="divide-y divide-gray-50">
+            {provisions.slice(0, 8).map((p: any) => {
+              const sc = PROV_STATUS[p.status] ?? PROV_STATUS.REQUESTED;
+              return (
+                <div key={p.id} className="px-4 py-3 flex items-center gap-3">
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2">
+                      <p className="text-sm font-semibold text-gray-900">{formatCFA(p.amount)}</p>
+                      <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${sc.cls}`}>{sc.label}</span>
+                    </div>
+                    <p className="text-xs text-gray-500 mt-0.5 truncate">{p.reason}</p>
+                  </div>
+                  <p className="text-xs text-gray-400 whitespace-nowrap">{dayjs(p.createdAt).format('D MMM')}</p>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+
+      {/* Modal reject dépense */}
+      {rejectExpenseId && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm p-5 space-y-3">
+            <h3 className="font-bold text-gray-900">Motif du rejet</h3>
+            <textarea value={rejectReason} onChange={e => setRejectReason(e.target.value)} rows={3}
+              placeholder="Expliquez le motif…"
+              className="w-full text-sm border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-red-300 resize-none" />
+            <div className="flex gap-3">
+              <button onClick={() => setRejectExpenseId(null)} className="flex-1 py-2 text-sm text-gray-600 border rounded-lg">Annuler</button>
+              <button onClick={() => rejectExpenseMut.mutate({ id: rejectExpenseId, reason: rejectReason })}
+                disabled={!rejectReason.trim() || rejectExpenseMut.isPending}
+                className="flex-1 py-2 text-sm text-white bg-red-600 rounded-lg disabled:opacity-50 flex items-center justify-center gap-1">
+                {rejectExpenseMut.isPending && <Loader2 className="w-3.5 h-3.5 animate-spin" />} Rejeter
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
 
 export default function StationDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -491,6 +834,9 @@ export default function StationDetailPage() {
           )}
         </div>
       )}
+
+      {/* ── Caisse ───────────────────────────────────────────────── */}
+      {tab === 'caisse' && <StationCaisse stationId={id} />}
 
       {/* Add agent modal */}
       {addModal && (
