@@ -305,6 +305,8 @@ export const settlementsApi = {
   mySummary: () => api.get('/settlements/my/summary'),
   submitBankDetails: (id: string, data: { bankName: string; bankAccount: string; notes?: string }) =>
     api.patch(`/settlements/${id}/bank`, data),
+  exportStatement: (params: { from: string; to: string; format: 'pdf' | 'xlsx'; tenantId?: string }) =>
+    api.get('/settlements/export/statement', { params, responseType: 'blob' }),
 };
 
 export const citiesApi = {
@@ -408,6 +410,8 @@ export const expensesApi = {
   reject: (id: string, reason: string) => api.patch(`/expenses/${id}/reject`, { reason }),
   stationSummary: (stationId: string, month?: string) =>
     api.get(`/expenses/station/${stationId}/summary`, { params: month ? { month } : {} }),
+  exportStationStatement: (stationId: string, params: { from: string; to: string; format: 'pdf' | 'xlsx' }) =>
+    api.get(`/expenses/station/${stationId}/export`, { params, responseType: 'blob' }),
 };
 
 export const cashProvisionsApi = {

@@ -5,7 +5,7 @@ import { usePathname, useRouter } from 'next/navigation';
 import {
   LayoutDashboard, Bus, Route, Users, Ticket,
   Settings, LogOut, Truck, CalendarClock, TicketCheck, ConciergeBell, ScanLine, BarChart3, FileText, Building2,
-  ShieldCheck, MapPin, CreditCard, UserCog, Package, Lock, Home, Luggage, Megaphone, Banknote, Receipt, Wallet,
+  ShieldCheck, MapPin, CreditCard, UserCog, Package, Lock, Home, Luggage, Megaphone, Banknote, Receipt, Wallet, BookOpen,
 } from 'lucide-react';
 import { useAuthStore } from '@/store/auth.store';
 import { authApi, tenantsApi } from '@/lib/api';
@@ -54,6 +54,7 @@ const navGroups = [
     items: [
       { label: 'Campagnes',    icon: Megaphone,  href: '/dashboard/campaigns',    plan: null, walkthroughId: undefined },
       { label: 'Reversements', icon: Banknote,   href: '/dashboard/settlements',  plan: null, walkthroughId: undefined },
+      { label: 'Relevés',      icon: BookOpen,   href: '/dashboard/statements',   plan: null, walkthroughId: undefined },
       { label: 'Abonnement',   icon: CreditCard, href: '/dashboard/subscription', plan: null, walkthroughId: undefined },
       { label: 'Paramètres',   icon: Settings,   href: '/dashboard/settings',     plan: null, walkthroughId: 'nav-settings' },
     ],
