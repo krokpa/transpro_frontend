@@ -414,6 +414,25 @@ export const expensesApi = {
     api.get(`/expenses/station/${stationId}/export`, { params, responseType: 'blob' }),
 };
 
+export const cashPeriodsApi = {
+  getCurrent: (stationId: string) =>
+    api.get(`/station-cash-periods/${stationId}/current`),
+  getPeriod: (stationId: string, year: number, month: number) =>
+    api.get(`/station-cash-periods/${stationId}/${year}/${month}`),
+  getHistory: (stationId: string, limit = 12) =>
+    api.get(`/station-cash-periods/${stationId}/history`, { params: { limit } }),
+  setOpeningBalance: (stationId: string, year: number, month: number, data: { openingBalance: number; notes?: string }) =>
+    api.patch(`/station-cash-periods/${stationId}/${year}/${month}/opening`, data),
+  closePeriod: (stationId: string, year: number, month: number, data: { declaredBalance: number; notes?: string }) =>
+    api.post(`/station-cash-periods/${stationId}/${year}/${month}/close`, data),
+  validatePeriod: (stationId: string, year: number, month: number) =>
+    api.post(`/station-cash-periods/${stationId}/${year}/${month}/validate`, {}),
+  reopenPeriod: (stationId: string, year: number, month: number) =>
+    api.post(`/station-cash-periods/${stationId}/${year}/${month}/reopen`, {}),
+  recalculate: (stationId: string, year: number, month: number) =>
+    api.post(`/station-cash-periods/${stationId}/${year}/${month}/recalculate`, {}),
+};
+
 export const cashProvisionsApi = {
   create: (data: any) => api.post('/cash-provisions', data),
   list: (params?: { stationId?: string; status?: string }) =>

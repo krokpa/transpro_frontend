@@ -5,6 +5,8 @@ import { useRouter } from 'next/navigation';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { driversApi } from '@/lib/api';
 import { UserCheck, UserX, Plus, X, Loader2, AlertTriangle, ExternalLink } from 'lucide-react';
+import { ViewToggle } from '@/components/ui/ViewToggle';
+import { useViewMode } from '@/hooks/useViewMode';
 import { toast } from 'sonner';
 import dayjs from 'dayjs';
 import { PhoneInput } from '@/components/ui/PhoneInput';
@@ -51,6 +53,7 @@ export default function DriversPage() {
   const router = useRouter();
   const [showModal, setShowModal] = useState(false);
   const [form, setForm] = useState<DriverForm>(defaultForm);
+  const [viewMode, setViewMode] = useViewMode('drivers');
 
   const { data: drivers = [], isLoading } = useQuery<Driver[]>({
     queryKey: ['drivers'],
@@ -118,143 +121,229 @@ export default function DriversPage() {
             </p>
           )}
         </div>
-        <button
-          onClick={() => setShowModal(true)}
-          className="bg-brand-500 hover:bg-brand-600 text-white px-4 py-2 rounded-lg text-sm font-medium flex items-center gap-2 transition"
-        >
-          <Plus size={16} />
-          Ajouter un chauffeur
-        </button>
+        <div className="flex items-center gap-3">
+          <ViewToggle value={viewMode} onChange={setViewMode} />
+          <button
+            onClick={() => setShowModal(true)}
+            className="bg-brand-500 hover:bg-brand-600 text-white px-4 py-2 rounded-lg text-sm font-medium flex items-center gap-2 transition"
+          >
+            <Plus size={16} />
+            Ajouter un chauffeur
+          </button>
+        </div>
       </div>
 
-      {/* Tableau */}
-      <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
-        {isLoading ? (
-          <div className="space-y-3 p-6">
-            {Array.from({ length: 5 }).map((_, i) => (
-              <div key={i} className="h-12 bg-gray-100 rounded-lg animate-pulse" />
+      {/* Tableau / Grille */}
+      {viewMode === 'list' ? (
+        <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
+          {isLoading ? (
+            <div className="space-y-3 p-6">
+              {Array.from({ length: 5 }).map((_, i) => (
+                <div key={i} className="h-12 bg-gray-100 rounded-lg animate-pulse" />
+              ))}
+            </div>
+          ) : (drivers as Driver[]).length === 0 ? (
+            <div className="text-center py-16">
+              <UserCheck size={40} className="text-gray-300 mx-auto mb-3" />
+              <p className="text-gray-500 font-medium">Aucun chauffeur enregistré</p>
+              <p className="text-gray-400 text-sm mt-1">
+                Ajoutez votre premier chauffeur pour commencer
+              </p>
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead className="bg-gray-50 border-b border-gray-100">
+                  <tr>
+                    <th className="px-4 py-3 text-left font-medium text-gray-600">Chauffeur</th>
+                    <th className="px-4 py-3 text-left font-medium text-gray-600">Téléphone</th>
+                    <th className="px-4 py-3 text-left font-medium text-gray-600">N° Permis</th>
+                    <th className="px-4 py-3 text-left font-medium text-gray-600">Expiration permis</th>
+                    <th className="px-4 py-3 text-left font-medium text-gray-600">Disponibilité</th>
+                    <th className="px-4 py-3 text-left font-medium text-gray-600">Actions</th>
+                    <th className="px-4 py-3 text-left font-medium text-gray-600">Détail</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-50">
+                  {(drivers as Driver[]).map((driver) => {
+                    const expired = isExpired(driver.licenseExpiry);
+                    const expiringSoon = !expired && isExpiringWithin30Days(driver.licenseExpiry);
+                    return (
+                      <tr key={driver.id} className="hover:bg-gray-50 transition">
+                        <td className="px-4 py-3">
+                          <p className="font-medium text-gray-900">
+                            {driver.firstName} {driver.lastName}
+                          </p>
+                        </td>
+                        <td className="px-4 py-3 text-gray-600 font-mono text-xs">
+                          {driver.phone}
+                        </td>
+                        <td className="px-4 py-3 text-gray-600 font-mono text-xs">
+                          {driver.licenseNumber}
+                        </td>
+                        <td className="px-4 py-3">
+                          <div className="flex items-center gap-2">
+                            <span
+                              className={`text-sm ${
+                                expired
+                                  ? 'text-red-600 font-semibold'
+                                  : expiringSoon
+                                  ? 'text-amber-600 font-semibold'
+                                  : 'text-gray-600'
+                              }`}
+                            >
+                              {dayjs(driver.licenseExpiry).format('DD/MM/YYYY')}
+                            </span>
+                            {expired && (
+                              <span className="text-xs bg-red-100 text-red-700 px-1.5 py-0.5 rounded-full font-medium">
+                                Expiré
+                              </span>
+                            )}
+                            {expiringSoon && (
+                              <span className="text-xs bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded-full font-medium flex items-center gap-1">
+                                <AlertTriangle size={10} />
+                                Bientôt
+                              </span>
+                            )}
+                          </div>
+                        </td>
+                        <td className="px-4 py-3">
+                          <span
+                            className={`text-xs px-2 py-1 rounded-full font-medium ${
+                              driver.isAvailable
+                                ? 'bg-green-100 text-green-700'
+                                : 'bg-red-100 text-red-700'
+                            }`}
+                          >
+                            {driver.isAvailable ? 'Disponible' : 'Indisponible'}
+                          </span>
+                        </td>
+                        <td className="px-4 py-3">
+                          <button
+                            title={driver.isAvailable ? 'Marquer indisponible' : 'Marquer disponible'}
+                            onClick={() =>
+                              toggleAvailabilityMutation.mutate({
+                                id: driver.id,
+                                isAvailable: !driver.isAvailable,
+                              })
+                            }
+                            disabled={toggleAvailabilityMutation.isPending}
+                            className="text-gray-400 hover:text-brand-500 transition disabled:opacity-50 flex items-center gap-1.5 text-xs"
+                          >
+                            {toggleAvailabilityMutation.isPending && toggleAvailabilityMutation.variables?.id === driver.id ? (
+                              <Loader2 size={14} className="animate-spin" />
+                            ) : driver.isAvailable ? (
+                              <>
+                                <UserX size={15} />
+                                Désactiver
+                              </>
+                            ) : (
+                              <>
+                                <UserCheck size={15} />
+                                Activer
+                              </>
+                            )}
+                          </button>
+                        </td>
+                        <td className="px-4 py-3">
+                          <button
+                            onClick={() => router.push(`/dashboard/drivers/${driver.id}`)}
+                            className="flex items-center gap-1.5 text-xs text-brand-600 hover:text-brand-700 font-medium transition"
+                            title="Planning, absences & évaluations"
+                          >
+                            <ExternalLink size={13} /> Voir
+                          </button>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      ) : (
+        /* Grid view */
+        isLoading ? (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            {Array.from({ length: 6 }).map((_, i) => (
+              <div key={i} className="h-44 bg-gray-100 rounded-xl animate-pulse" />
             ))}
           </div>
         ) : (drivers as Driver[]).length === 0 ? (
-          <div className="text-center py-16">
+          <div className="text-center py-16 bg-white rounded-xl border border-gray-100">
             <UserCheck size={40} className="text-gray-300 mx-auto mb-3" />
             <p className="text-gray-500 font-medium">Aucun chauffeur enregistré</p>
-            <p className="text-gray-400 text-sm mt-1">
-              Ajoutez votre premier chauffeur pour commencer
-            </p>
           </div>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead className="bg-gray-50 border-b border-gray-100">
-                <tr>
-                  <th className="px-4 py-3 text-left font-medium text-gray-600">Chauffeur</th>
-                  <th className="px-4 py-3 text-left font-medium text-gray-600">Téléphone</th>
-                  <th className="px-4 py-3 text-left font-medium text-gray-600">N° Permis</th>
-                  <th className="px-4 py-3 text-left font-medium text-gray-600">Expiration permis</th>
-                  <th className="px-4 py-3 text-left font-medium text-gray-600">Disponibilité</th>
-                  <th className="px-4 py-3 text-left font-medium text-gray-600">Actions</th>
-                  <th className="px-4 py-3 text-left font-medium text-gray-600">Détail</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-50">
-                {(drivers as Driver[]).map((driver) => {
-                  const expired = isExpired(driver.licenseExpiry);
-                  const expiringSoon = !expired && isExpiringWithin30Days(driver.licenseExpiry);
-                  return (
-                    <tr key={driver.id} className="hover:bg-gray-50 transition">
-                      <td className="px-4 py-3">
-                        <p className="font-medium text-gray-900">
-                          {driver.firstName} {driver.lastName}
-                        </p>
-                      </td>
-                      <td className="px-4 py-3 text-gray-600 font-mono text-xs">
-                        {driver.phone}
-                      </td>
-                      <td className="px-4 py-3 text-gray-600 font-mono text-xs">
-                        {driver.licenseNumber}
-                      </td>
-                      <td className="px-4 py-3">
-                        <div className="flex items-center gap-2">
-                          <span
-                            className={`text-sm ${
-                              expired
-                                ? 'text-red-600 font-semibold'
-                                : expiringSoon
-                                ? 'text-amber-600 font-semibold'
-                                : 'text-gray-600'
-                            }`}
-                          >
-                            {dayjs(driver.licenseExpiry).format('DD/MM/YYYY')}
-                          </span>
-                          {expired && (
-                            <span className="text-xs bg-red-100 text-red-700 px-1.5 py-0.5 rounded-full font-medium">
-                              Expiré
-                            </span>
-                          )}
-                          {expiringSoon && (
-                            <span className="text-xs bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded-full font-medium flex items-center gap-1">
-                              <AlertTriangle size={10} />
-                              Bientôt
-                            </span>
-                          )}
-                        </div>
-                      </td>
-                      <td className="px-4 py-3">
-                        <span
-                          className={`text-xs px-2 py-1 rounded-full font-medium ${
-                            driver.isAvailable
-                              ? 'bg-green-100 text-green-700'
-                              : 'bg-red-100 text-red-700'
-                          }`}
-                        >
-                          {driver.isAvailable ? 'Disponible' : 'Indisponible'}
-                        </span>
-                      </td>
-                      <td className="px-4 py-3">
-                        <button
-                          title={driver.isAvailable ? 'Marquer indisponible' : 'Marquer disponible'}
-                          onClick={() =>
-                            toggleAvailabilityMutation.mutate({
-                              id: driver.id,
-                              isAvailable: !driver.isAvailable,
-                            })
-                          }
-                          disabled={toggleAvailabilityMutation.isPending}
-                          className="text-gray-400 hover:text-brand-500 transition disabled:opacity-50 flex items-center gap-1.5 text-xs"
-                        >
-                          {toggleAvailabilityMutation.isPending && toggleAvailabilityMutation.variables?.id === driver.id ? (
-                            <Loader2 size={14} className="animate-spin" />
-                          ) : driver.isAvailable ? (
-                            <>
-                              <UserX size={15} />
-                              Désactiver
-                            </>
-                          ) : (
-                            <>
-                              <UserCheck size={15} />
-                              Activer
-                            </>
-                          )}
-                        </button>
-                      </td>
-                      <td className="px-4 py-3">
-                        <button
-                          onClick={() => router.push(`/dashboard/drivers/${driver.id}`)}
-                          className="flex items-center gap-1.5 text-xs text-brand-600 hover:text-brand-700 font-medium transition"
-                          title="Planning, absences & évaluations"
-                        >
-                          <ExternalLink size={13} /> Voir
-                        </button>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            {(drivers as Driver[]).map((driver) => {
+              const expired = isExpired(driver.licenseExpiry);
+              const expiringSoon = !expired && isExpiringWithin30Days(driver.licenseExpiry);
+              return (
+                <div key={driver.id} className="bg-white rounded-xl border border-gray-100 shadow-sm p-4 flex flex-col gap-3">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="font-semibold text-gray-900">{driver.firstName} {driver.lastName}</p>
+                      <p className="text-xs text-gray-400 font-mono mt-0.5">{driver.phone}</p>
+                    </div>
+                    <span
+                      className={`text-xs px-2 py-1 rounded-full font-medium shrink-0 ${
+                        driver.isAvailable ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'
+                      }`}
+                    >
+                      {driver.isAvailable ? 'Disponible' : 'Indisponible'}
+                    </span>
+                  </div>
+                  <div className="text-xs text-gray-500">
+                    <span className="text-gray-400">Permis :</span>{' '}
+                    <span className="font-mono">{driver.licenseNumber}</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span
+                      className={`text-xs ${
+                        expired ? 'text-red-600 font-semibold' : expiringSoon ? 'text-amber-600 font-semibold' : 'text-gray-500'
+                      }`}
+                    >
+                      Exp. {dayjs(driver.licenseExpiry).format('DD/MM/YYYY')}
+                    </span>
+                    {expired && (
+                      <span className="text-xs bg-red-100 text-red-700 px-1.5 py-0.5 rounded-full font-medium">Expiré</span>
+                    )}
+                    {expiringSoon && (
+                      <span className="text-xs bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded-full font-medium flex items-center gap-0.5">
+                        <AlertTriangle size={9} /> Bientôt
+                      </span>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-2 pt-2 border-t border-gray-50">
+                    <button
+                      onClick={() =>
+                        toggleAvailabilityMutation.mutate({ id: driver.id, isAvailable: !driver.isAvailable })
+                      }
+                      disabled={toggleAvailabilityMutation.isPending}
+                      className="text-xs text-gray-500 hover:text-brand-500 transition disabled:opacity-50 flex items-center gap-1"
+                    >
+                      {toggleAvailabilityMutation.isPending && toggleAvailabilityMutation.variables?.id === driver.id
+                        ? <Loader2 size={13} className="animate-spin" />
+                        : driver.isAvailable
+                          ? <><UserX size={13} /> Désactiver</>
+                          : <><UserCheck size={13} /> Activer</>
+                      }
+                    </button>
+                    <button
+                      onClick={() => router.push(`/dashboard/drivers/${driver.id}`)}
+                      className="ml-auto flex items-center gap-1 text-xs text-brand-600 hover:text-brand-700 font-medium transition"
+                    >
+                      <ExternalLink size={13} /> Voir
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
           </div>
-        )}
-      </div>
+        )
+      )}
 
       {/* Modal création */}
       {showModal && (

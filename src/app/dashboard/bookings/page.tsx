@@ -8,12 +8,15 @@ import { formatCFA } from '@transpro/shared';
 import {
   Search, Printer, Eye, TrendingUp, Clock, CheckCircle,
   XCircle, Users, MapPin, Calendar, CreditCard,
+  ChevronLeft, ChevronRight,
 } from 'lucide-react';
 import dayjs from 'dayjs';
 import 'dayjs/locale/fr';
 import relativeTime from 'dayjs/plugin/relativeTime';
 import { useRouter } from 'next/navigation';
 import { DataTable, Column } from '@/components/ui/DataTable';
+import { ViewToggle } from '@/components/ui/ViewToggle';
+import { useViewMode } from '@/hooks/useViewMode';
 import { usePagination } from '@/hooks/usePagination';
 import { toast } from 'sonner';
 
@@ -95,12 +98,86 @@ function Initials({ name }: { name: string }) {
 
 type Booking = Record<string, any>;
 
+// ── Grid card ─────────────────────────────────────────────────────────────────
+
+function BookingCard({
+  booking,
+  onView,
+  onPrint,
+  printingId,
+}: {
+  booking: Booking;
+  onView: () => void;
+  onPrint: (b: Booking) => void;
+  printingId: string | null;
+}) {
+  const cfg = STATUS_CFG[booking.status as BookingStatus] ?? STATUS_CFG.PENDING;
+  return (
+    <div
+      onClick={onView}
+      className="bg-white rounded-xl border border-gray-100 shadow-sm p-4 cursor-pointer hover:shadow-md hover:border-gray-200 transition flex flex-col gap-3"
+    >
+      <div className="flex items-start justify-between gap-2">
+        <span className="font-mono text-sm font-semibold text-gray-800 truncate">{booking.reference}</span>
+        <span className={`inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full font-semibold ring-1 shrink-0 ${cfg.badge}`}>
+          <span className={`w-1.5 h-1.5 rounded-full ${cfg.dot}`} />
+          {cfg.label}
+        </span>
+      </div>
+      <div className="flex items-center gap-2.5">
+        <Initials name={`${booking.passenger?.firstName ?? ''} ${booking.passenger?.lastName ?? ''}`} />
+        <div className="min-w-0">
+          <p className="text-sm font-medium text-gray-900 truncate">
+            {booking.passenger?.firstName} {booking.passenger?.lastName}
+          </p>
+          <p className="text-xs text-gray-400 truncate">{booking.passenger?.phone ?? '—'}</p>
+        </div>
+      </div>
+      <div className="flex items-center gap-1 text-sm text-gray-600">
+        <MapPin size={12} className="text-gray-400 shrink-0" />
+        <span className="font-medium truncate">{booking.trip?.route?.originCity?.name ?? '—'}</span>
+        <span className="text-gray-300 shrink-0">→</span>
+        <span className="font-medium truncate">{booking.trip?.route?.destinationCity?.name ?? '—'}</span>
+      </div>
+      <div className="flex items-center justify-between text-xs text-gray-400">
+        <span className="flex items-center gap-1">
+          <Calendar size={11} className="shrink-0" />
+          {dayjs(booking.trip?.departureAt).format('DD MMM HH:mm')}
+        </span>
+        <span className="font-semibold text-gray-900 text-sm">{formatCFA(booking.totalAmount)}</span>
+      </div>
+      <div className="flex items-center justify-end gap-1 pt-1 border-t border-gray-50" onClick={(e) => e.stopPropagation()}>
+        <button
+          onClick={onView}
+          title="Voir le détail"
+          className="p-1.5 text-gray-400 hover:text-brand-600 hover:bg-brand-50 rounded-lg transition"
+        >
+          <Eye size={14} />
+        </button>
+        <button
+          onClick={() => onPrint(booking)}
+          disabled={printingId === booking.id}
+          title="Imprimer le ticket"
+          className="p-1.5 text-gray-400 hover:text-brand-600 hover:bg-brand-50 rounded-lg transition disabled:opacity-50"
+        >
+          {printingId === booking.id
+            ? <div className="w-3.5 h-3.5 border-2 border-brand-500 border-t-transparent rounded-full animate-spin" />
+            : <Printer size={14} />}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// ── Page ──────────────────────────────────────────────────────────────────────
+
 export default function BookingsPage() {
   const router = useRouter();
   const [search, setSearch]           = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('');
   const [printingId, setPrintingId]   = useState<string | null>(null);
   const pagination                    = usePagination();
+  const [viewMode, setViewMode]       = useViewMode('bookings');
 
   const { data, isLoading } = useQuery({
     queryKey: ['tenant-bookings', statusFilter, search, pagination.page],
@@ -286,6 +363,7 @@ export default function BookingsPage() {
           <h1 className="text-2xl font-bold text-gray-900">Réservations</h1>
           <p className="text-sm text-gray-400 mt-0.5">Gérez toutes les réservations de votre compagnie</p>
         </div>
+        <ViewToggle value={viewMode} onChange={setViewMode} />
       </div>
 
       {/* Stats row */}
@@ -352,18 +430,72 @@ export default function BookingsPage() {
         </select>
       </div>
 
-      {/* Table */}
-      <DataTable
-        data={filtered}
-        columns={columns}
-        isLoading={isLoading}
-        keyExtractor={(row) => row.id}
-        totalPages={meta?.totalPages ?? pagination.totalPages}
-        currentPage={pagination.page}
-        onPageChange={pagination.goTo}
-        emptyMessage="Aucune réservation trouvée"
-        onRowClick={(row) => router.push(`/dashboard/bookings/${row.id}`)}
-      />
+      {/* List / Grid */}
+      {viewMode === 'list' ? (
+        <DataTable
+          data={filtered}
+          columns={columns}
+          isLoading={isLoading}
+          keyExtractor={(row) => row.id}
+          totalPages={meta?.totalPages ?? pagination.totalPages}
+          currentPage={pagination.page}
+          onPageChange={pagination.goTo}
+          emptyMessage="Aucune réservation trouvée"
+          onRowClick={(row) => router.push(`/dashboard/bookings/${row.id}`)}
+        />
+      ) : (
+        <div>
+          {isLoading ? (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+              {Array.from({ length: 8 }).map((_, i) => (
+                <div key={i} className="h-52 bg-gray-100 rounded-xl animate-pulse" />
+              ))}
+            </div>
+          ) : filtered.length === 0 ? (
+            <div className="text-center py-16 bg-white rounded-xl border border-gray-100">
+              <Users size={40} className="text-gray-300 mx-auto mb-3" />
+              <p className="text-gray-500">Aucune réservation trouvée</p>
+            </div>
+          ) : (
+            <>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                {filtered.map((booking) => (
+                  <BookingCard
+                    key={booking.id}
+                    booking={booking}
+                    onView={() => router.push(`/dashboard/bookings/${booking.id}`)}
+                    onPrint={handlePrint}
+                    printingId={printingId}
+                  />
+                ))}
+              </div>
+              {(meta?.totalPages ?? 1) > 1 && (
+                <div className="flex items-center justify-between px-1 py-3 mt-2">
+                  <span className="text-xs text-gray-500">
+                    Page {pagination.page} sur {meta?.totalPages}
+                  </span>
+                  <div className="flex items-center gap-1">
+                    <button
+                      onClick={() => pagination.goTo(pagination.page - 1)}
+                      disabled={pagination.page <= 1}
+                      className="p-1.5 rounded-lg hover:bg-gray-100 disabled:opacity-40 transition"
+                    >
+                      <ChevronLeft size={14} />
+                    </button>
+                    <button
+                      onClick={() => pagination.goTo(pagination.page + 1)}
+                      disabled={pagination.page >= (meta?.totalPages ?? 1)}
+                      className="p-1.5 rounded-lg hover:bg-gray-100 disabled:opacity-40 transition"
+                    >
+                      <ChevronRight size={14} />
+                    </button>
+                  </div>
+                </div>
+              )}
+            </>
+          )}
+        </div>
+      )}
     </div>
   );
 }

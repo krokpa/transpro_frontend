@@ -6,6 +6,8 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { vehiclesApi } from '@/lib/api';
 import { VehicleStatus } from '@transpro/shared';
 import { Plus, Car, X, Loader2, LayoutGrid, ToggleLeft, ToggleRight, Wrench } from 'lucide-react';
+import { ViewToggle } from '@/components/ui/ViewToggle';
+import { useViewMode } from '@/hooks/useViewMode';
 import { toast } from 'sonner';
 import { SeatLayoutEditor } from '@/components/vehicles/SeatLayoutEditor';
 
@@ -61,6 +63,7 @@ export default function VehiclesPage() {
   const [showModal, setShowModal] = useState(false);
   const [form, setForm] = useState<VehicleForm>(defaultForm);
   const [editingLayoutVehicle, setEditingLayoutVehicle] = useState<Vehicle | null>(null);
+  const [viewMode, setViewMode] = useViewMode('vehicles');
 
   const { data: vehicles = [], isLoading } = useQuery<Vehicle[]>({
     queryKey: ['vehicles'],
@@ -130,113 +133,194 @@ export default function VehiclesPage() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold text-gray-900">Véhicules</h1>
-        <button
-          onClick={() => setShowModal(true)}
-          className="bg-brand-500 hover:bg-brand-600 text-white px-4 py-2 rounded-lg text-sm font-medium flex items-center gap-2 transition"
-        >
-          <Plus size={16} /> Ajouter un véhicule
-        </button>
+        <div className="flex items-center gap-3">
+          <ViewToggle value={viewMode} onChange={setViewMode} />
+          <button
+            onClick={() => setShowModal(true)}
+            className="bg-brand-500 hover:bg-brand-600 text-white px-4 py-2 rounded-lg text-sm font-medium flex items-center gap-2 transition"
+          >
+            <Plus size={16} /> Ajouter un véhicule
+          </button>
+        </div>
       </div>
 
-      {/* Table */}
-      <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
-        {isLoading ? (
-          <div className="space-y-3 p-6">
-            {Array.from({ length: 5 }).map((_, i) => (
-              <div key={i} className="h-12 bg-gray-100 rounded-lg animate-pulse" />
+      {/* Table / Grid */}
+      {viewMode === 'list' ? (
+        <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
+          {isLoading ? (
+            <div className="space-y-3 p-6">
+              {Array.from({ length: 5 }).map((_, i) => (
+                <div key={i} className="h-12 bg-gray-100 rounded-lg animate-pulse" />
+              ))}
+            </div>
+          ) : vehicles.length === 0 ? (
+            <div className="text-center py-16">
+              <Car size={40} className="text-gray-300 mx-auto mb-3" />
+              <p className="text-gray-500 font-medium">Aucun véhicule enregistré</p>
+              <p className="text-gray-400 text-sm mt-1">Ajoutez votre premier véhicule pour commencer</p>
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead className="bg-gray-50 border-b border-gray-100">
+                  <tr>
+                    <th className="px-4 py-3 text-left font-medium text-gray-600">Plaque</th>
+                    <th className="px-4 py-3 text-left font-medium text-gray-600">Véhicule</th>
+                    <th className="px-4 py-3 text-left font-medium text-gray-600">Année</th>
+                    <th className="px-4 py-3 text-left font-medium text-gray-600">Sièges</th>
+                    <th className="px-4 py-3 text-left font-medium text-gray-600">Statut</th>
+                    <th className="px-4 py-3 text-left font-medium text-gray-600">Gestion sièges</th>
+                    <th className="px-4 py-3 text-left font-medium text-gray-600">Plan</th>
+                    <th className="px-4 py-3 text-left font-medium text-gray-600">Maintenance</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-50">
+                  {vehicles.map((vehicle) => {
+                    const sc = statusConfig[vehicle.status];
+                    return (
+                      <tr key={vehicle.id} className="hover:bg-gray-50 transition">
+                        <td className="px-4 py-3">
+                          <span className="font-mono font-semibold text-gray-900 bg-gray-100 px-2 py-0.5 rounded text-xs">
+                            {vehicle.plate}
+                          </span>
+                        </td>
+                        <td className="px-4 py-3 font-medium text-gray-900">
+                          {vehicle.brand} {vehicle.model}
+                        </td>
+                        <td className="px-4 py-3 text-gray-600">{vehicle.year}</td>
+                        <td className="px-4 py-3 text-gray-600 text-xs">{layoutSummary(vehicle)}</td>
+                        <td className="px-4 py-3">
+                          <select
+                            value={vehicle.status}
+                            onChange={(e) =>
+                              updateStatusMutation.mutate({ id: vehicle.id, status: e.target.value as VehicleStatus })
+                            }
+                            disabled={updateStatusMutation.isPending}
+                            className={`text-xs px-2 py-1 rounded-full font-medium border-0 cursor-pointer focus:outline-none focus:ring-2 focus:ring-brand-500 disabled:opacity-50 ${sc.className}`}
+                          >
+                            {Object.entries(statusConfig).map(([value, { label }]) => (
+                              <option key={value} value={value} className="bg-white text-gray-800">
+                                {label}
+                              </option>
+                            ))}
+                          </select>
+                        </td>
+                        <td className="px-4 py-3">
+                          <button
+                            onClick={() => toggleASMMutation.mutate({ id: vehicle.id, value: !vehicle.advancedSeatManagement })}
+                            disabled={toggleASMMutation.isPending}
+                            className="flex items-center gap-1.5 text-xs font-medium transition disabled:opacity-50"
+                            title={vehicle.advancedSeatManagement ? 'Désactiver la gestion avancée' : 'Activer la gestion avancée'}
+                          >
+                            {vehicle.advancedSeatManagement
+                              ? <><ToggleRight size={18} className="text-brand-500" /><span className="text-brand-600">Activée</span></>
+                              : <><ToggleLeft size={18} className="text-gray-400" /><span className="text-gray-500">Désactivée</span></>
+                            }
+                          </button>
+                        </td>
+                        <td className="px-4 py-3">
+                          <button
+                            onClick={() => setEditingLayoutVehicle(vehicle)}
+                            className="flex items-center gap-1.5 text-xs text-brand-600 hover:text-brand-700 font-medium transition"
+                            title="Modifier le plan des sièges"
+                          >
+                            <LayoutGrid size={14} /> Modifier
+                          </button>
+                        </td>
+                        <td className="px-4 py-3">
+                          <button
+                            onClick={() => router.push(`/dashboard/vehicles/${vehicle.id}`)}
+                            className="flex items-center gap-1.5 text-xs text-gray-600 hover:text-gray-800 font-medium transition"
+                            title="Carburant & entretien"
+                          >
+                            <Wrench size={14} /> Suivi
+                          </button>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      ) : (
+        /* Grid view */
+        isLoading ? (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            {Array.from({ length: 6 }).map((_, i) => (
+              <div key={i} className="h-48 bg-gray-100 rounded-xl animate-pulse" />
             ))}
           </div>
         ) : vehicles.length === 0 ? (
-          <div className="text-center py-16">
+          <div className="text-center py-16 bg-white rounded-xl border border-gray-100">
             <Car size={40} className="text-gray-300 mx-auto mb-3" />
             <p className="text-gray-500 font-medium">Aucun véhicule enregistré</p>
-            <p className="text-gray-400 text-sm mt-1">Ajoutez votre premier véhicule pour commencer</p>
           </div>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead className="bg-gray-50 border-b border-gray-100">
-                <tr>
-                  <th className="px-4 py-3 text-left font-medium text-gray-600">Plaque</th>
-                  <th className="px-4 py-3 text-left font-medium text-gray-600">Véhicule</th>
-                  <th className="px-4 py-3 text-left font-medium text-gray-600">Année</th>
-                  <th className="px-4 py-3 text-left font-medium text-gray-600">Sièges</th>
-                  <th className="px-4 py-3 text-left font-medium text-gray-600">Statut</th>
-                  <th className="px-4 py-3 text-left font-medium text-gray-600">Gestion sièges</th>
-                  <th className="px-4 py-3 text-left font-medium text-gray-600">Plan</th>
-                  <th className="px-4 py-3 text-left font-medium text-gray-600">Maintenance</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-50">
-                {vehicles.map((vehicle) => {
-                  const sc = statusConfig[vehicle.status];
-                  return (
-                    <tr key={vehicle.id} className="hover:bg-gray-50 transition">
-                      <td className="px-4 py-3">
-                        <span className="font-mono font-semibold text-gray-900 bg-gray-100 px-2 py-0.5 rounded text-xs">
-                          {vehicle.plate}
-                        </span>
-                      </td>
-                      <td className="px-4 py-3 font-medium text-gray-900">
-                        {vehicle.brand} {vehicle.model}
-                      </td>
-                      <td className="px-4 py-3 text-gray-600">{vehicle.year}</td>
-                      <td className="px-4 py-3 text-gray-600 text-xs">{layoutSummary(vehicle)}</td>
-                      <td className="px-4 py-3">
-                        <select
-                          value={vehicle.status}
-                          onChange={(e) =>
-                            updateStatusMutation.mutate({ id: vehicle.id, status: e.target.value as VehicleStatus })
-                          }
-                          disabled={updateStatusMutation.isPending}
-                          className={`text-xs px-2 py-1 rounded-full font-medium border-0 cursor-pointer focus:outline-none focus:ring-2 focus:ring-brand-500 disabled:opacity-50 ${sc.className}`}
-                        >
-                          {Object.entries(statusConfig).map(([value, { label }]) => (
-                            <option key={value} value={value} className="bg-white text-gray-800">
-                              {label}
-                            </option>
-                          ))}
-                        </select>
-                      </td>
-                      <td className="px-4 py-3">
-                        <button
-                          onClick={() => toggleASMMutation.mutate({ id: vehicle.id, value: !vehicle.advancedSeatManagement })}
-                          disabled={toggleASMMutation.isPending}
-                          className="flex items-center gap-1.5 text-xs font-medium transition disabled:opacity-50"
-                          title={vehicle.advancedSeatManagement ? 'Désactiver la gestion avancée' : 'Activer la gestion avancée'}
-                        >
-                          {vehicle.advancedSeatManagement
-                            ? <><ToggleRight size={18} className="text-brand-500" /><span className="text-brand-600">Activée</span></>
-                            : <><ToggleLeft size={18} className="text-gray-400" /><span className="text-gray-500">Désactivée</span></>
-                          }
-                        </button>
-                      </td>
-                      <td className="px-4 py-3">
-                        <button
-                          onClick={() => setEditingLayoutVehicle(vehicle)}
-                          className="flex items-center gap-1.5 text-xs text-brand-600 hover:text-brand-700 font-medium transition"
-                          title="Modifier le plan des sièges"
-                        >
-                          <LayoutGrid size={14} /> Modifier
-                        </button>
-                      </td>
-                      <td className="px-4 py-3">
-                        <button
-                          onClick={() => router.push(`/dashboard/vehicles/${vehicle.id}`)}
-                          className="flex items-center gap-1.5 text-xs text-gray-600 hover:text-gray-800 font-medium transition"
-                          title="Carburant & entretien"
-                        >
-                          <Wrench size={14} /> Suivi
-                        </button>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            {vehicles.map((vehicle) => {
+              const sc = statusConfig[vehicle.status];
+              return (
+                <div key={vehicle.id} className="bg-white rounded-xl border border-gray-100 shadow-sm p-4 flex flex-col gap-3">
+                  <div className="flex items-start justify-between">
+                    <div>
+                      <span className="font-mono font-bold text-gray-900 bg-gray-100 px-2 py-0.5 rounded text-sm">
+                        {vehicle.plate}
+                      </span>
+                      <p className="font-medium text-gray-800 mt-1.5">{vehicle.brand} {vehicle.model}</p>
+                      <p className="text-xs text-gray-400">{vehicle.year} · {layoutSummary(vehicle)}</p>
+                    </div>
+                    <select
+                      value={vehicle.status}
+                      onChange={(e) =>
+                        updateStatusMutation.mutate({ id: vehicle.id, status: e.target.value as VehicleStatus })
+                      }
+                      disabled={updateStatusMutation.isPending}
+                      className={`text-xs px-2 py-1 rounded-full font-medium border-0 cursor-pointer focus:outline-none focus:ring-2 focus:ring-brand-500 disabled:opacity-50 ${sc.className}`}
+                    >
+                      {Object.entries(statusConfig).map(([value, { label }]) => (
+                        <option key={value} value={value} className="bg-white text-gray-800">
+                          {label}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="flex items-center gap-2 pt-2 border-t border-gray-50">
+                    <button
+                      onClick={() => toggleASMMutation.mutate({ id: vehicle.id, value: !vehicle.advancedSeatManagement })}
+                      disabled={toggleASMMutation.isPending}
+                      className="flex items-center gap-1 text-xs font-medium transition disabled:opacity-50"
+                      title={vehicle.advancedSeatManagement ? 'Désactiver la gestion avancée' : 'Activer la gestion avancée'}
+                    >
+                      {vehicle.advancedSeatManagement
+                        ? <><ToggleRight size={16} className="text-brand-500" /><span className="text-brand-600">Sièges adv.</span></>
+                        : <><ToggleLeft size={16} className="text-gray-400" /><span className="text-gray-400">Sièges std.</span></>
+                      }
+                    </button>
+                    <div className="ml-auto flex items-center gap-1">
+                      <button
+                        onClick={() => setEditingLayoutVehicle(vehicle)}
+                        className="p-1.5 text-brand-500 hover:bg-brand-50 rounded-lg transition text-xs flex items-center gap-1 font-medium"
+                        title="Modifier le plan"
+                      >
+                        <LayoutGrid size={13} /> Plan
+                      </button>
+                      <button
+                        onClick={() => router.push(`/dashboard/vehicles/${vehicle.id}`)}
+                        className="p-1.5 text-gray-500 hover:bg-gray-100 rounded-lg transition text-xs flex items-center gap-1 font-medium"
+                        title="Maintenance"
+                      >
+                        <Wrench size={13} /> Suivi
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
           </div>
-        )}
-      </div>
+        )
+      )}
 
       {/* Seat layout editor */}
       {editingLayoutVehicle && (

@@ -8,6 +8,8 @@ import {
   Plus, Route, Trash2, ToggleLeft, ToggleRight, X,
   Loader2, Pencil, MapPin, ChevronRight, GripVertical,
 } from 'lucide-react';
+import { ViewToggle } from '@/components/ui/ViewToggle';
+import { useViewMode } from '@/hooks/useViewMode';
 import { toast } from 'sonner';
 import { confirm } from '@/lib/confirm';
 import { SearchableSelect, SelectOption } from '@/components/ui/SearchableSelect';
@@ -89,6 +91,7 @@ export default function RoutesPage() {
   const qc = useQueryClient();
   const [panelRoute, setPanelRoute] = useState<RouteItem | null | 'new'>(null);
   const [form, setForm] = useState<RouteFormData>(defaultForm);
+  const [viewMode, setViewMode] = useViewMode('routes');
 
   const { data: routes = [], isLoading } = useQuery<RouteItem[]>({
     queryKey: ['routes'],
@@ -212,114 +215,199 @@ export default function RoutesPage() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold text-gray-900">Itinéraires</h1>
-        <button
-          onClick={openCreate}
-          className="bg-brand-500 hover:bg-brand-600 text-white px-4 py-2 rounded-lg text-sm font-medium flex items-center gap-2 transition"
-        >
-          <Plus size={16} /> Nouvel itinéraire
-        </button>
+        <div className="flex items-center gap-3">
+          <ViewToggle value={viewMode} onChange={setViewMode} />
+          <button
+            onClick={openCreate}
+            className="bg-brand-500 hover:bg-brand-600 text-white px-4 py-2 rounded-lg text-sm font-medium flex items-center gap-2 transition"
+          >
+            <Plus size={16} /> Nouvel itinéraire
+          </button>
+        </div>
       </div>
 
-      {/* Table */}
-      <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
-        {isLoading ? (
-          <div className="space-y-3 p-6">
-            {Array.from({ length: 5 }).map((_, i) => (
-              <div key={i} className="h-12 bg-gray-100 rounded-lg animate-pulse" />
+      {/* Table / Grid */}
+      {viewMode === 'list' ? (
+        <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
+          {isLoading ? (
+            <div className="space-y-3 p-6">
+              {Array.from({ length: 5 }).map((_, i) => (
+                <div key={i} className="h-12 bg-gray-100 rounded-lg animate-pulse" />
+              ))}
+            </div>
+          ) : (routes as RouteItem[]).length === 0 ? (
+            <div className="text-center py-16">
+              <Route size={40} className="text-gray-300 mx-auto mb-3" />
+              <p className="text-gray-500 font-medium">Aucun itinéraire configuré</p>
+              <p className="text-gray-400 text-sm mt-1">Créez votre premier itinéraire pour commencer</p>
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead className="bg-gray-50 border-b border-gray-100">
+                  <tr>
+                    <th className="px-4 py-3 text-left font-medium text-gray-600">Nom</th>
+                    <th className="px-4 py-3 text-left font-medium text-gray-600">Trajet</th>
+                    <th className="px-4 py-3 text-left font-medium text-gray-600">Arrêts</th>
+                    <th className="px-4 py-3 text-left font-medium text-gray-600">Distance</th>
+                    <th className="px-4 py-3 text-left font-medium text-gray-600">Durée</th>
+                    <th className="px-4 py-3 text-left font-medium text-gray-600">Prix de base</th>
+                    <th className="px-4 py-3 text-left font-medium text-gray-600">Voyages</th>
+                    <th className="px-4 py-3 text-left font-medium text-gray-600">Statut</th>
+                    <th className="px-4 py-3 text-left font-medium text-gray-600">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-50">
+                  {(routes as RouteItem[]).map((route) => (
+                    <tr key={route.id} className="hover:bg-gray-50 transition">
+                      <td className="px-4 py-3 font-medium text-gray-900">{route.name}</td>
+                      <td className="px-4 py-3 text-gray-700">
+                        <span className="font-medium">{route.originCity?.name ?? '—'}</span>
+                        <span className="text-gray-400 mx-2">→</span>
+                        <span className="font-medium">{route.destinationCity?.name ?? '—'}</span>
+                      </td>
+                      <td className="px-4 py-3">
+                        {(route.stops?.length ?? 0) > 0 ? (
+                          <span className="inline-flex items-center gap-1 text-xs px-2 py-1 rounded-full bg-blue-50 text-blue-700 font-medium">
+                            <MapPin size={10} />
+                            {route.stops.length} arrêt{route.stops.length > 1 ? 's' : ''}
+                          </span>
+                        ) : (
+                          <span className="text-xs text-gray-400">Direct</span>
+                        )}
+                      </td>
+                      <td className="px-4 py-3 text-gray-600">{route.distanceKm} km</td>
+                      <td className="px-4 py-3 text-gray-600">{formatDuration(route.durationMinutes)}</td>
+                      <td className="px-4 py-3 font-medium text-gray-900">{formatCFA(route.basePrice)}</td>
+                      <td className="px-4 py-3 text-gray-500 text-xs">{route._count?.trips ?? 0}</td>
+                      <td className="px-4 py-3">
+                        <span className={`text-xs px-2 py-1 rounded-full font-medium ${route.isActive ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-600'}`}>
+                          {route.isActive ? 'Actif' : 'Inactif'}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3">
+                        <div className="flex items-center gap-2">
+                          <button
+                            title="Modifier"
+                            onClick={() => openEdit(route)}
+                            className="text-gray-400 hover:text-brand-500 transition"
+                          >
+                            <Pencil size={15} />
+                          </button>
+                          <button
+                            title={route.isActive ? 'Désactiver' : 'Activer'}
+                            onClick={() => toggleMutation.mutate({ id: route.id, isActive: !route.isActive })}
+                            disabled={toggleMutation.isPending}
+                            className="text-gray-500 hover:text-brand-500 transition disabled:opacity-50"
+                          >
+                            {toggleMutation.isPending && toggleMutation.variables?.id === route.id
+                              ? <Loader2 size={16} className="animate-spin text-gray-400" />
+                              : route.isActive
+                                ? <ToggleRight size={20} className="text-green-500" />
+                                : <ToggleLeft size={20} />
+                            }
+                          </button>
+                          <button
+                            title="Supprimer"
+                            onClick={async () => { if (await confirm({ title: 'Supprimer cet itinéraire ?', description: 'Cette action est irréversible.', variant: 'danger' })) deleteMutation.mutate(route.id); }}
+                            disabled={deleteMutation.isPending}
+                            className="text-gray-400 hover:text-red-500 transition disabled:opacity-50"
+                          >
+                            {deleteMutation.isPending && deleteMutation.variables === route.id
+                              ? <Loader2 size={14} className="animate-spin" />
+                              : <Trash2 size={16} />
+                            }
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      ) : (
+        /* Grid view */
+        isLoading ? (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            {Array.from({ length: 6 }).map((_, i) => (
+              <div key={i} className="h-44 bg-gray-100 rounded-xl animate-pulse" />
             ))}
           </div>
         ) : (routes as RouteItem[]).length === 0 ? (
-          <div className="text-center py-16">
+          <div className="text-center py-16 bg-white rounded-xl border border-gray-100">
             <Route size={40} className="text-gray-300 mx-auto mb-3" />
             <p className="text-gray-500 font-medium">Aucun itinéraire configuré</p>
-            <p className="text-gray-400 text-sm mt-1">Créez votre premier itinéraire pour commencer</p>
           </div>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead className="bg-gray-50 border-b border-gray-100">
-                <tr>
-                  <th className="px-4 py-3 text-left font-medium text-gray-600">Nom</th>
-                  <th className="px-4 py-3 text-left font-medium text-gray-600">Trajet</th>
-                  <th className="px-4 py-3 text-left font-medium text-gray-600">Arrêts</th>
-                  <th className="px-4 py-3 text-left font-medium text-gray-600">Distance</th>
-                  <th className="px-4 py-3 text-left font-medium text-gray-600">Durée</th>
-                  <th className="px-4 py-3 text-left font-medium text-gray-600">Prix de base</th>
-                  <th className="px-4 py-3 text-left font-medium text-gray-600">Voyages</th>
-                  <th className="px-4 py-3 text-left font-medium text-gray-600">Statut</th>
-                  <th className="px-4 py-3 text-left font-medium text-gray-600">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-50">
-                {(routes as RouteItem[]).map((route) => (
-                  <tr key={route.id} className="hover:bg-gray-50 transition">
-                    <td className="px-4 py-3 font-medium text-gray-900">{route.name}</td>
-                    <td className="px-4 py-3 text-gray-700">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            {(routes as RouteItem[]).map((route) => (
+              <div key={route.id} className="bg-white rounded-xl border border-gray-100 shadow-sm p-4 flex flex-col gap-3">
+                <div className="flex items-start justify-between gap-2">
+                  <div>
+                    <p className="font-semibold text-gray-900">{route.name}</p>
+                    <div className="flex items-center gap-1 text-sm text-gray-600 mt-1">
                       <span className="font-medium">{route.originCity?.name ?? '—'}</span>
-                      <span className="text-gray-400 mx-2">→</span>
+                      <ChevronRight size={13} className="text-gray-300" />
                       <span className="font-medium">{route.destinationCity?.name ?? '—'}</span>
-                    </td>
-                    <td className="px-4 py-3">
-                      {(route.stops?.length ?? 0) > 0 ? (
-                        <span className="inline-flex items-center gap-1 text-xs px-2 py-1 rounded-full bg-blue-50 text-blue-700 font-medium">
-                          <MapPin size={10} />
-                          {route.stops.length} arrêt{route.stops.length > 1 ? 's' : ''}
-                        </span>
-                      ) : (
-                        <span className="text-xs text-gray-400">Direct</span>
-                      )}
-                    </td>
-                    <td className="px-4 py-3 text-gray-600">{route.distanceKm} km</td>
-                    <td className="px-4 py-3 text-gray-600">{formatDuration(route.durationMinutes)}</td>
-                    <td className="px-4 py-3 font-medium text-gray-900">{formatCFA(route.basePrice)}</td>
-                    <td className="px-4 py-3 text-gray-500 text-xs">{route._count?.trips ?? 0}</td>
-                    <td className="px-4 py-3">
-                      <span className={`text-xs px-2 py-1 rounded-full font-medium ${route.isActive ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-600'}`}>
-                        {route.isActive ? 'Actif' : 'Inactif'}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3">
-                      <div className="flex items-center gap-2">
-                        <button
-                          title="Modifier"
-                          onClick={() => openEdit(route)}
-                          className="text-gray-400 hover:text-brand-500 transition"
-                        >
-                          <Pencil size={15} />
-                        </button>
-                        <button
-                          title={route.isActive ? 'Désactiver' : 'Activer'}
-                          onClick={() => toggleMutation.mutate({ id: route.id, isActive: !route.isActive })}
-                          disabled={toggleMutation.isPending}
-                          className="text-gray-500 hover:text-brand-500 transition disabled:opacity-50"
-                        >
-                          {toggleMutation.isPending && toggleMutation.variables?.id === route.id
-                            ? <Loader2 size={16} className="animate-spin text-gray-400" />
-                            : route.isActive
-                              ? <ToggleRight size={20} className="text-green-500" />
-                              : <ToggleLeft size={20} />
-                          }
-                        </button>
-                        <button
-                          title="Supprimer"
-                          onClick={async () => { if (await confirm({ title: 'Supprimer cet itinéraire ?', description: 'Cette action est irréversible.', variant: 'danger' })) deleteMutation.mutate(route.id); }}
-                          disabled={deleteMutation.isPending}
-                          className="text-gray-400 hover:text-red-500 transition disabled:opacity-50"
-                        >
-                          {deleteMutation.isPending && deleteMutation.variables === route.id
-                            ? <Loader2 size={14} className="animate-spin" />
-                            : <Trash2 size={16} />
-                          }
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+                    </div>
+                  </div>
+                  <span className={`text-xs px-2 py-0.5 rounded-full font-medium shrink-0 ${route.isActive ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-600'}`}>
+                    {route.isActive ? 'Actif' : 'Inactif'}
+                  </span>
+                </div>
+                <div className="grid grid-cols-2 gap-2 text-xs text-gray-500">
+                  <span>{route.distanceKm} km · {formatDuration(route.durationMinutes)}</span>
+                  <span className="font-semibold text-gray-800 text-right">{formatCFA(route.basePrice)}</span>
+                </div>
+                {(route.stops?.length ?? 0) > 0 && (
+                  <span className="inline-flex items-center gap-1 text-xs px-2 py-1 rounded-full bg-blue-50 text-blue-700 font-medium w-fit">
+                    <MapPin size={10} />
+                    {route.stops.length} arrêt{route.stops.length > 1 ? 's' : ''}
+                  </span>
+                )}
+                <div className="flex items-center gap-2 pt-2 border-t border-gray-50">
+                  <span className="text-xs text-gray-400">{route._count?.trips ?? 0} voyage{(route._count?.trips ?? 0) !== 1 ? 's' : ''}</span>
+                  <div className="ml-auto flex items-center gap-1">
+                    <button
+                      title="Modifier"
+                      onClick={() => openEdit(route)}
+                      className="p-1.5 text-gray-400 hover:text-brand-500 hover:bg-brand-50 rounded-lg transition"
+                    >
+                      <Pencil size={14} />
+                    </button>
+                    <button
+                      title={route.isActive ? 'Désactiver' : 'Activer'}
+                      onClick={() => toggleMutation.mutate({ id: route.id, isActive: !route.isActive })}
+                      disabled={toggleMutation.isPending}
+                      className="p-1.5 text-gray-500 hover:text-brand-500 hover:bg-brand-50 rounded-lg transition disabled:opacity-50"
+                    >
+                      {toggleMutation.isPending && toggleMutation.variables?.id === route.id
+                        ? <Loader2 size={14} className="animate-spin text-gray-400" />
+                        : route.isActive
+                          ? <ToggleRight size={16} className="text-green-500" />
+                          : <ToggleLeft size={16} />
+                      }
+                    </button>
+                    <button
+                      title="Supprimer"
+                      onClick={async () => { if (await confirm({ title: 'Supprimer cet itinéraire ?', description: 'Cette action est irréversible.', variant: 'danger' })) deleteMutation.mutate(route.id); }}
+                      disabled={deleteMutation.isPending}
+                      className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition disabled:opacity-50"
+                    >
+                      {deleteMutation.isPending && deleteMutation.variables === route.id
+                        ? <Loader2 size={14} className="animate-spin" />
+                        : <Trash2 size={14} />
+                      }
+                    </button>
+                  </div>
+                </div>
+              </div>
+            ))}
           </div>
-        )}
-      </div>
+        )
+      )}
 
       {/* Slide-over panel */}
       {panelRoute !== null && (

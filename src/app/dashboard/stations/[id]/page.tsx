@@ -10,9 +10,10 @@ import {
   Bus, Ticket, TrendingUp, Clock, ChevronRight,
   Calendar, BarChart2, MapPin, CheckCircle2, XCircle,
   Wallet, Receipt, Plus, Loader2, Send, PackageCheck,
-  AlertCircle,
+  AlertCircle, Lock, RefreshCw, ChevronLeft, ChevronRight as ChevronRightIcon,
+  TrendingDown, TrendingUp as TrendingUpIcon, TriangleAlert, ShieldCheck,
 } from 'lucide-react';
-import { stationsApi, expensesApi, cashProvisionsApi } from '@/lib/api';
+import { stationsApi, expensesApi, cashProvisionsApi, cashPeriodsApi } from '@/lib/api';
 import { api } from '@/lib/api';
 import { formatCFA } from '@transpro/shared';
 import Link from 'next/link';
@@ -65,147 +66,337 @@ const ROLE_LABEL: Record<string, string> = {
   PASSENGER: 'Passager',
 };
 
+const PERIOD_STATUS_CFG: Record<string, { label: string; cls: string; icon: any }> = {
+  OPEN:      { label: 'Ouverte',  cls: 'bg-blue-100 text-blue-700',    icon: RefreshCw },
+  CLOSED:    { label: 'Clôturée', cls: 'bg-amber-100 text-amber-700',  icon: Lock },
+  VALIDATED: { label: 'Validée',  cls: 'bg-emerald-100 text-emerald-700', icon: ShieldCheck },
+};
+
+const PROV_STATUS_CFG: Record<string, { label: string; cls: string }> = {
+  REQUESTED: { label: 'En attente', cls: 'bg-amber-100 text-amber-700' },
+  APPROVED:  { label: 'Approuvée',  cls: 'bg-blue-100 text-blue-700' },
+  SENT:      { label: 'En transit', cls: 'bg-indigo-100 text-indigo-700' },
+  RECEIVED:  { label: 'Reçue',      cls: 'bg-emerald-100 text-emerald-700' },
+  REJECTED:  { label: 'Rejetée',    cls: 'bg-red-100 text-red-600' },
+};
+
+const EXP_STATUS_CFG: Record<string, { label: string; cls: string }> = {
+  SUBMITTED: { label: 'En attente', cls: 'bg-amber-100 text-amber-700' },
+  APPROVED:  { label: 'Approuvée',  cls: 'bg-emerald-100 text-emerald-700' },
+  REJECTED:  { label: 'Rejetée',    cls: 'bg-red-100 text-red-600' },
+};
+
+function fmtXOF(n: number) {
+  return n.toLocaleString('fr-FR') + ' FCFA';
+}
+
+function BalanceRow({ label, value, sign, sub }: { label: string; value: number; sign?: '+' | '−' | '='; sub?: string }) {
+  const isResult = sign === '=';
+  const color = isResult ? (value >= 0 ? 'text-emerald-700' : 'text-red-600') : 'text-gray-900';
+  return (
+    <div className={`flex items-center justify-between py-2 ${isResult ? 'border-t border-gray-200 mt-1' : ''}`}>
+      <div className="flex items-center gap-2">
+        {sign && (
+          <span className={`text-sm font-bold w-4 text-center ${sign === '−' ? 'text-red-500' : sign === '+' ? 'text-emerald-500' : 'text-gray-400'}`}>
+            {sign}
+          </span>
+        )}
+        <span className={`text-sm ${isResult ? 'font-semibold text-gray-800' : 'text-gray-600'}`}>{label}</span>
+        {sub && <span className="text-xs text-gray-400">{sub}</span>}
+      </div>
+      <span className={`text-sm font-bold tabular-nums ${color}`}>{fmtXOF(value)}</span>
+    </div>
+  );
+}
+
 function StationCaisse({ stationId }: { stationId: string }) {
   const qc = useQueryClient();
-  const [showExpenseForm, setShowExpenseForm] = useState(false);
+
+  // Period navigation
+  const now = dayjs();
+  const [periodDate, setPeriodDate] = useState(now);
+  const year  = periodDate.year();
+  const month = periodDate.month() + 1;
+  const isCurrentMonth = year === now.year() && month === now.month() + 1;
+
+  // Forms & modals
+  const [showExpenseForm,   setShowExpenseForm]   = useState(false);
   const [showProvisionForm, setShowProvisionForm] = useState(false);
-  const [rejectExpenseId, setRejectExpenseId] = useState<string | null>(null);
-  const [expenseForm, setExpenseForm] = useState({ category: 'FUEL', description: '', amount: '', date: dayjs().format('YYYY-MM-DD'), receiptNote: '' });
+  const [showCloseModal,    setShowCloseModal]    = useState(false);
+  const [showOpeningModal,  setShowOpeningModal]  = useState(false);
+  const [rejectExpenseId,   setRejectExpenseId]   = useState<string | null>(null);
+  const [rejectReason,      setRejectReason]      = useState('');
+  const [declaredBalance,   setDeclaredBalance]   = useState('');
+  const [closeNotes,        setCloseNotes]        = useState('');
+  const [openingValue,      setOpeningValue]      = useState('');
+
+  const [expenseForm, setExpenseForm] = useState({
+    category: 'FUEL', description: '', amount: '', date: dayjs().format('YYYY-MM-DD'), receiptNote: '',
+  });
   const [provisionForm, setProvisionForm] = useState({ amount: '', reason: '', notes: '' });
 
-  const currentMonth = dayjs().format('YYYY-MM');
-
-  const { data: summary } = useQuery({
-    queryKey: ['station-cash-summary', stationId, currentMonth],
-    queryFn: () => expensesApi.stationSummary(stationId, currentMonth) as any,
-    staleTime: 30_000,
+  // Queries
+  const { data: periodRaw, isLoading: periodLoading } = useQuery({
+    queryKey: ['cash-period', stationId, year, month],
+    queryFn: () => cashPeriodsApi.getPeriod(stationId, year, month) as any,
+    staleTime: 15_000,
   });
-  const sum = summary as any;
+  const period = (periodRaw as any)?.data ?? (periodRaw as any) ?? null;
 
   const { data: rawExpenses = [] } = useQuery({
-    queryKey: ['station-expenses', stationId],
-    queryFn: () => expensesApi.list({ stationId }) as any,
-    staleTime: 30_000,
+    queryKey: ['station-expenses', stationId, year, month],
+    queryFn: async () => {
+      const from = periodDate.startOf('month').format('YYYY-MM-DD');
+      const to   = periodDate.endOf('month').format('YYYY-MM-DD');
+      return expensesApi.list({ stationId, from, to });
+    },
+    staleTime: 20_000,
   });
   const expenses: any[] = Array.isArray(rawExpenses) ? rawExpenses : (rawExpenses as any)?.data ?? [];
 
   const { data: rawProvisions = [] } = useQuery({
-    queryKey: ['station-provisions', stationId],
-    queryFn: () => cashProvisionsApi.list({ stationId }) as any,
-    staleTime: 30_000,
+    queryKey: ['station-provisions', stationId, year, month],
+    queryFn: async () => {
+      const from = periodDate.startOf('month').format('YYYY-MM-DD');
+      const to   = periodDate.endOf('month').format('YYYY-MM-DD');
+      return cashProvisionsApi.list({ stationId });
+    },
+    staleTime: 20_000,
   });
-  const provisions: any[] = Array.isArray(rawProvisions) ? rawProvisions : (rawProvisions as any)?.data ?? [];
+  const allProvisions: any[] = Array.isArray(rawProvisions) ? rawProvisions : (rawProvisions as any)?.data ?? [];
+  // Filter provisions for the displayed month
+  const provisions = allProvisions.filter(p => {
+    const d = dayjs(p.createdAt);
+    return d.year() === year && d.month() + 1 === month;
+  });
 
-  const invalidateAll = () => {
-    qc.invalidateQueries({ queryKey: ['station-expenses', stationId] });
-    qc.invalidateQueries({ queryKey: ['station-provisions', stationId] });
-    qc.invalidateQueries({ queryKey: ['station-cash-summary', stationId] });
+  const invalidatePeriod = () => {
+    qc.invalidateQueries({ queryKey: ['cash-period', stationId, year, month] });
+    qc.invalidateQueries({ queryKey: ['station-expenses', stationId, year, month] });
+    qc.invalidateQueries({ queryKey: ['station-provisions', stationId, year, month] });
   };
 
+  // Mutations
   const createExpense = useMutation({
     mutationFn: () => expensesApi.create({ stationId, ...expenseForm, amount: parseInt(expenseForm.amount) }) as any,
-    onSuccess: () => { toast.success('Dépense enregistrée'); setShowExpenseForm(false); setExpenseForm({ category: 'FUEL', description: '', amount: '', date: dayjs().format('YYYY-MM-DD'), receiptNote: '' }); invalidateAll(); },
+    onSuccess: () => {
+      toast.success('Dépense enregistrée');
+      setShowExpenseForm(false);
+      setExpenseForm({ category: 'FUEL', description: '', amount: '', date: dayjs().format('YYYY-MM-DD'), receiptNote: '' });
+      invalidatePeriod();
+    },
     onError: (e: any) => toast.error(e?.response?.data?.message ?? 'Erreur'),
   });
 
   const createProvision = useMutation({
     mutationFn: () => cashProvisionsApi.create({ stationId, ...provisionForm, amount: parseInt(provisionForm.amount) }) as any,
-    onSuccess: () => { toast.success('Demande envoyée'); setShowProvisionForm(false); setProvisionForm({ amount: '', reason: '', notes: '' }); invalidateAll(); },
+    onSuccess: () => {
+      toast.success('Demande envoyée');
+      setShowProvisionForm(false);
+      setProvisionForm({ amount: '', reason: '', notes: '' });
+      invalidatePeriod();
+    },
     onError: (e: any) => toast.error(e?.response?.data?.message ?? 'Erreur'),
   });
 
   const approveExpense = useMutation({
     mutationFn: (id: string) => expensesApi.approve(id) as any,
-    onSuccess: () => { toast.success('Approuvée'); invalidateAll(); },
+    onSuccess: () => { toast.success('Dépense approuvée'); invalidatePeriod(); },
     onError: (e: any) => toast.error(e?.response?.data?.message ?? 'Erreur'),
   });
 
   const rejectExpenseMut = useMutation({
     mutationFn: ({ id, reason }: { id: string; reason: string }) => expensesApi.reject(id, reason) as any,
-    onSuccess: () => { toast.success('Rejetée'); setRejectExpenseId(null); invalidateAll(); },
+    onSuccess: () => { toast.success('Rejetée'); setRejectExpenseId(null); invalidatePeriod(); },
     onError: (e: any) => toast.error(e?.response?.data?.message ?? 'Erreur'),
   });
 
-  const [rejectReason, setRejectReason] = useState('');
+  const closePeriodMut = useMutation({
+    mutationFn: () => cashPeriodsApi.closePeriod(stationId, year, month, { declaredBalance: parseInt(declaredBalance), notes: closeNotes || undefined }) as any,
+    onSuccess: () => { toast.success('Période clôturée'); setShowCloseModal(false); invalidatePeriod(); },
+    onError: (e: any) => toast.error(e?.response?.data?.message ?? 'Erreur'),
+  });
 
-  const PROV_STATUS: Record<string, { label: string; cls: string }> = {
-    REQUESTED: { label: 'En attente', cls: 'bg-amber-100 text-amber-700' },
-    APPROVED:  { label: 'Approuvée',  cls: 'bg-blue-100 text-blue-700' },
-    SENT:      { label: 'En transit', cls: 'bg-indigo-100 text-indigo-700' },
-    RECEIVED:  { label: 'Reçue',      cls: 'bg-emerald-100 text-emerald-700' },
-    REJECTED:  { label: 'Rejetée',    cls: 'bg-red-100 text-red-600' },
-  };
+  const validatePeriodMut = useMutation({
+    mutationFn: () => cashPeriodsApi.validatePeriod(stationId, year, month) as any,
+    onSuccess: () => { toast.success('Période validée — report automatique effectué'); invalidatePeriod(); },
+    onError: (e: any) => toast.error(e?.response?.data?.message ?? 'Erreur'),
+  });
 
-  const EXP_STATUS: Record<string, { label: string; cls: string }> = {
-    SUBMITTED: { label: 'En attente', cls: 'bg-amber-100 text-amber-700' },
-    APPROVED:  { label: 'Approuvée',  cls: 'bg-emerald-100 text-emerald-700' },
-    REJECTED:  { label: 'Rejetée',    cls: 'bg-red-100 text-red-600' },
-  };
+  const reopenPeriodMut = useMutation({
+    mutationFn: () => cashPeriodsApi.reopenPeriod(stationId, year, month) as any,
+    onSuccess: () => { toast.success('Période rouverte'); invalidatePeriod(); },
+    onError: (e: any) => toast.error(e?.response?.data?.message ?? 'Erreur'),
+  });
 
-  const balanceColor = sum?.estimatedBalance >= 0 ? 'text-emerald-700' : 'text-red-600';
+  const setOpeningMut = useMutation({
+    mutationFn: () => cashPeriodsApi.setOpeningBalance(stationId, year, month, { openingBalance: parseInt(openingValue) }) as any,
+    onSuccess: () => { toast.success('Solde d\'ouverture enregistré'); setShowOpeningModal(false); invalidatePeriod(); },
+    onError: (e: any) => toast.error(e?.response?.data?.message ?? 'Erreur'),
+  });
+
+  const recalculateMut = useMutation({
+    mutationFn: () => cashPeriodsApi.recalculate(stationId, year, month) as any,
+    onSuccess: () => { toast.success('Recalcul effectué'); invalidatePeriod(); },
+    onError: (e: any) => toast.error(e?.response?.data?.message ?? 'Erreur'),
+  });
+
+  const periodStatus = period?.status ?? 'OPEN';
+  const statusCfg    = PERIOD_STATUS_CFG[periodStatus] ?? PERIOD_STATUS_CFG.OPEN;
+  const variance     = period?.variance ?? null;
+  const isLocked     = periodStatus === 'VALIDATED';
+
+  const computedBalance = period?.computedBalance ?? 0;
+  const openingBalance  = period?.openingBalance  ?? 0;
+  const cashSales       = period?.cashSales       ?? 0;
+  const provisionsIn    = period?.provisionsIn    ?? 0;
+  const expensesOut     = period?.expensesOut     ?? 0;
+
+  // Répartition dépenses
+  const byCategory: Record<string, number> = {};
+  expenses.filter((e: any) => e.status === 'APPROVED').forEach((e: any) => {
+    byCategory[e.category] = (byCategory[e.category] ?? 0) + e.amount;
+  });
 
   return (
-    <div className="space-y-6">
-      {/* Balance + KPIs du mois */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-        <div className="lg:col-span-1 bg-white rounded-xl border border-gray-200 p-4">
-          <p className="text-xs font-medium text-gray-500 mb-1">Solde estimé (caisse)</p>
-          <p className={`text-2xl font-bold ${balanceColor}`}>{formatCFA(sum?.estimatedBalance ?? 0)}</p>
-          <p className="text-xs text-gray-400 mt-0.5">Espèces − dépenses + approv.</p>
+    <div className="space-y-5">
+
+      {/* ── Navigateur de période ────────────────────────────────── */}
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <button onClick={() => setPeriodDate(d => d.subtract(1, 'month'))}
+            className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-500 transition-colors">
+            <ChevronLeft className="w-4 h-4" />
+          </button>
+          <span className="text-sm font-semibold text-gray-900 capitalize min-w-[110px] text-center">
+            {periodDate.format('MMMM YYYY')}
+          </span>
+          <button onClick={() => setPeriodDate(d => d.add(1, 'month'))}
+            disabled={isCurrentMonth}
+            className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-500 transition-colors disabled:opacity-30">
+            <ChevronRightIcon className="w-4 h-4" />
+          </button>
         </div>
-        <div className="bg-white rounded-xl border border-gray-200 p-4">
-          <p className="text-xs font-medium text-gray-500 mb-1">Ventes espèces (mois)</p>
-          <p className="text-lg font-bold text-gray-900">{formatCFA(sum?.cashSales ?? 0)}</p>
-        </div>
-        <div className="bg-white rounded-xl border border-gray-200 p-4">
-          <p className="text-xs font-medium text-gray-500 mb-1">Dépenses approuvées</p>
-          <p className="text-lg font-bold text-red-600">{formatCFA(sum?.totalExpenses ?? 0)}</p>
-          {(sum?.pendingExpenses ?? 0) > 0 && (
-            <p className="text-xs text-amber-600 font-medium mt-0.5">{sum.pendingExpenses} en attente</p>
+        <div className="flex items-center gap-2">
+          <span className={`flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1 rounded-full ${statusCfg.cls}`}>
+            <statusCfg.icon className="w-3 h-3" /> {statusCfg.label}
+          </span>
+          {!isLocked && (
+            <button onClick={() => recalculateMut.mutate()} disabled={recalculateMut.isPending}
+              title="Forcer le recalcul"
+              className="p-1.5 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors">
+              <RefreshCw className={`w-3.5 h-3.5 ${recalculateMut.isPending ? 'animate-spin' : ''}`} />
+            </button>
           )}
-        </div>
-        <div className="bg-white rounded-xl border border-gray-200 p-4">
-          <p className="text-xs font-medium text-gray-500 mb-1">Approv. reçus (mois)</p>
-          <p className="text-lg font-bold text-blue-700">{formatCFA(sum?.totalProvisions ?? 0)}</p>
         </div>
       </div>
 
-      {/* Dépenses par catégorie */}
-      {sum?.byCategory && Object.keys(sum.byCategory).length > 0 && (
+      {/* ── Journal de caisse (équation) ────────────────────────── */}
+      <div className="bg-white rounded-xl border border-gray-200 p-5">
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="text-sm font-semibold text-gray-900">Journal de caisse</h3>
+          {openingBalance === 0 && periodStatus === 'OPEN' && (
+            <button onClick={() => { setOpeningValue(''); setShowOpeningModal(true); }}
+              className="text-xs text-indigo-600 hover:text-indigo-800 underline underline-offset-2">
+              Définir solde d'ouverture
+            </button>
+          )}
+        </div>
+
+        <BalanceRow label="Solde d'ouverture"    value={openingBalance} />
+        <BalanceRow label="Ventes espèces"       value={cashSales}     sign="+" sub="(paiements CASH confirmés)" />
+        <BalanceRow label="Approvisionnements"   value={provisionsIn}  sign="+" sub="(fonds reçus)" />
+        <BalanceRow label="Dépenses approuvées"  value={expensesOut}   sign="−" />
+        <BalanceRow label="Solde théorique"      value={computedBalance} sign="=" />
+
+        {periodStatus === 'CLOSED' || periodStatus === 'VALIDATED' ? (
+          <div className="mt-3 pt-3 border-t border-gray-100 space-y-2">
+            <div className="flex items-center justify-between">
+              <span className="text-sm text-gray-600">Solde physique compté</span>
+              <span className="text-sm font-bold text-gray-900 tabular-nums">{fmtXOF(period?.declaredBalance ?? 0)}</span>
+            </div>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-1.5">
+                {(variance ?? 0) !== 0 && <TriangleAlert className="w-3.5 h-3.5 text-amber-500" />}
+                <span className="text-sm text-gray-600">Écart (variance)</span>
+              </div>
+              <span className={`text-sm font-bold tabular-nums ${(variance ?? 0) === 0 ? 'text-emerald-600' : 'text-amber-600'}`}>
+                {(variance ?? 0) >= 0 ? '+' : ''}{fmtXOF(variance ?? 0)}
+              </span>
+            </div>
+            {period?.notes && (
+              <p className="text-xs text-gray-400 italic">{period.notes}</p>
+            )}
+          </div>
+        ) : null}
+
+        {/* Actions de période */}
+        {!isLocked && (
+          <div className="mt-4 flex flex-wrap gap-2">
+            {periodStatus === 'OPEN' && (
+              <button onClick={() => { setDeclaredBalance(String(computedBalance)); setCloseNotes(''); setShowCloseModal(true); }}
+                className="flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 bg-amber-600 hover:bg-amber-700 text-white rounded-lg transition-colors">
+                <Lock className="w-3.5 h-3.5" /> Clôturer la période
+              </button>
+            )}
+            {periodStatus === 'CLOSED' && (
+              <>
+                <button onClick={() => validatePeriodMut.mutate()} disabled={validatePeriodMut.isPending}
+                  className="flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg transition-colors disabled:opacity-50">
+                  {validatePeriodMut.isPending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <ShieldCheck className="w-3.5 h-3.5" />}
+                  Valider (génère le report)
+                </button>
+                <button onClick={() => reopenPeriodMut.mutate()} disabled={reopenPeriodMut.isPending}
+                  className="flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 bg-white border border-gray-300 text-gray-700 hover:bg-gray-50 rounded-lg transition-colors">
+                  Rouvrir
+                </button>
+              </>
+            )}
+          </div>
+        )}
+        {isLocked && (
+          <div className="mt-3 flex items-center gap-2 text-xs text-emerald-600">
+            <ShieldCheck className="w-3.5 h-3.5" />
+            Validé le {dayjs(period?.validatedAt).format('D MMM YYYY')} par {period?.validatedBy?.firstName} {period?.validatedBy?.lastName}
+          </div>
+        )}
+      </div>
+
+      {/* ── Répartition dépenses par catégorie ──────────────────── */}
+      {Object.keys(byCategory).length > 0 && (
         <div className="bg-white rounded-xl border border-gray-200 p-4">
-          <h3 className="text-sm font-semibold text-gray-900 mb-3">Répartition des dépenses</h3>
+          <h3 className="text-sm font-semibold text-gray-900 mb-3">Répartition des dépenses approuvées</h3>
           <div className="space-y-2">
-            {Object.entries(sum.byCategory as Record<string, number>)
-              .sort(([, a], [, b]) => b - a)
-              .map(([cat, amount]) => {
-                const total = sum.totalExpenses || 1;
-                const pct = Math.round((amount / total) * 100);
-                return (
-                  <div key={cat} className="flex items-center gap-3">
-                    <span className="text-xs text-gray-500 w-28 shrink-0">{EXPENSE_CATEGORY_LABELS[cat] ?? cat}</span>
-                    <div className="flex-1 h-1.5 bg-gray-100 rounded-full">
-                      <div className="h-1.5 bg-indigo-400 rounded-full" style={{ width: `${pct}%` }} />
-                    </div>
-                    <span className="text-xs font-semibold text-gray-700 w-24 text-right">{formatCFA(amount)}</span>
+            {Object.entries(byCategory).sort(([, a], [, b]) => b - a).map(([cat, amount]) => {
+              const pct = expensesOut > 0 ? Math.round((amount / expensesOut) * 100) : 0;
+              return (
+                <div key={cat} className="flex items-center gap-3">
+                  <span className="text-xs text-gray-500 w-28 shrink-0">{EXPENSE_CATEGORY_LABELS[cat] ?? cat}</span>
+                  <div className="flex-1 h-1.5 bg-gray-100 rounded-full">
+                    <div className="h-1.5 bg-indigo-400 rounded-full" style={{ width: `${pct}%` }} />
                   </div>
-                );
-              })}
+                  <span className="text-xs font-semibold text-gray-700 w-28 text-right">{fmtXOF(amount)}</span>
+                </div>
+              );
+            })}
           </div>
         </div>
       )}
 
-      {/* Dépenses récentes */}
+      {/* ── Dépenses du mois ─────────────────────────────────────── */}
       <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
         <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100">
           <div className="flex items-center gap-2">
             <Receipt className="w-4 h-4 text-gray-400" />
-            <h3 className="text-sm font-semibold text-gray-900">Dépenses récentes</h3>
+            <h3 className="text-sm font-semibold text-gray-900">Dépenses</h3>
             <span className="text-xs bg-gray-100 text-gray-600 rounded-full px-1.5">{expenses.length}</span>
           </div>
-          <button onClick={() => setShowExpenseForm(v => !v)}
-            className="flex items-center gap-1 text-xs font-medium text-indigo-600 hover:text-indigo-800 px-2.5 py-1.5 bg-indigo-50 hover:bg-indigo-100 rounded-lg transition-colors">
-            <Plus className="w-3.5 h-3.5" /> Ajouter
-          </button>
+          {!isLocked && isCurrentMonth && (
+            <button onClick={() => setShowExpenseForm(v => !v)}
+              className="flex items-center gap-1 text-xs font-medium text-indigo-600 px-2.5 py-1.5 bg-indigo-50 hover:bg-indigo-100 rounded-lg transition-colors">
+              <Plus className="w-3.5 h-3.5" /> Ajouter
+            </button>
+          )}
         </div>
 
         {showExpenseForm && (
@@ -254,8 +445,8 @@ function StationCaisse({ stationId }: { stationId: string }) {
         )}
 
         {expenses.length === 0 ? (
-          <div className="py-10 flex flex-col items-center text-gray-400 text-sm gap-2">
-            <Receipt className="w-8 h-8 opacity-30" /> Aucune dépense
+          <div className="py-8 flex flex-col items-center text-gray-400 text-sm gap-2">
+            <Receipt className="w-7 h-7 opacity-30" /> Aucune dépense ce mois
           </div>
         ) : (
           <table className="min-w-full divide-y divide-gray-50 text-sm">
@@ -270,19 +461,19 @@ function StationCaisse({ stationId }: { stationId: string }) {
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-50">
-              {expenses.slice(0, 10).map((e: any) => {
-                const sc = EXP_STATUS[e.status] ?? EXP_STATUS.SUBMITTED;
+              {expenses.map((e: any) => {
+                const sc = EXP_STATUS_CFG[e.status] ?? EXP_STATUS_CFG.SUBMITTED;
                 return (
                   <tr key={e.id} className="hover:bg-gray-50/60">
                     <td className="px-4 py-2.5 text-gray-500 whitespace-nowrap">{dayjs(e.date).format('D MMM')}</td>
-                    <td className="px-4 py-2.5 text-gray-600">{EXPENSE_CATEGORY_LABELS[e.category] ?? e.category}</td>
+                    <td className="px-4 py-2.5 text-gray-600 text-xs">{EXPENSE_CATEGORY_LABELS[e.category] ?? e.category}</td>
                     <td className="px-4 py-2.5 text-gray-700 max-w-[180px] truncate">{e.description}</td>
-                    <td className="px-4 py-2.5 text-right font-semibold text-gray-900">{formatCFA(e.amount)}</td>
+                    <td className="px-4 py-2.5 text-right font-semibold text-gray-900 tabular-nums">{fmtXOF(e.amount)}</td>
                     <td className="px-4 py-2.5 text-center">
                       <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${sc.cls}`}>{sc.label}</span>
                     </td>
                     <td className="px-4 py-2.5 text-right">
-                      {e.status === 'SUBMITTED' && (
+                      {e.status === 'SUBMITTED' && !isLocked && (
                         <div className="flex items-center justify-end gap-1.5">
                           <button onClick={() => approveExpense.mutate(e.id)}
                             className="text-[11px] text-emerald-700 bg-emerald-50 hover:bg-emerald-100 px-2 py-0.5 rounded-lg flex items-center gap-1">
@@ -303,7 +494,7 @@ function StationCaisse({ stationId }: { stationId: string }) {
         )}
       </div>
 
-      {/* Approvisionnements */}
+      {/* ── Approvisionnements du mois ───────────────────────────── */}
       <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
         <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100">
           <div className="flex items-center gap-2">
@@ -311,10 +502,12 @@ function StationCaisse({ stationId }: { stationId: string }) {
             <h3 className="text-sm font-semibold text-gray-900">Approvisionnements</h3>
             <span className="text-xs bg-gray-100 text-gray-600 rounded-full px-1.5">{provisions.length}</span>
           </div>
-          <button onClick={() => setShowProvisionForm(v => !v)}
-            className="flex items-center gap-1 text-xs font-medium text-blue-600 hover:text-blue-800 px-2.5 py-1.5 bg-blue-50 hover:bg-blue-100 rounded-lg transition-colors">
-            <Plus className="w-3.5 h-3.5" /> Demander
-          </button>
+          {isCurrentMonth && (
+            <button onClick={() => setShowProvisionForm(v => !v)}
+              className="flex items-center gap-1 text-xs font-medium text-blue-600 px-2.5 py-1.5 bg-blue-50 hover:bg-blue-100 rounded-lg transition-colors">
+              <Plus className="w-3.5 h-3.5" /> Demander
+            </button>
+          )}
         </div>
 
         {showProvisionForm && (
@@ -344,25 +537,25 @@ function StationCaisse({ stationId }: { stationId: string }) {
               <button onClick={() => createProvision.mutate()}
                 disabled={!provisionForm.reason || !provisionForm.amount || createProvision.isPending}
                 className="text-xs px-4 py-1.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 flex items-center gap-1">
-                {createProvision.isPending && <Loader2 className="w-3 h-3 animate-spin" />} Envoyer la demande
+                {createProvision.isPending && <Loader2 className="w-3 h-3 animate-spin" />} Envoyer
               </button>
             </div>
           </div>
         )}
 
         {provisions.length === 0 ? (
-          <div className="py-10 flex flex-col items-center text-gray-400 text-sm gap-2">
-            <Wallet className="w-8 h-8 opacity-30" /> Aucun approvisionnement
+          <div className="py-8 flex flex-col items-center text-gray-400 text-sm gap-2">
+            <Wallet className="w-7 h-7 opacity-30" /> Aucun approvisionnement ce mois
           </div>
         ) : (
           <div className="divide-y divide-gray-50">
-            {provisions.slice(0, 8).map((p: any) => {
-              const sc = PROV_STATUS[p.status] ?? PROV_STATUS.REQUESTED;
+            {provisions.map((p: any) => {
+              const sc = PROV_STATUS_CFG[p.status] ?? PROV_STATUS_CFG.REQUESTED;
               return (
                 <div key={p.id} className="px-4 py-3 flex items-center gap-3">
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2">
-                      <p className="text-sm font-semibold text-gray-900">{formatCFA(p.amount)}</p>
+                      <p className="text-sm font-semibold text-gray-900 tabular-nums">{fmtXOF(p.amount)}</p>
                       <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${sc.cls}`}>{sc.label}</span>
                     </div>
                     <p className="text-xs text-gray-500 mt-0.5 truncate">{p.reason}</p>
@@ -375,9 +568,84 @@ function StationCaisse({ stationId }: { stationId: string }) {
         )}
       </div>
 
-      {/* Modal reject dépense */}
+      {/* ── Modal : Clôture de période ─────────────────────────── */}
+      {showCloseModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm p-6 space-y-4">
+            <div>
+              <h3 className="font-bold text-gray-900">Clôturer {periodDate.format('MMMM YYYY')}</h3>
+              <p className="text-xs text-gray-500 mt-1">Saisir le solde physique compté en caisse.</p>
+            </div>
+            <div className="bg-gray-50 rounded-xl p-3 text-sm space-y-1">
+              <div className="flex justify-between text-gray-600">
+                <span>Solde théorique</span>
+                <span className="font-semibold tabular-nums">{fmtXOF(computedBalance)}</span>
+              </div>
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-gray-700 mb-1.5">Solde physique compté (FCFA) *</label>
+              <input
+                type="number"
+                value={declaredBalance}
+                onChange={e => setDeclaredBalance(e.target.value)}
+                placeholder={String(computedBalance)}
+                min="0"
+                className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-300"
+              />
+              {declaredBalance && parseInt(declaredBalance) !== computedBalance && (
+                <p className={`text-xs mt-1 ${parseInt(declaredBalance) > computedBalance ? 'text-emerald-600' : 'text-amber-600'}`}>
+                  Écart : {parseInt(declaredBalance) > computedBalance ? '+' : ''}{fmtXOF(parseInt(declaredBalance) - computedBalance)}
+                </p>
+              )}
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-gray-700 mb-1.5">Notes (si écart)</label>
+              <textarea value={closeNotes} onChange={e => setCloseNotes(e.target.value)} rows={2}
+                placeholder="Expliquer l'écart si nécessaire…"
+                className="w-full text-sm border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-amber-300 resize-none" />
+            </div>
+            <div className="flex gap-3">
+              <button onClick={() => setShowCloseModal(false)} className="flex-1 py-2 text-sm text-gray-600 border rounded-lg hover:bg-gray-50">Annuler</button>
+              <button onClick={() => closePeriodMut.mutate()}
+                disabled={!declaredBalance || closePeriodMut.isPending}
+                className="flex-1 py-2 text-sm text-white bg-amber-600 hover:bg-amber-700 rounded-lg disabled:opacity-50 flex items-center justify-center gap-1.5">
+                {closePeriodMut.isPending && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+                <Lock className="w-3.5 h-3.5" /> Clôturer
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Modal : Solde d'ouverture ──────────────────────────── */}
+      {showOpeningModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm p-6 space-y-4">
+            <div>
+              <h3 className="font-bold text-gray-900">Solde d'ouverture</h3>
+              <p className="text-xs text-gray-500 mt-1">Solde initial en caisse au 1er {periodDate.format('MMMM YYYY')}.</p>
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-gray-700 mb-1.5">Montant (FCFA) *</label>
+              <input type="number" value={openingValue} onChange={e => setOpeningValue(e.target.value)}
+                placeholder="0" min="0"
+                className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300" />
+            </div>
+            <div className="flex gap-3">
+              <button onClick={() => setShowOpeningModal(false)} className="flex-1 py-2 text-sm text-gray-600 border rounded-lg">Annuler</button>
+              <button onClick={() => setOpeningMut.mutate()}
+                disabled={!openingValue || setOpeningMut.isPending}
+                className="flex-1 py-2 text-sm text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg disabled:opacity-50 flex items-center justify-center gap-1.5">
+                {setOpeningMut.isPending && <Loader2 className="w-3.5 h-3.5 animate-spin" />} Enregistrer
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Modal : Rejeter dépense ───────────────────────────── */}
       {rejectExpenseId && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
           <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm p-5 space-y-3">
             <h3 className="font-bold text-gray-900">Motif du rejet</h3>
             <textarea value={rejectReason} onChange={e => setRejectReason(e.target.value)} rows={3}
@@ -385,9 +653,9 @@ function StationCaisse({ stationId }: { stationId: string }) {
               className="w-full text-sm border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-red-300 resize-none" />
             <div className="flex gap-3">
               <button onClick={() => setRejectExpenseId(null)} className="flex-1 py-2 text-sm text-gray-600 border rounded-lg">Annuler</button>
-              <button onClick={() => rejectExpenseMut.mutate({ id: rejectExpenseId, reason: rejectReason })}
+              <button onClick={() => rejectExpenseMut.mutate({ id: rejectExpenseId!, reason: rejectReason })}
                 disabled={!rejectReason.trim() || rejectExpenseMut.isPending}
-                className="flex-1 py-2 text-sm text-white bg-red-600 rounded-lg disabled:opacity-50 flex items-center justify-center gap-1">
+                className="flex-1 py-2 text-sm text-white bg-red-600 rounded-lg disabled:opacity-50 flex items-center justify-center gap-1.5">
                 {rejectExpenseMut.isPending && <Loader2 className="w-3.5 h-3.5 animate-spin" />} Rejeter
               </button>
             </div>
