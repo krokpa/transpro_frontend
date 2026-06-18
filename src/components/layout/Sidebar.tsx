@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import {
@@ -10,6 +10,7 @@ import {
   Loader2,
 } from 'lucide-react';
 import { useAuthStore } from '@/store/auth.store';
+import { useNavStore } from '@/store/nav.store';
 import { authApi, tenantsApi } from '@/lib/api';
 import { disconnectSocket } from '@/lib/socket';
 import { toast } from 'sonner';
@@ -88,7 +89,7 @@ export function Sidebar() {
   const router = useRouter();
   const { user, clearAuth, refreshToken } = useAuthStore();
 
-  const [pendingHref, setPendingHref] = useState<string | null>(null);
+  const { pendingHref, setPendingHref } = useNavStore();
   useEffect(() => { setPendingHref(null); }, [pathname]);
 
   const isSuperAdmin   = user?.role === 'SUPER_ADMIN';

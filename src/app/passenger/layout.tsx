@@ -271,7 +271,7 @@ export default function PassengerLayout({ children }: { children: React.ReactNod
         </header>
 
         {/* Content */}
-        <main className="flex-1 overflow-y-auto p-6">
+        <main className={`flex-1 overflow-y-auto p-6 transition-all duration-200 ${pendingHref ? 'opacity-40 blur-sm pointer-events-none' : ''}`}>
           {children}
         </main>
       </div>
