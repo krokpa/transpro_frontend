@@ -10,6 +10,8 @@ import {
   CheckCircle, XCircle, CreditCard, Calendar,
   Bus, Crown, Zap, QrCode, ChevronRight,
 } from 'lucide-react';
+import { ViewToggle } from '@/components/ui/ViewToggle';
+import { useViewMode } from '@/hooks/useViewMode';
 import { toast } from 'sonner';
 import dayjs from 'dayjs';
 import duration from 'dayjs/plugin/duration';
@@ -207,6 +209,7 @@ export default function BookingsPage() {
   const router  = useRouter();
   const [tab, setTab]           = useState<Tab>('upcoming');
   const [payingId, setPayingId] = useState<string | null>(null);
+  const [viewMode, setViewMode] = useViewMode('passenger-bookings');
 
   const { data: raw, isLoading } = useQuery({
     queryKey: ['my-bookings'],
@@ -261,12 +264,15 @@ export default function BookingsPage() {
           <h1 className="text-xl font-bold text-gray-900">Mes réservations</h1>
           <p className="text-sm text-gray-400 mt-0.5">{all.length} réservation{all.length !== 1 ? 's' : ''}</p>
         </div>
-        <button
-          onClick={() => router.push('/passenger/search')}
-          className="bg-brand-500 hover:bg-brand-600 text-white px-4 py-2 rounded-xl text-sm font-semibold flex items-center gap-2 transition shadow-sm shadow-brand-500/20"
-        >
-          <MapPin size={14} /> Nouveau voyage
-        </button>
+        <div className="flex items-center gap-2">
+          <ViewToggle value={viewMode} onChange={setViewMode} />
+          <button
+            onClick={() => router.push('/passenger/search')}
+            className="bg-brand-500 hover:bg-brand-600 text-white px-4 py-2 rounded-xl text-sm font-semibold flex items-center gap-2 transition shadow-sm shadow-brand-500/20"
+          >
+            <MapPin size={14} /> Nouveau voyage
+          </button>
+        </div>
       </div>
 
       {/* Stats */}
@@ -333,7 +339,10 @@ export default function BookingsPage() {
           })()}
         </div>
       ) : (
-        <div className="space-y-3">
+        <div className={viewMode === 'grid'
+          ? 'grid grid-cols-1 sm:grid-cols-2 gap-3'
+          : 'space-y-3'
+        }>
           {displayed.map((b) => (
             <BookingCard
               key={b.id}
