@@ -9,6 +9,8 @@ import {
   Search, MapPin, Building2, Star, Loader2,
   Bus, Route, ArrowRight,
 } from 'lucide-react';
+import { ViewToggle } from '@/components/ui/ViewToggle';
+import { useViewMode } from '@/hooks/useViewMode';
 
 function CompanyLogo({ logo, name, size = 48 }: { logo?: string | null; name: string; size?: number }) {
   if (logo) {
@@ -37,6 +39,7 @@ export default function CompaniesPage() {
   const router = useRouter();
   const [query, setQuery] = useState('');
   const { toggleCompany, isCompanyFavorite } = useFavorites();
+  const [viewMode, setViewMode] = useViewMode('passenger-companies', 'grid');
 
   const { data: raw, isLoading, error, refetch } = useQuery({
     queryKey: ['companies-public'],
@@ -66,6 +69,7 @@ export default function CompaniesPage() {
             {isLoading ? '…' : `${companies.length} compagnie${companies.length !== 1 ? 's' : ''} disponible${companies.length !== 1 ? 's' : ''}`}
           </p>
         </div>
+        <ViewToggle value={viewMode} onChange={setViewMode} />
       </div>
 
       {/* Search */}
@@ -109,7 +113,7 @@ export default function CompaniesPage() {
           <p className="font-semibold text-gray-700">Aucune compagnie trouvée</p>
           <p className="text-sm text-gray-400 mt-1">Essayez un autre terme de recherche</p>
         </div>
-      ) : (
+      ) : viewMode === 'grid' ? (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
           {filtered.map((c) => {
             const isFav = isCompanyFavorite(c.id);
@@ -176,6 +180,71 @@ export default function CompaniesPage() {
                     className="text-xs font-semibold text-gray-600 hover:text-gray-900 flex items-center gap-1 transition-colors group-hover:text-brand-600"
                   >
                     Voir les détails <ArrowRight size={12} />
+                  </button>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      ) : (
+        /* List view */
+        <div className="space-y-2">
+          {filtered.map((c) => {
+            const isFav = isCompanyFavorite(c.id);
+            const stationCount = c._count?.stations ?? c.stations?.length ?? 0;
+            const routeCount   = c._count?.routes   ?? c.routes?.length   ?? 0;
+            const upcoming     = c.upcomingTrips ?? 0;
+
+            return (
+              <div
+                key={c.id}
+                className="bg-white rounded-xl border border-gray-100 hover:border-brand-200 hover:shadow-sm transition-all duration-150 px-4 py-3 flex items-center gap-4 group"
+              >
+                <CompanyLogo logo={c.logo} name={c.name} size={38} />
+
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2">
+                    <h3 className="font-bold text-gray-900 text-sm truncate">{c.name}</h3>
+                    {c.city?.name && (
+                      <span className="text-xs text-gray-400 flex items-center gap-0.5 shrink-0">
+                        <MapPin size={10} /> {c.city.name}
+                      </span>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-2 mt-1 flex-wrap">
+                    <span className="inline-flex items-center gap-1 text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-brand-50 text-brand-600">
+                      <Bus size={9} /> {upcoming} départ{upcoming !== 1 ? 's' : ''}
+                    </span>
+                    <span className="inline-flex items-center gap-1 text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-violet-50 text-violet-600">
+                      <Building2 size={9} /> {stationCount} gare{stationCount !== 1 ? 's' : ''}
+                    </span>
+                    <span className="inline-flex items-center gap-1 text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-emerald-50 text-emerald-600">
+                      <Route size={9} /> {routeCount} ligne{routeCount !== 1 ? 's' : ''}
+                    </span>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-1 shrink-0">
+                  <button
+                    onClick={() => toggleCompany({ id: c.id, name: c.name, logo: c.logo, slug: c.slug, city: c.city })}
+                    className="p-1.5 rounded-lg hover:bg-amber-50 transition-colors"
+                    title={isFav ? 'Retirer des favoris' : 'Ajouter aux favoris'}
+                  >
+                    <Star size={15} className={isFav ? 'fill-amber-400 text-amber-400' : 'text-gray-300 hover:text-amber-400'} />
+                  </button>
+                  <button
+                    onClick={() => router.push(`/passenger/search?tenantSlug=${c.slug}`)}
+                    className="p-1.5 rounded-lg text-brand-600 hover:bg-brand-50 transition-colors"
+                    title="Rechercher un voyage"
+                  >
+                    <Search size={15} />
+                  </button>
+                  <button
+                    onClick={() => router.push(`/passenger/companies/${c.slug}`)}
+                    className="p-1.5 rounded-lg text-gray-400 hover:text-brand-600 hover:bg-brand-50 transition-colors"
+                    title="Voir les détails"
+                  >
+                    <ArrowRight size={15} />
                   </button>
                 </div>
               </div>
