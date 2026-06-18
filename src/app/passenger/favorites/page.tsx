@@ -5,6 +5,8 @@ import { useFavorites } from '@/hooks/useFavorites';
 import {
   Star, Building2, Bus, MapPin, ArrowRight, Search,
 } from 'lucide-react';
+import { ViewToggle } from '@/components/ui/ViewToggle';
+import { useViewMode } from '@/hooks/useViewMode';
 
 function CompanyLogo({ logo, name }: { logo?: string | null; name: string }) {
   if (logo) {
@@ -42,6 +44,7 @@ function EmptySection({ message, cta, onCta }: { message: string; cta?: string; 
 export default function FavoritesPage() {
   const router = useRouter();
   const { favs, toggleCompany, toggleStation } = useFavorites();
+  const [viewMode, setViewMode] = useViewMode('passenger-favorites', 'grid');
 
   const hasAnything = favs.companies.length > 0 || favs.stations.length > 0;
 
@@ -65,12 +68,17 @@ export default function FavoritesPage() {
           <h2 className="text-sm font-bold text-gray-700 uppercase tracking-wider">
             Compagnies favorites ({favs.companies.length})
           </h2>
-          <button
-            onClick={() => router.push('/passenger/companies')}
-            className="text-xs text-brand-600 hover:text-brand-700 font-semibold flex items-center gap-1 transition-colors"
-          >
-            Toutes les compagnies <ArrowRight size={12} />
-          </button>
+          <div className="flex items-center gap-2">
+            {favs.companies.length > 0 && (
+              <ViewToggle value={viewMode} onChange={setViewMode} />
+            )}
+            <button
+              onClick={() => router.push('/passenger/companies')}
+              className="text-xs text-brand-600 hover:text-brand-700 font-semibold flex items-center gap-1 transition-colors"
+            >
+              Toutes les compagnies <ArrowRight size={12} />
+            </button>
+          </div>
         </div>
 
         {favs.companies.length === 0 ? (
@@ -79,7 +87,7 @@ export default function FavoritesPage() {
             cta="Explorer les compagnies"
             onCta={() => router.push('/passenger/companies')}
           />
-        ) : (
+        ) : viewMode === 'grid' ? (
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
             {favs.companies.map((c) => (
               <div
@@ -118,6 +126,43 @@ export default function FavoritesPage() {
                     className="text-xs font-semibold text-gray-500 hover:text-gray-800 flex items-center gap-1 transition-colors group-hover:text-brand-600"
                   >
                     Détails <ArrowRight size={11} />
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="bg-white rounded-xl border border-gray-100 divide-y divide-gray-50 overflow-hidden">
+            {favs.companies.map((c) => (
+              <div key={c.id} className="flex items-center gap-3 px-4 py-3 hover:bg-gray-50 transition-colors group">
+                <CompanyLogo logo={c.logo} name={c.name} />
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-semibold text-gray-900 truncate">{c.name}</p>
+                  {c.city?.name && (
+                    <p className="text-xs text-gray-500 flex items-center gap-1 mt-0.5">
+                      <MapPin size={10} /> {c.city.name}
+                    </p>
+                  )}
+                </div>
+                <div className="flex items-center gap-1 shrink-0">
+                  <button
+                    onClick={() => router.push(`/passenger/search?tenantSlug=${c.slug}`)}
+                    className="flex items-center gap-1 text-xs font-semibold text-brand-600 hover:text-brand-700 bg-brand-50 hover:bg-brand-100 px-2.5 py-1.5 rounded-lg transition-colors"
+                  >
+                    <Search size={11} /> Voyages
+                  </button>
+                  <button
+                    onClick={() => router.push(`/passenger/companies/${c.slug}`)}
+                    className="flex items-center gap-1 text-xs font-semibold text-gray-500 hover:text-gray-800 px-2 py-1.5 rounded-lg hover:bg-gray-100 transition-colors"
+                  >
+                    <ArrowRight size={13} />
+                  </button>
+                  <button
+                    onClick={() => toggleCompany(c)}
+                    className="p-1.5 rounded-lg hover:bg-amber-50 transition-colors"
+                    title="Retirer des favoris"
+                  >
+                    <Star size={15} className="fill-amber-400 text-amber-400" />
                   </button>
                 </div>
               </div>
