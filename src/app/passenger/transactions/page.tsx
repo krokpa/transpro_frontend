@@ -14,6 +14,8 @@ import 'dayjs/locale/fr';
 import relativeTime from 'dayjs/plugin/relativeTime';
 import { useState, useCallback } from 'react';
 import { toast } from 'sonner';
+import { ViewToggle } from '@/components/ui/ViewToggle';
+import { useViewMode } from '@/hooks/useViewMode';
 
 dayjs.locale('fr');
 dayjs.extend(relativeTime);
@@ -87,6 +89,7 @@ export default function TransactionsPage() {
   const router = useRouter();
   const qc = useQueryClient();
   const [lastRefresh, setLastRefresh] = useState<Date>(new Date());
+  const [viewMode, setViewMode] = useViewMode('passenger-transactions', 'list');
 
   const { data: raw, isLoading, isFetching, refetch } = useQuery({
     queryKey: ['my-payments'],
@@ -141,14 +144,17 @@ export default function TransactionsPage() {
             <span className="text-gray-400">mis à jour {dayjs(lastRefresh).fromNow()}</span>
           </p>
         </div>
-        <button
-          onClick={handleGlobalRefresh}
-          disabled={isFetching}
-          className="flex items-center gap-2 text-sm font-medium text-gray-600 hover:text-gray-900 bg-white border border-gray-200 hover:border-gray-300 px-3 py-2 rounded-lg transition disabled:opacity-50"
-        >
-          <RefreshCw size={14} className={isFetching ? 'animate-spin text-brand-500' : ''} />
-          Actualiser
-        </button>
+        <div className="flex items-center gap-2">
+          <ViewToggle value={viewMode} onChange={setViewMode} />
+          <button
+            onClick={handleGlobalRefresh}
+            disabled={isFetching}
+            className="flex items-center gap-2 text-sm font-medium text-gray-600 hover:text-gray-900 bg-white border border-gray-200 hover:border-gray-300 px-3 py-2 rounded-lg transition disabled:opacity-50"
+          >
+            <RefreshCw size={14} className={isFetching ? 'animate-spin text-brand-500' : ''} />
+            Actualiser
+          </button>
+        </div>
       </div>
 
       {/* KPI strip */}
@@ -186,7 +192,7 @@ export default function TransactionsPage() {
           <p className="font-semibold text-gray-700">Aucune transaction</p>
           <p className="text-sm text-gray-400 mt-1">Vos paiements apparaîtront ici</p>
         </div>
-      ) : (
+      ) : viewMode === 'list' ? (
         <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden">
           <div className="px-5 py-4 border-b border-gray-100 flex items-center justify-between">
             <p className="text-sm font-semibold text-gray-700">Historique</p>
@@ -213,14 +219,12 @@ export default function TransactionsPage() {
                   }`}
                   onClick={() => p.bookingId && router.push(`/passenger/bookings/${p.bookingId}`)}
                 >
-                  {/* Status icon */}
                   <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${s.cls}`}>
                     {isChecking
                       ? <Loader2 size={18} className="animate-spin" />
                       : <StatusIcon size={18} />}
                   </div>
 
-                  {/* Details */}
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 flex-wrap">
                       <p className="text-sm font-semibold text-gray-900">
@@ -247,7 +251,6 @@ export default function TransactionsPage() {
                     )}
                   </div>
 
-                  {/* Amount */}
                   <div className="text-right shrink-0">
                     <p className={`text-sm font-bold ${p.status === 'SUCCESS' ? 'text-gray-900' : 'text-gray-400'}`}>
                       {formatCFA(p.amount)}
@@ -257,7 +260,6 @@ export default function TransactionsPage() {
                     )}
                   </div>
 
-                  {/* Vérifier (PROCESSING) ou flèche navigation */}
                   {p.status === 'PROCESSING' ? (
                     <button
                       onClick={(e) => handleRowCheck(p.id, e)}
@@ -275,6 +277,86 @@ export default function TransactionsPage() {
               );
             })}
           </div>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          {isFetching && !isLoading && (
+            <div className="sm:col-span-2 lg:col-span-3 flex items-center gap-1.5 text-xs text-brand-500">
+              <Loader2 size={11} className="animate-spin" /> Actualisation…
+            </div>
+          )}
+          {payments.map((p) => {
+            const s = STATUS_STYLE[p.status] ?? STATUS_STYLE.PROCESSING;
+            const StatusIcon = s.icon;
+            const dep    = p.booking?.trip?.departureAt;
+            const origin = p.booking?.trip?.route?.originCity?.name;
+            const dest   = p.booking?.trip?.route?.destinationCity?.name;
+            const isChecking = checkMut.isPending && checkMut.variables === p.id;
+
+            return (
+              <div
+                key={p.id}
+                onClick={() => p.bookingId && router.push(`/passenger/bookings/${p.bookingId}`)}
+                className={`bg-white rounded-2xl border border-gray-100 shadow-sm p-4 flex flex-col gap-3 transition ${
+                  p.bookingId ? 'cursor-pointer hover:border-brand-200 hover:shadow-md' : ''
+                }`}
+              >
+                {/* Top row: status icon + route + badge */}
+                <div className="flex items-start gap-3">
+                  <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${s.cls}`}>
+                    {isChecking
+                      ? <Loader2 size={18} className="animate-spin" />
+                      : <StatusIcon size={18} />}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-semibold text-gray-900 truncate">
+                      {origin && dest ? `${origin} → ${dest}` : 'Paiement'}
+                    </p>
+                    <span className={`inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full font-medium mt-0.5 ${s.cls}`}>
+                      <span className={`w-1.5 h-1.5 rounded-full ${s.dot}`} />
+                      {s.label}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Amount */}
+                <p className={`text-xl font-bold ${p.status === 'SUCCESS' ? 'text-gray-900' : 'text-gray-400'}`}>
+                  {formatCFA(p.amount)}
+                </p>
+
+                {/* Meta strip */}
+                <div className="flex flex-col gap-1 text-xs text-gray-400">
+                  <span>{dayjs(p.createdAt).format('ddd D MMM YYYY · HH:mm')}</span>
+                  <span className="flex items-center gap-1.5">
+                    <MethodIcon method={p.method} channel={p.paymentChannel} />
+                    {formatPaymentMethod(p.method, p.paymentChannel)}
+                  </span>
+                  {p.booking?.reference && (
+                    <span className="font-mono text-gray-400">{p.booking.reference}</span>
+                  )}
+                  {dep && <span>Départ {dayjs(dep).format('D MMM YYYY')}</span>}
+                  {p.providerRef && (
+                    <span className="font-mono">{p.providerRef.slice(0, 14)}…</span>
+                  )}
+                </div>
+
+                {p.status === 'FAILED' && p.failReason && (
+                  <p className="text-xs text-red-500">{FAIL_REASON[p.failReason] ?? p.failReason}</p>
+                )}
+
+                {p.status === 'PROCESSING' && (
+                  <button
+                    onClick={(e) => handleRowCheck(p.id, e)}
+                    disabled={isChecking}
+                    className="mt-auto flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl text-xs font-medium text-yellow-700 bg-yellow-50 hover:bg-yellow-100 border border-yellow-200 transition disabled:opacity-40"
+                  >
+                    <RefreshCw size={12} className={isChecking ? 'animate-spin' : ''} />
+                    Vérifier le statut
+                  </button>
+                )}
+              </div>
+            );
+          })}
         </div>
       )}
     </div>
