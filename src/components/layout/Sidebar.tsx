@@ -1,11 +1,13 @@
 'use client';
 
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import {
   LayoutDashboard, Bus, Route, Users, Ticket,
   Settings, LogOut, Truck, CalendarClock, TicketCheck, ConciergeBell, ScanLine, BarChart3, FileText, Building2,
   ShieldCheck, MapPin, CreditCard, UserCog, Package, Lock, Home, Luggage, Megaphone, Banknote, Receipt, Wallet, BookOpen,
+  Loader2,
 } from 'lucide-react';
 import { useAuthStore } from '@/store/auth.store';
 import { authApi, tenantsApi } from '@/lib/api';
@@ -86,6 +88,9 @@ export function Sidebar() {
   const router = useRouter();
   const { user, clearAuth, refreshToken } = useAuthStore();
 
+  const [pendingHref, setPendingHref] = useState<string | null>(null);
+  useEffect(() => { setPendingHref(null); }, [pathname]);
+
   const isSuperAdmin   = user?.role === 'SUPER_ADMIN';
   const canFetchTenant = user?.role === 'COMPANY_OWNER' || user?.role === 'COMPANY_ADMIN';
 
@@ -158,10 +163,12 @@ export function Sidebar() {
                 { label: 'Paramètres',      icon: Settings,        href: '/dashboard/settings' },
               ].map((item) => {
                 const active = pathname === item.href || pathname.startsWith(item.href + '/');
+                const loading = pendingHref === item.href;
                 return (
                   <Link
                     key={item.href}
                     href={item.href}
+                    onClick={() => { if (pathname !== item.href) setPendingHref(item.href); }}
                     className={clsx(
                       'flex items-center gap-2.5 px-3 py-2 rounded-lg text-[13px] font-medium transition-colors duration-100',
                       active
@@ -170,7 +177,8 @@ export function Sidebar() {
                     )}
                   >
                     <item.icon size={15} className={clsx(active ? 'text-amber-400' : 'text-slate-500')} />
-                    {item.label}
+                    <span className="flex-1">{item.label}</span>
+                    {loading && <Loader2 size={12} className="animate-spin text-amber-400 shrink-0" />}
                   </Link>
                 );
               })}
@@ -191,6 +199,7 @@ export function Sidebar() {
                   (item.href !== '/dashboard' && pathname.startsWith(item.href + '/'));
                 const badge = item.href === '/dashboard/subscription' ? getSubBadge(tenant) : null;
                 const locked = item.plan !== null && !item.plan?.includes(tenant?.plan);
+                const loading = pendingHref === item.href;
 
                 if (locked) {
                   return (
@@ -210,6 +219,7 @@ export function Sidebar() {
                   <Link
                     key={item.href}
                     href={item.href}
+                    onClick={() => { if (pathname !== item.href) setPendingHref(item.href); }}
                     {...(item.walkthroughId ? { 'data-walkthrough': item.walkthroughId } : {})}
                     className={clsx(
                       'flex items-center gap-2.5 px-3 py-2 rounded-lg text-[13px] font-medium transition-colors duration-100',
@@ -223,11 +233,14 @@ export function Sidebar() {
                       className={clsx(active ? 'text-brand-400' : 'text-slate-500')}
                     />
                     <span className="flex-1">{item.label}</span>
-                    {badge && (
-                      <span className={clsx('text-[10px] font-semibold px-1.5 py-0.5 rounded-full', badge.className)}>
-                        {badge.text}
-                      </span>
-                    )}
+                    {loading
+                      ? <Loader2 size={12} className="animate-spin text-brand-400 shrink-0" />
+                      : badge && (
+                        <span className={clsx('text-[10px] font-semibold px-1.5 py-0.5 rounded-full', badge.className)}>
+                          {badge.text}
+                        </span>
+                      )
+                    }
                   </Link>
                 );
               })}

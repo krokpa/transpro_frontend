@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
-  Bus, Search, Ticket, LogOut, Bell, UserRound, Home, CreditCard, Building2, Star, Package,
+  Bus, Search, Ticket, LogOut, Bell, UserRound, Home, CreditCard, Building2, Star, Package, Loader2,
 } from 'lucide-react';
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
 import { useAuthStore } from '@/store/auth.store';
@@ -45,6 +45,8 @@ export default function PassengerLayout({ children }: { children: React.ReactNod
   const { isAuthenticated, user, accessToken, clearAuth, refreshToken } = useAuthStore();
   const qc = useQueryClient();
   const [mounted, setMounted] = useState(false);
+  const [pendingHref, setPendingHref] = useState<string | null>(null);
+  useEffect(() => { setPendingHref(null); }, [pathname]);
 
   const { data: countData } = useQuery({
     queryKey: ['notifications-count'],
@@ -117,10 +119,12 @@ export default function PassengerLayout({ children }: { children: React.ReactNod
         <nav className="flex-1 px-2.5 py-3 space-y-px overflow-y-auto scrollbar-dark">
           {NAV.map((item) => {
             const active = pathname === item.href || (item.href !== '/passenger' && pathname.startsWith(item.href + '/'));
+            const loading = pendingHref === item.href;
             return (
               <Link
                 key={item.href}
                 href={item.href}
+                onClick={() => { if (pathname !== item.href) setPendingHref(item.href); }}
                 className={clsx(
                   'flex items-center gap-2.5 px-3 py-2 rounded-lg text-[13px] font-medium transition-colors duration-100',
                   active
@@ -130,11 +134,14 @@ export default function PassengerLayout({ children }: { children: React.ReactNod
               >
                 <item.icon size={15} className={clsx(active ? 'text-brand-400' : 'text-slate-500')} />
                 <span className="flex-1">{item.label}</span>
-                {item.href === '/passenger/notifications' && unreadCount > 0 && (
-                  <span className="bg-red-500 text-white text-[9px] font-bold px-1.5 py-0.5 rounded-full min-w-[18px] text-center">
-                    {unreadCount > 9 ? '9+' : unreadCount}
-                  </span>
-                )}
+                {loading
+                  ? <Loader2 size={12} className="animate-spin text-brand-400 shrink-0" />
+                  : item.href === '/passenger/notifications' && unreadCount > 0 && (
+                    <span className="bg-red-500 text-white text-[9px] font-bold px-1.5 py-0.5 rounded-full min-w-[18px] text-center">
+                      {unreadCount > 9 ? '9+' : unreadCount}
+                    </span>
+                  )
+                }
               </Link>
             );
           })}
