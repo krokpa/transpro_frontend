@@ -5,7 +5,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { tenantsApi, api, usersApi, authApi, citiesApi, twoFactorApi } from '@/lib/api';
 import { useAuthStore } from '@/store/auth.store';
 import { TenantPlan, TenantStatus, PERMISSION_DEFINITIONS } from '@transpro/shared';
-import { Building2, Camera, User, CreditCard, Loader2, Eye, EyeOff, Upload, X, ShieldCheck, CheckCircle2, XCircle, Shield, Lock, KeyRound, Copy, AlertTriangle } from 'lucide-react';
+import { Building2, Camera, User, CreditCard, Loader2, Eye, EyeOff, Upload, X, ShieldCheck, CheckCircle2, XCircle, Shield, Lock, KeyRound, Copy, AlertTriangle, FileText } from 'lucide-react';
 import QRCode from 'qrcode';
 import { toast } from 'sonner';
 import { UserAvatar } from '@/components/ui/UserAvatar';
@@ -15,7 +15,7 @@ const MapPicker = lazy(() => import('@/components/ui/MapPicker'));
 import { SearchableSelect, SelectOption } from '@/components/ui/SearchableSelect';
 import { PhoneInput } from '@/components/ui/PhoneInput';
 
-type Tab = 'company' | 'profile' | 'subscription' | 'permissions' | 'security';
+type Tab = 'company' | 'profile' | 'subscription' | 'permissions' | 'security' | 'documents';
 
 type TwoFaModal =
   | { type: 'setup'; step: 'loading' | 'scan' | 'confirm' | 'backup'; qrDataUrl?: string; secret?: string; code?: string; backupCodes?: string[] }
@@ -109,6 +109,13 @@ export default function SettingsPage() {
   });
   const [companyFormLoaded, setCompanyFormLoaded] = useState(false);
 
+  const [brandingForm, setBrandingForm] = useState({
+    logoPosition: 'none' as 'none' | 'header' | 'watermark' | 'both',
+    watermarkOpacity: 0.07,
+    footerText: '',
+  });
+  const [brandingFormLoaded, setBrandingFormLoaded] = useState(false);
+
   const { data: tenant, isLoading: tenantLoading } = useQuery({
     queryKey: ['tenant-me'],
     queryFn: () => tenantsApi.me() as any,
@@ -137,6 +144,27 @@ export default function SettingsPage() {
       setCompanyFormLoaded(true);
     }
   }, [tenant, companyFormLoaded]);
+
+  useEffect(() => {
+    if (tenant && !brandingFormLoaded) {
+      const db = ((tenant as any)?.settings as any)?.documentBranding ?? {};
+      setBrandingForm({
+        logoPosition: db.logoPosition ?? 'none',
+        watermarkOpacity: db.watermarkOpacity ?? 0.07,
+        footerText: db.footerText ?? '',
+      });
+      setBrandingFormLoaded(true);
+    }
+  }, [tenant, brandingFormLoaded]);
+
+  const updateBrandingMutation = useMutation({
+    mutationFn: (data: typeof brandingForm) => tenantsApi.updateDocumentBranding(data),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['tenant-me'] });
+      toast.success('Paramètres de branding documents mis à jour');
+    },
+    onError: () => toast.error('Erreur lors de la mise à jour du branding'),
+  });
 
   const updateTenantMutation = useMutation({
     mutationFn: (data: any) => tenantsApi.update(data),
@@ -300,6 +328,7 @@ export default function SettingsPage() {
     { key: 'security',    label: 'Sécurité',    icon: <Shield size={16} /> },
     { key: 'subscription',label: 'Abonnement',  icon: <CreditCard size={16} /> },
     { key: 'permissions', label: 'Permissions', icon: <ShieldCheck size={16} /> },
+    { key: 'documents',   label: 'Documents',   icon: <FileText size={16} /> },
   ];
 
   // Permissions extraites du JWT courant
@@ -942,6 +971,104 @@ export default function SettingsPage() {
               </div>
             </div>
           )}
+        </div>
+      )}
+
+      {activeTab === 'documents' && (
+        <div className="space-y-5">
+          <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-6 space-y-6">
+            <div>
+              <h2 className="text-lg font-semibold text-gray-900">Branding des documents</h2>
+              <p className="text-sm text-gray-500 mt-0.5">
+                Configurez l&apos;affichage du logo de votre compagnie sur les PDF générés (relevés, rapports, tickets).
+              </p>
+            </div>
+
+            {!companyForm.logo && (
+              <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg text-sm text-amber-700">
+                Aucun logo n&apos;est configuré pour votre compagnie. Ajoutez-en un dans l&apos;onglet <strong>Compagnie</strong> pour l&apos;utiliser ici.
+              </div>
+            )}
+
+            <div className="space-y-2">
+              <label className="block text-sm font-medium text-gray-700">Position du logo</label>
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                {([
+                  { value: 'none',      label: 'Aucun',       desc: 'Pas de logo' },
+                  { value: 'header',    label: 'En-tête',     desc: 'Logo dans l\'en-tête' },
+                  { value: 'watermark', label: 'Filigrane',   desc: 'Logo en fond de page' },
+                  { value: 'both',      label: 'Les deux',    desc: 'En-tête + filigrane' },
+                ] as const).map((opt) => (
+                  <button
+                    key={opt.value}
+                    type="button"
+                    onClick={() => setBrandingForm((p) => ({ ...p, logoPosition: opt.value }))}
+                    className={`flex flex-col gap-1 p-3 rounded-xl border-2 text-left transition ${
+                      brandingForm.logoPosition === opt.value
+                        ? 'border-brand-400 bg-brand-50'
+                        : 'border-gray-200 hover:border-gray-300'
+                    }`}
+                  >
+                    <span className="text-sm font-medium text-gray-900">{opt.label}</span>
+                    <span className="text-xs text-gray-400">{opt.desc}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {(brandingForm.logoPosition === 'watermark' || brandingForm.logoPosition === 'both') && (
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <label className="block text-sm font-medium text-gray-700">
+                    Opacité du filigrane
+                  </label>
+                  <span className="text-sm font-semibold text-brand-600">
+                    {Math.round(brandingForm.watermarkOpacity * 100)}%
+                  </span>
+                </div>
+                <input
+                  type="range"
+                  min={3}
+                  max={30}
+                  step={1}
+                  value={Math.round(brandingForm.watermarkOpacity * 100)}
+                  onChange={(e) => setBrandingForm((p) => ({ ...p, watermarkOpacity: Number(e.target.value) / 100 }))}
+                  className="w-full accent-brand-500"
+                />
+                <div className="flex justify-between text-xs text-gray-400">
+                  <span>3% (très discret)</span>
+                  <span>30% (visible)</span>
+                </div>
+              </div>
+            )}
+
+            <div className="space-y-1.5">
+              <label className="block text-sm font-medium text-gray-700">
+                Texte de pied de page <span className="text-gray-400 font-normal">(optionnel)</span>
+              </label>
+              <input
+                type="text"
+                maxLength={80}
+                placeholder="TransPro CI  (valeur par défaut)"
+                value={brandingForm.footerText}
+                onChange={(e) => setBrandingForm((p) => ({ ...p, footerText: e.target.value }))}
+                className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
+              />
+              <p className="text-xs text-gray-400">Remplace «TransPro CI» dans le pied de page de tous les PDF.</p>
+            </div>
+
+            <div className="flex justify-end">
+              <button
+                type="button"
+                disabled={updateBrandingMutation.isPending}
+                onClick={() => updateBrandingMutation.mutate(brandingForm)}
+                className="bg-brand-500 hover:bg-brand-600 text-white px-5 py-2 rounded-lg text-sm font-medium flex items-center gap-2 transition disabled:opacity-60"
+              >
+                {updateBrandingMutation.isPending && <Loader2 size={14} className="animate-spin" />}
+                Enregistrer
+              </button>
+            </div>
+          </div>
         </div>
       )}
 

@@ -202,6 +202,8 @@ export const tenantsApi = {
   analytics: (period: string) => api.get('/tenants/me/analytics', { params: { period } }),
   subscriptions: () => api.get('/tenants/me/subscriptions'),
   usage: () => api.get('/tenants/me/usage'),
+  updateDocumentBranding: (data: { logoPosition: 'none'|'header'|'watermark'|'both'; watermarkOpacity?: number; footerText?: string }) =>
+    api.patch('/tenants/me/document-branding', data),
   // Super-admin
   list: () => api.get('/tenants'),
   getById: (id: string) => api.get(`/tenants/${id}`),
