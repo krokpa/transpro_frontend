@@ -11,6 +11,8 @@ import {
 } from 'lucide-react';
 import dayjs from 'dayjs';
 import 'dayjs/locale/fr';
+import { ViewToggle } from '@/components/ui/ViewToggle';
+import { useViewMode } from '@/hooks/useViewMode';
 dayjs.locale('fr');
 
 // ── Status config ─────────────────────────────────────────────────────────────
@@ -34,6 +36,7 @@ type Tab = 'sent' | 'received' | 'track';
 
 export default function PassengerParcelsPage() {
   const router = useRouter();
+  const [viewMode, setViewMode] = useViewMode('passenger-parcels', 'list');
   const [tab,       setTab]       = useState<Tab>('sent');
   const [trackCode, setTrackCode] = useState('');
   const [searched,  setSearched]  = useState('');
@@ -82,6 +85,9 @@ export default function PassengerParcelsPage() {
             {sent.length} envoyé{sent.length !== 1 ? 's' : ''} · {received.length} reçu{received.length !== 1 ? 's' : ''}
           </p>
         </div>
+        {tab !== 'track' && (
+          <ViewToggle value={viewMode} onChange={setViewMode} />
+        )}
       </div>
 
       {/* Tabs */}
@@ -120,10 +126,21 @@ export default function PassengerParcelsPage() {
             <p className="font-semibold text-gray-500">{emptyLabel.title}</p>
             <p className="text-sm text-gray-400">{emptyLabel.sub}</p>
           </div>
-        ) : (
+        ) : viewMode === 'list' ? (
           <div className="space-y-3">
             {displayed.map((p: any) => (
               <ParcelCard
+                key={p.id}
+                parcel={p}
+                role={tab as 'sent' | 'received'}
+                onClick={() => router.push(`/passenger/parcels/${p.id}`)}
+              />
+            ))}
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            {displayed.map((p: any) => (
+              <ParcelGridCard
                 key={p.id}
                 parcel={p}
                 role={tab as 'sent' | 'received'}
@@ -246,6 +263,77 @@ function ParcelCard({ parcel, role = 'sent', onClick }: { parcel: any; role?: 's
             </div>
           </div>
         </div>
+      </div>
+    </button>
+  );
+}
+
+// ── Parcel grid card ─────────────────────────────────────────────────────────
+
+function ParcelGridCard({ parcel, role = 'sent', onClick }: { parcel: any; role?: 'sent' | 'received'; onClick: () => void }) {
+  const cfg    = STATUS_CFG[parcel.status] ?? STATUS_CFG.PENDING;
+  const origin = parcel.trip?.route?.originCity?.name ?? '?';
+  const dest   = parcel.trip?.route?.destinationCity?.name ?? '?';
+  const depAt  = parcel.trip?.departureAt;
+
+  return (
+    <button
+      onClick={onClick}
+      className="w-full bg-white border border-gray-100 rounded-xl p-4 hover:border-brand-200 hover:shadow-md transition-all text-left flex flex-col gap-3"
+    >
+      {/* Top: tracking code + badges */}
+      <div className="flex items-center justify-between gap-2">
+        <span className="font-mono text-xs font-semibold text-gray-500 truncate">{parcel.trackingCode}</span>
+        <div className="flex items-center gap-1.5 shrink-0">
+          <span className={`text-[10px] px-1.5 py-0.5 rounded font-semibold ${
+            role === 'received' ? 'bg-purple-100 text-purple-700' : 'bg-gray-100 text-gray-500'
+          }`}>
+            {role === 'received' ? 'Reçu' : 'Envoyé'}
+          </span>
+          <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-semibold flex items-center gap-1 ${cfg.cls}`}>
+            <span className={`w-1.5 h-1.5 rounded-full ${cfg.dot}`} />
+            {cfg.label}
+          </span>
+        </div>
+      </div>
+
+      {/* Icon + description */}
+      <div className="flex items-center gap-3">
+        <div className="w-10 h-10 bg-brand-50 rounded-xl flex items-center justify-center shrink-0">
+          <Package size={18} className="text-brand-500" />
+        </div>
+        <div className="flex-1 min-w-0">
+          <p className="text-sm font-semibold text-gray-900 truncate">{parcel.description}</p>
+          {role === 'received' && parcel.senderName && (
+            <p className="text-xs text-gray-400 truncate">De : {parcel.senderName}</p>
+          )}
+          {role === 'sent' && parcel.recipientName && (
+            <p className="text-xs text-gray-400 truncate">Pour : {parcel.recipientName}</p>
+          )}
+        </div>
+      </div>
+
+      {/* Route + date */}
+      <div className="flex items-center gap-1.5 text-xs text-gray-500">
+        <MapPin size={11} className="shrink-0" />
+        <span className="truncate">{origin} → {parcel.deliveryCity || dest}</span>
+        {depAt && (
+          <>
+            <span className="shrink-0">·</span>
+            <Clock size={11} className="shrink-0" />
+            <span className="shrink-0">{dayjs(depAt).format('D MMM')}</span>
+          </>
+        )}
+      </div>
+
+      {/* Weight + fee */}
+      <div className="flex items-center justify-between text-xs">
+        <span className="text-gray-400">
+          {parcel.weightKg} kg{parcel.fee ? ` · ${formatCFA(parcel.fee)}` : ''}
+        </span>
+        <span className="flex items-center gap-1 text-gray-300 group-hover:text-brand-400 transition">
+          <ChevronRight size={14} />
+        </span>
       </div>
     </button>
   );
