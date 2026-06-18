@@ -6,6 +6,8 @@ import { citiesApi } from '@/lib/api';
 import { useAuthStore } from '@/store/auth.store';
 import { useRouter } from 'next/navigation';
 import { Plus, Search, MapPin, Pencil, Trash2, ToggleLeft, ToggleRight, X, Check } from 'lucide-react';
+import { ViewToggle } from '@/components/ui/ViewToggle';
+import { useViewMode } from '@/hooks/useViewMode';
 import { toast } from 'sonner';
 import { confirm } from '@/lib/confirm';
 
@@ -29,6 +31,7 @@ export default function CitiesPage() {
   const [showModal, setShowModal] = useState(false);
   const [editCity, setEditCity] = useState<City | null>(null);
   const [form, setForm] = useState(EMPTY_FORM);
+  const [viewMode, setViewMode] = useViewMode('cities');
 
   if (user?.role !== 'SUPER_ADMIN') {
     router.replace('/dashboard');
@@ -127,12 +130,15 @@ export default function CitiesPage() {
           <h1 className="text-2xl font-bold text-gray-900">Gestion des villes</h1>
           <p className="text-sm text-gray-500 mt-1">{active.length} ville{active.length > 1 ? 's' : ''} active{active.length > 1 ? 's' : ''} — {cities.length} au total</p>
         </div>
-        <button
-          onClick={openCreate}
-          className="flex items-center gap-2 bg-brand-500 hover:bg-brand-600 text-white px-4 py-2.5 rounded-xl text-sm font-semibold transition shadow-sm"
-        >
-          <Plus size={16} /> Nouvelle ville
-        </button>
+        <div className="flex items-center gap-3">
+          <ViewToggle value={viewMode} onChange={setViewMode} />
+          <button
+            onClick={openCreate}
+            className="flex items-center gap-2 bg-brand-500 hover:bg-brand-600 text-white px-4 py-2.5 rounded-xl text-sm font-semibold transition shadow-sm"
+          >
+            <Plus size={16} /> Nouvelle ville
+          </button>
+        </div>
       </div>
 
       {/* Search */}
@@ -146,16 +152,16 @@ export default function CitiesPage() {
         />
       </div>
 
-      {/* List */}
-      <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden">
-        {isLoading ? (
-          <div className="p-12 text-center text-gray-400">Chargement…</div>
-        ) : cities.length === 0 ? (
-          <div className="p-12 text-center">
-            <MapPin size={32} className="text-gray-200 mx-auto mb-3" />
-            <p className="text-gray-500">Aucune ville trouvée</p>
-          </div>
-        ) : (
+      {/* List / Grid */}
+      {isLoading ? (
+        <div className="bg-white rounded-2xl border border-gray-100 p-12 text-center text-gray-400">Chargement…</div>
+      ) : cities.length === 0 ? (
+        <div className="bg-white rounded-2xl border border-gray-100 p-12 text-center">
+          <MapPin size={32} className="text-gray-200 mx-auto mb-3" />
+          <p className="text-gray-500">Aucune ville trouvée</p>
+        </div>
+      ) : viewMode === 'list' ? (
+        <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden">
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-gray-100 bg-gray-50 text-left">
@@ -217,8 +223,47 @@ export default function CitiesPage() {
               ))}
             </tbody>
           </table>
-        )}
-      </div>
+        </div>
+      ) : (
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">
+          {cities.map((city) => (
+            <div key={city.id} className={`bg-white rounded-xl border border-gray-100 shadow-sm p-3.5 flex flex-col gap-2.5 ${!city.isActive ? 'opacity-60' : ''}`}>
+              <div className="flex items-start justify-between">
+                <div className="flex items-center gap-1.5">
+                  <MapPin size={13} className="text-brand-400 shrink-0 mt-0.5" />
+                  <p className="font-semibold text-gray-900 text-sm leading-tight">{city.name}</p>
+                </div>
+                <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-full shrink-0 ${city.isActive ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}`}>
+                  {city.isActive ? 'Active' : 'Inactive'}
+                </span>
+              </div>
+              {(city.region || city.code) && (
+                <div className="flex items-center gap-1.5 flex-wrap">
+                  {city.region && <span className="text-xs text-gray-400">{city.region}</span>}
+                  {city.code && <span className="font-mono text-[10px] bg-gray-100 text-gray-600 px-1.5 py-0.5 rounded">{city.code}</span>}
+                </div>
+              )}
+              <div className="flex items-center justify-between pt-1.5 border-t border-gray-50">
+                <button
+                  onClick={() => toggleActive(city)}
+                  className="text-[11px] text-gray-400 hover:text-brand-500 transition"
+                  title={city.isActive ? 'Désactiver' : 'Activer'}
+                >
+                  {city.isActive ? 'Désactiver' : 'Activer'}
+                </button>
+                <div className="flex items-center gap-0.5">
+                  <button onClick={() => openEdit(city)} className="p-1 text-gray-400 hover:text-brand-600 hover:bg-brand-50 rounded transition" title="Modifier">
+                    <Pencil size={12} />
+                  </button>
+                  <button onClick={() => confirmRemove(city)} disabled={removeMut.isPending} className="p-1 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded transition" title="Supprimer">
+                    <Trash2 size={12} />
+                  </button>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
 
       {/* Modal */}
       {showModal && (

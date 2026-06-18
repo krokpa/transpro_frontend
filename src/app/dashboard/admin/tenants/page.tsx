@@ -9,6 +9,8 @@ import {
   Building2, Users, Route, Bus, CreditCard, Search,
   CheckCircle2, XCircle, Clock, AlertCircle, ChevronDown,
 } from 'lucide-react';
+import { ViewToggle } from '@/components/ui/ViewToggle';
+import { useViewMode } from '@/hooks/useViewMode';
 import { formatCFA } from '@transpro/shared';
 import dayjs from 'dayjs';
 import 'dayjs/locale/fr';
@@ -35,6 +37,7 @@ export default function AdminTenantsPage() {
   const qc = useQueryClient();
   const [search, setSearch] = useState('');
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [viewMode, setViewMode] = useViewMode('admin-tenants');
 
   if (user?.role !== 'SUPER_ADMIN') {
     router.replace('/dashboard');
@@ -93,23 +96,26 @@ export default function AdminTenantsPage() {
       </div>
 
       {/* Search */}
-      <div className="relative max-w-sm">
-        <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-        <input
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          placeholder="Rechercher une compagnie..."
-          className="w-full pl-9 pr-4 py-2.5 rounded-xl border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-brand-300"
-        />
+      <div className="flex items-center gap-3">
+        <div className="relative flex-1 max-w-sm">
+          <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+          <input
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Rechercher une compagnie..."
+            className="w-full pl-9 pr-4 py-2.5 rounded-xl border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-brand-300"
+          />
+        </div>
+        <ViewToggle value={viewMode} onChange={setViewMode} />
       </div>
 
-      {/* Table */}
-      <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden">
-        {isLoading ? (
-          <div className="p-12 text-center text-gray-400">Chargement…</div>
-        ) : filtered.length === 0 ? (
-          <div className="p-12 text-center text-gray-400">Aucune compagnie trouvée</div>
-        ) : (
+      {/* Table / Grid */}
+      {isLoading ? (
+        <div className="bg-white rounded-2xl border border-gray-100 p-12 text-center text-gray-400">Chargement…</div>
+      ) : filtered.length === 0 ? (
+        <div className="bg-white rounded-2xl border border-gray-100 p-12 text-center text-gray-400">Aucune compagnie trouvée</div>
+      ) : viewMode === 'list' ? (
+        <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
@@ -148,22 +154,14 @@ export default function AdminTenantsPage() {
                       </td>
                       <td className="px-4 py-3">
                         {isEditing ? (
-                          <PlanSelect
-                            value={t.plan}
-                            onChange={(plan) => updateMut.mutate({ id: t.id, data: { plan } })}
-                          />
+                          <PlanSelect value={t.plan} onChange={(plan) => updateMut.mutate({ id: t.id, data: { plan } })} />
                         ) : (
-                          <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${pc.cls}`}>
-                            {pc.label}
-                          </span>
+                          <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${pc.cls}`}>{pc.label}</span>
                         )}
                       </td>
                       <td className="px-4 py-3">
                         {isEditing ? (
-                          <StatusSelect
-                            value={t.status}
-                            onChange={(status) => updateMut.mutate({ id: t.id, data: { status } })}
-                          />
+                          <StatusSelect value={t.status} onChange={(status) => updateMut.mutate({ id: t.id, data: { status } })} />
                         ) : (
                           <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium ${sc.cls}`}>
                             <sc.icon size={11} /> {sc.label}
@@ -188,19 +186,13 @@ export default function AdminTenantsPage() {
                       <td className="px-4 py-3 text-xs text-gray-400">
                         {dayjs(t.createdAt).format('DD/MM/YYYY')}
                         {t.trialEndsAt && t.status === 'TRIAL' && (
-                          <p className="text-yellow-600 font-medium">
-                            Essai jusqu'au {dayjs(t.trialEndsAt).format('DD/MM')}
-                          </p>
+                          <p className="text-yellow-600 font-medium">Essai jusqu'au {dayjs(t.trialEndsAt).format('DD/MM')}</p>
                         )}
                       </td>
                       <td className="px-4 py-3">
                         <button
                           onClick={() => setEditingId(isEditing ? null : t.id)}
-                          className={`text-xs px-3 py-1.5 rounded-lg font-medium border transition ${
-                            isEditing
-                              ? 'border-gray-300 text-gray-600 hover:bg-gray-50'
-                              : 'border-brand-200 text-brand-600 hover:bg-brand-50'
-                          }`}
+                          className={`text-xs px-3 py-1.5 rounded-lg font-medium border transition ${isEditing ? 'border-gray-300 text-gray-600 hover:bg-gray-50' : 'border-brand-200 text-brand-600 hover:bg-brand-50'}`}
                         >
                           {isEditing ? 'Fermer' : 'Modifier'}
                         </button>
@@ -211,8 +203,64 @@ export default function AdminTenantsPage() {
               </tbody>
             </table>
           </div>
-        )}
-      </div>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          {filtered.map((t) => {
+            const sc = STATUS_CONFIG[t.status] ?? STATUS_CONFIG.ACTIVE;
+            const pc = PLAN_CONFIG[t.plan] ?? PLAN_CONFIG.BASIC;
+            const isEditing = editingId === t.id;
+            return (
+              <div key={t.id} className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 flex flex-col gap-3">
+                <div className="flex items-start gap-3">
+                  {t.logo ? (
+                    <img src={t.logo} alt="" className="w-10 h-10 rounded-xl object-contain bg-gray-100 shrink-0" />
+                  ) : (
+                    <div className="w-10 h-10 bg-brand-50 rounded-xl flex items-center justify-center shrink-0">
+                      <Building2 size={16} className="text-brand-500" />
+                    </div>
+                  )}
+                  <div className="flex-1 min-w-0">
+                    <p className="font-bold text-gray-900 truncate">{t.name}</p>
+                    <p className="text-xs text-gray-400">{t.slug}</p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2 flex-wrap">
+                  {isEditing ? (
+                    <PlanSelect value={t.plan} onChange={(plan) => updateMut.mutate({ id: t.id, data: { plan } })} />
+                  ) : (
+                    <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${pc.cls}`}>{pc.label}</span>
+                  )}
+                  {isEditing ? (
+                    <StatusSelect value={t.status} onChange={(status) => updateMut.mutate({ id: t.id, data: { status } })} />
+                  ) : (
+                    <span className={`inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full ${sc.cls}`}>
+                      <sc.icon size={10} /> {sc.label}
+                    </span>
+                  )}
+                </div>
+                <div className="grid grid-cols-3 gap-1 text-xs text-gray-500">
+                  <span className="flex items-center gap-1"><Users size={11} className="text-gray-400" /> {t._count?.users ?? 0}</span>
+                  <span className="flex items-center gap-1"><Route size={11} className="text-gray-400" /> {t._count?.routes ?? 0}</span>
+                  <span className="flex items-center gap-1"><Bus size={11} className="text-gray-400" /> {t._count?.trips ?? 0}</span>
+                </div>
+                <div className="flex items-center justify-between pt-2 border-t border-gray-50">
+                  <span className="text-[11px] text-gray-400">
+                    {dayjs(t.createdAt).format('DD/MM/YYYY')}
+                    {t.trialEndsAt && t.status === 'TRIAL' && <span className="ml-1 text-yellow-600 font-medium">Essai</span>}
+                  </span>
+                  <button
+                    onClick={() => setEditingId(isEditing ? null : t.id)}
+                    className={`text-xs px-3 py-1 rounded-lg font-medium border transition ${isEditing ? 'border-gray-300 text-gray-600' : 'border-brand-200 text-brand-600 hover:bg-brand-50'}`}
+                  >
+                    {isEditing ? 'Fermer' : 'Modifier'}
+                  </button>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 }

@@ -13,6 +13,8 @@ import {
   Plus, Package, X, Loader2, Search, ChevronRight,
   MapPin, Scale, User, AlertCircle, CheckCircle2,
 } from 'lucide-react';
+import { ViewToggle } from '@/components/ui/ViewToggle';
+import { useViewMode } from '@/hooks/useViewMode';
 import { toast } from 'sonner';
 import dayjs from 'dayjs';
 import 'dayjs/locale/fr';
@@ -133,6 +135,7 @@ export default function ParcelsPage() {
   const [filterStatus, setFilterStatus] = useState('');
   const [filterDate,   setFilterDate]   = useState('');
   const [search, setSearch]             = useState('');
+  const [viewMode, setViewMode]         = useViewMode('parcels');
   const [senderMatch,      setSenderMatch]      = useState<UserMatch | null>(null);
   const [recipientMatch,   setRecipientMatch]   = useState<UserMatch | null>(null);
   const [senderLooking,    setSenderLooking]    = useState(false);
@@ -352,27 +355,30 @@ export default function ParcelsPage() {
               <X size={14} /> Effacer
             </button>
           )}
+          <div className="ml-auto">
+            <ViewToggle value={viewMode} onChange={setViewMode} />
+          </div>
         </div>
 
-        {/* Table */}
-        <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
-          {isLoading ? (
-            <div className="p-6 space-y-3">
-              {Array.from({ length: 6 }).map((_, i) => (
-                <div key={i} className="h-12 bg-gray-100 rounded-lg animate-pulse" />
-              ))}
-            </div>
-          ) : filtered.length === 0 ? (
-            <div className="text-center py-16">
-              <Package size={40} className="text-gray-300 mx-auto mb-3" />
-              <p className="text-gray-500 font-medium">
-                {search || filterStatus || filterDate ? 'Aucun colis trouvé' : 'Aucun colis enregistré'}
-              </p>
-              <p className="text-gray-400 text-sm mt-1">
-                {!search && !filterStatus && !filterDate && 'Enregistrez votre premier colis sur un voyage'}
-              </p>
-            </div>
-          ) : (
+        {/* Table / Grid */}
+        {isLoading ? (
+          <div className="bg-white rounded-xl border border-gray-100 p-6 space-y-3">
+            {Array.from({ length: 6 }).map((_, i) => (
+              <div key={i} className="h-12 bg-gray-100 rounded-lg animate-pulse" />
+            ))}
+          </div>
+        ) : filtered.length === 0 ? (
+          <div className="bg-white rounded-xl border border-gray-100 text-center py-16">
+            <Package size={40} className="text-gray-300 mx-auto mb-3" />
+            <p className="text-gray-500 font-medium">
+              {search || filterStatus || filterDate ? 'Aucun colis trouvé' : 'Aucun colis enregistré'}
+            </p>
+            <p className="text-gray-400 text-sm mt-1">
+              {!search && !filterStatus && !filterDate && 'Enregistrez votre premier colis sur un voyage'}
+            </p>
+          </div>
+        ) : viewMode === 'list' ? (
+          <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead className="bg-gray-50 border-b border-gray-100">
@@ -447,8 +453,60 @@ export default function ParcelsPage() {
                 </tbody>
               </table>
             </div>
-          )}
-        </div>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            {filtered.map((p) => {
+              const cfg = STATUS_CFG[p.status] ?? STATUS_CFG['PENDING'];
+              return (
+                <div
+                  key={p.id}
+                  onClick={() => router.push(`/dashboard/parcels/${p.id}`)}
+                  className="bg-white rounded-xl border border-gray-100 shadow-sm p-4 flex flex-col gap-3 cursor-pointer hover:border-brand-200 hover:shadow-md transition-all"
+                >
+                  <div className="flex items-start justify-between gap-2">
+                    <span className="font-mono text-xs font-semibold text-gray-700 bg-gray-100 px-2 py-1 rounded">
+                      {p.trackingCode}
+                    </span>
+                    <div className="flex items-center gap-1.5">
+                      {p.fragile && <span className="text-[10px] text-amber-600 font-semibold">⚠️ Fragile</span>}
+                      <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${cfg.classes}`}>
+                        {cfg.label}
+                      </span>
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-3 text-sm">
+                    <div>
+                      <p className="text-[10px] text-gray-400 font-semibold uppercase tracking-wide mb-0.5">Expéditeur</p>
+                      <p className="font-medium text-gray-900 truncate">{p.senderName}</p>
+                      <p className="text-xs text-gray-400">{p.senderPhone}</p>
+                    </div>
+                    <div>
+                      <p className="text-[10px] text-gray-400 font-semibold uppercase tracking-wide mb-0.5">Destinataire</p>
+                      <p className="font-medium text-gray-900 truncate">{p.recipientName}</p>
+                      <p className="text-xs text-gray-400 flex items-center gap-0.5">
+                        <MapPin size={10} /> {p.deliveryCity}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="text-xs text-gray-500 bg-gray-50 rounded-lg px-3 py-2">
+                    <p className="font-medium text-gray-700">{p.trip?.route?.name ?? '—'}</p>
+                    <p className="text-gray-400">{p.trip?.departureAt ? dayjs(p.trip.departureAt).format('D MMM, HH[h]mm') : '—'}</p>
+                  </div>
+                  <div className="flex items-center justify-between pt-1 border-t border-gray-50 text-xs">
+                    <span className="flex items-center gap-1 text-gray-500">
+                      <Scale size={11} className="text-gray-400" /> {p.weightKg} kg
+                    </span>
+                    <span className={`font-semibold ${p.isPaid ? 'text-green-600' : 'text-amber-600'}`}>
+                      {formatCFA(p.fee)}{!p.isPaid && ' · Non payé'}
+                    </span>
+                    <span className="text-gray-400">{dayjs(p.createdAt).format('D MMM')}</span>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
       </PlanGate>
 
       {/* ── Create slide-over ─────────────────────────────────────────────── */}

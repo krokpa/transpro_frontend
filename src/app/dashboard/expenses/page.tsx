@@ -10,6 +10,8 @@ import {
   Receipt, CheckCircle2, XCircle, Clock, Loader2, Plus,
   Filter, RefreshCw, Building2, ChevronDown, AlertCircle,
 } from 'lucide-react';
+import { ViewToggle } from '@/components/ui/ViewToggle';
+import { useViewMode } from '@/hooks/useViewMode';
 import dayjs from 'dayjs';
 import 'dayjs/locale/fr';
 import { toast } from 'sonner';
@@ -165,6 +167,7 @@ export default function ExpensesPage() {
 
   const canApprove = user?.perms?.includes('expenses:approve') || ['COMPANY_OWNER', 'COMPANY_ADMIN'].includes(user?.role ?? '');
   const canCreate  = user?.perms?.includes('expenses:manage');
+  const [viewMode, setViewMode] = useViewMode('expenses');
 
   const { data: rawStations = [] } = useQuery({
     queryKey: ['stations-list'],
@@ -209,12 +212,15 @@ export default function ExpensesPage() {
           <h1 className="text-2xl font-bold text-gray-900">Dépenses</h1>
           <p className="text-sm text-gray-500 mt-1">Suivi et approbation des dépenses des gares</p>
         </div>
-        {canCreate && (
-          <button onClick={() => setShowNew(true)}
-            className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm font-medium hover:bg-indigo-700">
-            <Plus className="w-4 h-4" /> Nouvelle dépense
-          </button>
-        )}
+        <div className="flex items-center gap-2">
+          <ViewToggle value={viewMode} onChange={setViewMode} />
+          {canCreate && (
+            <button onClick={() => setShowNew(true)}
+              className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm font-medium hover:bg-indigo-700">
+              <Plus className="w-4 h-4" /> Nouvelle dépense
+            </button>
+          )}
+        </div>
       </div>
 
       {/* KPI */}
@@ -282,18 +288,18 @@ export default function ExpensesPage() {
         )}
       </div>
 
-      {/* Table */}
-      <div className="bg-white rounded-2xl border border-gray-200 overflow-hidden">
-        {isLoading ? (
-          <div className="flex items-center justify-center py-16 text-gray-400">
-            <Loader2 className="w-5 h-5 animate-spin mr-2" /> Chargement…
-          </div>
-        ) : expenses.length === 0 ? (
-          <div className="flex flex-col items-center py-16 text-gray-400">
-            <Receipt className="w-10 h-10 mb-3 opacity-30" />
-            <p className="text-sm">Aucune dépense trouvée</p>
-          </div>
-        ) : (
+      {/* Table / Grid */}
+      {isLoading ? (
+        <div className="bg-white rounded-2xl border border-gray-200 flex items-center justify-center py-16 text-gray-400">
+          <Loader2 className="w-5 h-5 animate-spin mr-2" /> Chargement…
+        </div>
+      ) : expenses.length === 0 ? (
+        <div className="bg-white rounded-2xl border border-gray-200 flex flex-col items-center py-16 text-gray-400">
+          <Receipt className="w-10 h-10 mb-3 opacity-30" />
+          <p className="text-sm">Aucune dépense trouvée</p>
+        </div>
+      ) : viewMode === 'list' ? (
+        <div className="bg-white rounded-2xl border border-gray-200 overflow-hidden">
           <table className="min-w-full divide-y divide-gray-100">
             <thead className="bg-gray-50 text-xs font-semibold text-gray-500 uppercase tracking-wide">
               <tr>
@@ -314,9 +320,7 @@ export default function ExpensesPage() {
                 const SI  = sc.icon;
                 return (
                   <tr key={e.id} className="hover:bg-gray-50/60 transition-colors">
-                    <td className="px-4 py-3 text-sm text-gray-600 whitespace-nowrap">
-                      {dayjs(e.date).format('D MMM YYYY')}
-                    </td>
+                    <td className="px-4 py-3 text-sm text-gray-600 whitespace-nowrap">{dayjs(e.date).format('D MMM YYYY')}</td>
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-1.5 text-sm text-gray-700">
                         <Building2 className="w-3.5 h-3.5 text-gray-400" />
@@ -324,19 +328,13 @@ export default function ExpensesPage() {
                       </div>
                     </td>
                     <td className="px-4 py-3">
-                      <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${cat.color}`}>
-                        {cat.label}
-                      </span>
+                      <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${cat.color}`}>{cat.label}</span>
                     </td>
                     <td className="px-4 py-3 text-sm text-gray-700 max-w-xs truncate">
                       {e.description}
-                      {e.receiptNote && (
-                        <span className="text-xs text-gray-400 ml-1">· {e.receiptNote}</span>
-                      )}
+                      {e.receiptNote && <span className="text-xs text-gray-400 ml-1">· {e.receiptNote}</span>}
                     </td>
-                    <td className="px-4 py-3 text-right text-sm font-semibold text-gray-900">
-                      {formatCFA(e.amount)}
-                    </td>
+                    <td className="px-4 py-3 text-right text-sm font-semibold text-gray-900">{formatCFA(e.amount)}</td>
                     <td className="px-4 py-3 text-center">
                       <span className={`inline-flex items-center gap-1 text-xs font-medium px-2.5 py-1 rounded-full ${sc.cls}`}>
                         <SI className="w-3.5 h-3.5" /> {sc.label}
@@ -349,25 +347,18 @@ export default function ExpensesPage() {
                       <td className="px-4 py-3 text-right">
                         {e.status === 'SUBMITTED' && (
                           <div className="flex items-center justify-end gap-2">
-                            <button
-                              onClick={() => approveMut.mutate(e.id)}
-                              disabled={approveMut.isPending}
-                              className="flex items-center gap-1 text-xs font-medium text-emerald-700 hover:text-emerald-900 px-2.5 py-1 rounded-lg bg-emerald-50 hover:bg-emerald-100 transition-colors"
-                            >
+                            <button onClick={() => approveMut.mutate(e.id)} disabled={approveMut.isPending}
+                              className="flex items-center gap-1 text-xs font-medium text-emerald-700 px-2.5 py-1 rounded-lg bg-emerald-50 hover:bg-emerald-100 transition-colors">
                               <CheckCircle2 className="w-3.5 h-3.5" /> Approuver
                             </button>
-                            <button
-                              onClick={() => setRejectId(e.id)}
-                              className="flex items-center gap-1 text-xs font-medium text-red-600 hover:text-red-800 px-2.5 py-1 rounded-lg bg-red-50 hover:bg-red-100 transition-colors"
-                            >
+                            <button onClick={() => setRejectId(e.id)}
+                              className="flex items-center gap-1 text-xs font-medium text-red-600 px-2.5 py-1 rounded-lg bg-red-50 hover:bg-red-100 transition-colors">
                               <XCircle className="w-3.5 h-3.5" /> Rejeter
                             </button>
                           </div>
                         )}
                         {e.status === 'REJECTED' && e.approver && (
-                          <span className="text-xs text-gray-400">
-                            par {e.approver.firstName}
-                          </span>
+                          <span className="text-xs text-gray-400">par {e.approver.firstName}</span>
                         )}
                       </td>
                     )}
@@ -376,8 +367,52 @@ export default function ExpensesPage() {
               })}
             </tbody>
           </table>
-        )}
-      </div>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          {expenses.map((e: any) => {
+            const sc  = STATUS_CONFIG[e.status] ?? STATUS_CONFIG.SUBMITTED;
+            const cat = CATEGORY_LABELS[e.category] ?? CATEGORY_LABELS.OTHER;
+            const SI  = sc.icon;
+            return (
+              <div key={e.id} className="bg-white rounded-xl border border-gray-200 p-4 flex flex-col gap-3">
+                <div className="flex items-start justify-between gap-2">
+                  <div>
+                    <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${cat.color}`}>{cat.label}</span>
+                    <p className="text-sm font-semibold text-gray-900 mt-1.5 line-clamp-2">{e.description}</p>
+                  </div>
+                  <span className={`inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full shrink-0 ${sc.cls}`}>
+                    <SI className="w-3 h-3" /> {sc.label}
+                  </span>
+                </div>
+                <div className="flex items-center gap-2 text-xs text-gray-500">
+                  <Building2 className="w-3.5 h-3.5 text-gray-400 shrink-0" />
+                  <span className="truncate">{e.station?.name ?? '—'}</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-xs text-gray-400">{dayjs(e.date).format('D MMM YYYY')}</span>
+                  <span className="font-bold text-gray-900">{formatCFA(e.amount)}</span>
+                </div>
+                {e.submitter && (
+                  <p className="text-[11px] text-gray-400">Par {e.submitter.firstName} {e.submitter.lastName[0]}.</p>
+                )}
+                {canApprove && e.status === 'SUBMITTED' && (
+                  <div className="flex gap-2 pt-1 border-t border-gray-50">
+                    <button onClick={() => approveMut.mutate(e.id)} disabled={approveMut.isPending}
+                      className="flex-1 flex items-center justify-center gap-1 text-xs font-medium text-emerald-700 py-1.5 rounded-lg bg-emerald-50 hover:bg-emerald-100 transition-colors">
+                      <CheckCircle2 className="w-3.5 h-3.5" /> Approuver
+                    </button>
+                    <button onClick={() => setRejectId(e.id)}
+                      className="flex-1 flex items-center justify-center gap-1 text-xs font-medium text-red-600 py-1.5 rounded-lg bg-red-50 hover:bg-red-100 transition-colors">
+                      <XCircle className="w-3.5 h-3.5" /> Rejeter
+                    </button>
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
 
       {showNew && <NewExpenseModal stations={stations} onClose={() => setShowNew(false)} onCreated={invalidate} />}
       {rejectId && (
