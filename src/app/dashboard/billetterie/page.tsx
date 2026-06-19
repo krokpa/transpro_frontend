@@ -1,4 +1,4 @@
-﻿'use client';
+'use client';
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useQuery } from '@tanstack/react-query';
@@ -58,7 +58,6 @@ function renderElementHtml(el: any, booking: any, ticket: any): string {
   return '';
 }
 
-/** Ticket de secours si aucun modèle n'est configuré */
 function buildFallbackTicketHtml(booking: any, ticket: any): string {
   const origin = booking.trip?.route?.originCity?.name ?? '';
   const dest = booking.trip?.route?.destinationCity?.name ?? '';
@@ -158,6 +157,12 @@ const PAYMENT_METHODS = [
   { value: 'WAVE', label: '🔵 Wave' },
 ];
 
+const CLASS_COLORS: Record<string, { border: string; badge: string; icon: React.ReactNode }> = {
+  VIP:      { border: 'border-l-amber-400', badge: 'bg-amber-100 text-amber-700', icon: <Crown size={10} /> },
+  EXPRESS:  { border: 'border-l-blue-400',  badge: 'bg-blue-100 text-blue-700',   icon: <Zap size={10} /> },
+  STANDARD: { border: 'border-l-gray-300',  badge: 'bg-gray-100 text-gray-600',   icon: <Bus size={10} /> },
+};
+
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function BilletteriePage() {
@@ -223,7 +228,6 @@ export default function BilletteriePage() {
   }, []);
 
   useEffect(() => {
-    // Tentative de connexion automatique au chargement
     if (typeof window !== 'undefined') {
       handleQzConnect().catch(() => {});
     }
@@ -284,7 +288,6 @@ export default function BilletteriePage() {
     queryFn: async () => ((await ticketTemplatesApi.list()) ?? []) as any[],
   });
 
-  // Template actif : celui sélectionné, sinon le défaut, sinon le premier
   const activeTemplate: any =
     (templates as any[]).find((t: any) => t.id === selectedTemplateId) ??
     (templates as any[]).find((t: any) => t.isDefault) ??
@@ -298,7 +301,6 @@ export default function BilletteriePage() {
     }
   }, [templates, selectedTemplateId]);
 
-  // Voyages d'aujourd'hui et des prochains jours (SCHEDULED ou BOARDING)
   const today = dayjs().format('YYYY-MM-DD');
   const { data: tripsRaw } = useQuery({
     queryKey: ['trips-billetterie', today],
@@ -307,30 +309,25 @@ export default function BilletteriePage() {
   });
   const trips: any[] = (tripsRaw as any) ?? [];
   const availableTrips = trips.filter((t: any) => ['SCHEDULED', 'BOARDING'].includes(t.status));
-
   const selectedTrip = availableTrips.find((t: any) => t.id === selectedTripId);
 
-  // Trip complet (avec vehicle.advancedSeatManagement) pour la valeur définitive de l'ASM
   const { data: selectedTripFull } = useQuery({
     queryKey: ['trip-full', selectedTripId],
     queryFn: () => selectedTripId ? tripsApi.get(selectedTripId) as any : Promise.resolve(null),
     enabled: !!selectedTripId,
   });
 
-  // Valeur définitive : trip override → vehicle default → true
   const useAdvancedSeats: boolean =
     selectedTripFull
       ? (selectedTripFull.advancedSeatManagement ?? selectedTripFull.vehicle?.advancedSeatManagement ?? true)
       : (selectedTrip?.advancedSeatManagement ?? true);
 
-  // Sièges du voyage sélectionné (seulement si ASM activée)
   const { data: seatsRaw } = useQuery({
     queryKey: ['trip-seats', selectedTripId],
     queryFn: () => selectedTripId ? tripsApi.getSeats(selectedTripId) as any : Promise.resolve([]),
     enabled: !!selectedTripId && useAdvancedSeats,
   });
   const seats: any[] = seatsRaw ?? [];
-  const availableSeats = seats.filter((s: any) => s.status === 'AVAILABLE');
 
   // ── Recherche ──────────────────────────────────────────────────────────────
 
@@ -399,11 +396,9 @@ export default function BilletteriePage() {
       }) as any;
       setSoldBooking(booking);
       toast.success(`Ticket créé — réf. ${booking.reference}`);
-      // Impression automatique si QZ Tray connecté
       if (qzIsActive() && selectedPrinter) {
         await doPrint(booking);
       }
-      // Réinitialiser le formulaire
       setSelectedTripId('');
       setSelectedSeats([]);
       setPassengerCount(1);
@@ -419,17 +414,15 @@ export default function BilletteriePage() {
     }
   }
 
-  async function handleImmediatePrint(booking: any) {
-    await doPrint(booking);
-  }
-
   // ── UI ────────────────────────────────────────────────────────────────────
 
   const inputCls = (err?: string) =>
     `w-full border ${err ? 'border-red-400' : 'border-gray-200'} rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500 transition`;
 
   return (
-    <div className="space-y-6 max-w-3xl">
+    <div className="space-y-5">
+
+      {/* ── En-tête ───────────────────────────────────────────────────────── */}
       <div>
         <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
           <Ticket size={22} className="text-brand-500" />
@@ -438,100 +431,108 @@ export default function BilletteriePage() {
         <p className="text-sm text-gray-500 mt-1">Vente au guichet et impression des tickets</p>
       </div>
 
-      {/* ── Barre QZ Tray ─────────────────────────────────────────────────── */}
-      <div className={`flex items-center gap-3 px-4 py-2.5 rounded-xl border text-sm ${
-        qzStatus === 'connected'
-          ? 'bg-green-50 border-green-200'
-          : qzStatus === 'connecting'
-          ? 'bg-yellow-50 border-yellow-200'
-          : 'bg-gray-50 border-gray-200'
-      }`}>
-        {qzStatus === 'connected'
-          ? <Wifi size={15} className="text-green-600 shrink-0" />
-          : qzStatus === 'connecting'
-          ? <Loader2 size={15} className="animate-spin text-yellow-600 shrink-0" />
-          : <WifiOff size={15} className="text-gray-400 shrink-0" />}
+      {/* ── Barre de statut QZ + sélecteur de modèle côte à côte ─────────── */}
+      <div className="grid grid-cols-2 gap-4">
 
-        <span className={`font-medium ${
-          qzStatus === 'connected' ? 'text-green-700' :
-          qzStatus === 'connecting' ? 'text-yellow-700' : 'text-gray-500'
+        {/* QZ Tray */}
+        <div className={`flex items-center gap-3 px-4 py-2.5 rounded-xl border text-sm ${
+          qzStatus === 'connected'
+            ? 'bg-green-50 border-green-200'
+            : qzStatus === 'connecting'
+            ? 'bg-yellow-50 border-yellow-200'
+            : 'bg-gray-50 border-gray-200'
         }`}>
-          {qzStatus === 'connected' ? 'QZ Tray connecté' :
-           qzStatus === 'connecting' ? 'Connexion…' : 'QZ Tray non connecté — impression avec dialogue navigateur'}
-        </span>
+          {qzStatus === 'connected'
+            ? <Wifi size={15} className="text-green-600 shrink-0" />
+            : qzStatus === 'connecting'
+            ? <Loader2 size={15} className="animate-spin text-yellow-600 shrink-0" />
+            : <WifiOff size={15} className="text-gray-400 shrink-0" />}
 
-        {/* Sélecteur d'imprimante */}
-        {qzStatus === 'connected' && printers.length > 0 && (
-          <div className="relative ml-auto">
+          <span className={`font-medium truncate ${
+            qzStatus === 'connected' ? 'text-green-700' :
+            qzStatus === 'connecting' ? 'text-yellow-700' : 'text-gray-500'
+          }`}>
+            {qzStatus === 'connected' ? 'QZ Tray connecté' :
+             qzStatus === 'connecting' ? 'Connexion…' : 'QZ Tray non connecté'}
+          </span>
+
+          {qzStatus === 'connected' && printers.length > 0 && (
+            <div className="relative ml-auto shrink-0">
+              <button
+                onClick={() => setShowPrinters((p) => !p)}
+                className="flex items-center gap-2 px-3 py-1.5 bg-white border border-green-200 rounded-lg text-green-800 hover:bg-green-50 transition text-xs font-medium"
+              >
+                <Printer size={13} />
+                <span className="max-w-[120px] truncate">{selectedPrinter || 'Choisir'}</span>
+                <ChevronDown size={12} />
+              </button>
+              {showPrinters && (
+                <div className="absolute right-0 top-full mt-1 bg-white border border-gray-200 rounded-xl shadow-lg z-20 min-w-[260px] py-1">
+                  {printers.map((p) => (
+                    <button
+                      key={p}
+                      onClick={() => handlePrinterChange(p)}
+                      className={`w-full text-left px-4 py-2 text-sm hover:bg-gray-50 transition ${p === selectedPrinter ? 'font-semibold text-brand-600' : 'text-gray-700'}`}
+                    >
+                      {p}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          {qzStatus === 'disconnected' && (
             <button
-              onClick={() => setShowPrinters((p) => !p)}
-              className="flex items-center gap-2 px-3 py-1.5 bg-white border border-green-200 rounded-lg text-green-800 hover:bg-green-50 transition text-xs font-medium"
+              onClick={handleQzConnect}
+              className="ml-auto shrink-0 text-xs font-medium text-brand-600 hover:text-brand-700 underline underline-offset-2"
             >
-              <Printer size={13} />
-              {selectedPrinter || 'Choisir imprimante'}
-              <ChevronDown size={12} />
+              Reconnecter
             </button>
-            {showPrinters && (
-              <div className="absolute right-0 top-full mt-1 bg-white border border-gray-200 rounded-xl shadow-lg z-20 min-w-[260px] py-1">
-                {printers.map((p) => (
-                  <button
-                    key={p}
-                    onClick={() => handlePrinterChange(p)}
-                    className={`w-full text-left px-4 py-2 text-sm hover:bg-gray-50 transition ${p === selectedPrinter ? 'font-semibold text-brand-600' : 'text-gray-700'}`}
-                  >
-                    {p}
-                  </button>
-                ))}
-              </div>
+          )}
+          {qzStatus === 'connected' && (
+            <button
+              onClick={handleQzDisconnect}
+              className="shrink-0 text-xs text-gray-400 hover:text-gray-600 transition"
+            >
+              <X size={13} />
+            </button>
+          )}
+        </div>
+
+        {/* Modèle de ticket */}
+        {(templates as any[]).length > 0 ? (
+          <div className="flex items-center gap-3 px-4 py-2.5 rounded-xl border border-gray-200 bg-white text-sm">
+            <Ticket size={15} className="text-brand-500 shrink-0" />
+            <span className="text-gray-600 font-medium shrink-0">Modèle</span>
+            <div className="flex-1 min-w-0">
+              <SearchableSelect
+                value={selectedTemplateId}
+                onChange={setSelectedTemplateId}
+                options={(templates as any[]).map((t: any) => ({
+                  value: t.id,
+                  label: t.name + (t.isDefault ? ' (par défaut)' : ''),
+                }))}
+              />
+            </div>
+            {activeTemplate && (
+              <span className="text-xs text-gray-400 shrink-0">
+                {activeTemplate.paperSize?.replace('_', ' ') ?? ''}
+              </span>
             )}
           </div>
-        )}
-
-        {qzStatus === 'disconnected' && (
-          <button
-            onClick={handleQzConnect}
-            className="ml-auto text-xs font-medium text-brand-600 hover:text-brand-700 underline underline-offset-2"
-          >
-            Reconnecter
-          </button>
-        )}
-        {qzStatus === 'connected' && (
-          <button
-            onClick={handleQzDisconnect}
-            className="text-xs text-gray-400 hover:text-gray-600 transition"
-          >
-            <X size={13} />
-          </button>
+        ) : (
+          <div className="flex items-center gap-3 px-4 py-2.5 rounded-xl border border-dashed border-gray-200 bg-gray-50 text-sm text-gray-400">
+            <Ticket size={15} className="shrink-0" />
+            Aucun modèle configuré — ticket par défaut utilisé
+          </div>
         )}
       </div>
 
-      {/* ── Sélecteur de modèle de ticket ────────────────────────────────── */}
-      {(templates as any[]).length > 0 && (
-        <div className="flex items-center gap-3 px-4 py-2.5 rounded-xl border border-gray-200 bg-white text-sm">
-          <Ticket size={15} className="text-brand-500 shrink-0" />
-          <span className="text-gray-600 font-medium shrink-0">Modèle de ticket</span>
-          <div className="flex-1 max-w-xs">
-            <SearchableSelect
-              value={selectedTemplateId}
-              onChange={setSelectedTemplateId}
-              options={(templates as any[]).map((t: any) => ({
-                value: t.id,
-                label: t.name + (t.isDefault ? ' (par défaut)' : ''),
-              }))}
-            />
-          </div>
-          {activeTemplate && (
-            <span className="text-xs text-gray-400 shrink-0">
-              {activeTemplate.paperSize?.replace('_', ' ') ?? ''}
-            </span>
-          )}
-        </div>
-      )}
-
-      {/* Onglets */}
+      {/* ── Onglets ───────────────────────────────────────────────────────── */}
       <div className="flex gap-1 bg-gray-100 p-1 rounded-xl w-fit">
         {[
-          { key: 'sale', label: '+ Vente directe' },
+          { key: 'sale',   label: '+ Vente directe' },
           { key: 'search', label: '🔍 Rechercher une réservation' },
         ].map((t) => (
           <button
@@ -550,7 +551,8 @@ export default function BilletteriePage() {
 
       {/* ── VENTE DIRECTE ─────────────────────────────────────────────────── */}
       {tab === 'sale' && (
-        <div className="space-y-5">
+        <div className="space-y-4">
+
           {/* Succès — ticket créé */}
           {soldBooking && (
             <div className="bg-green-50 border border-green-200 rounded-xl p-4 flex items-start gap-3">
@@ -562,265 +564,277 @@ export default function BilletteriePage() {
                 </p>
               </div>
               <button
-                onClick={() => handleImmediatePrint(soldBooking)}
-                className="flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition"
+                onClick={() => doPrint(soldBooking)}
+                className="flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition shrink-0"
               >
                 <Printer size={15} />
                 {qzStatus === 'connected' ? 'Imprimer' : 'Imprimer…'}
               </button>
-              <button onClick={() => setSoldBooking(null)} className="text-green-600 hover:text-green-800 ml-1">
+              <button onClick={() => setSoldBooking(null)} className="text-green-600 hover:text-green-800 ml-1 shrink-0">
                 <X size={16} />
               </button>
             </div>
           )}
 
-          <div className="bg-white rounded-xl border border-gray-100 p-5 space-y-3">
-            <div className="flex items-center justify-between">
-              <h2 className="font-semibold text-gray-800">1. Choisir le voyage</h2>
-              <span className="text-xs text-gray-400">{availableTrips.length} voyage{availableTrips.length !== 1 ? 's' : ''} disponible{availableTrips.length !== 1 ? 's' : ''}</span>
+          {/* ── Grille principale : voyages | sièges + passager ─────────── */}
+          <div className="grid grid-cols-2 gap-5 items-start">
+
+            {/* Colonne gauche : sélection du voyage */}
+            <div className="bg-white rounded-xl border border-gray-100 p-5 space-y-3">
+              <div className="flex items-center justify-between">
+                <h2 className="font-semibold text-gray-800">1. Choisir le voyage</h2>
+                <span className="text-xs text-gray-400">
+                  {availableTrips.length} voyage{availableTrips.length !== 1 ? 's' : ''} dispo.
+                </span>
+              </div>
+
+              {availableTrips.length === 0 ? (
+                <div className="text-center py-10 text-gray-400">
+                  <Bus size={28} className="mx-auto mb-2 opacity-30" />
+                  <p className="text-sm">Aucun voyage disponible aujourd'hui</p>
+                </div>
+              ) : (
+                <div className="space-y-2 max-h-[480px] overflow-y-auto pr-1">
+                  {availableTrips.map((t: any) => {
+                    const tc = t.tripClass ?? 'STANDARD';
+                    const isSelected = selectedTripId === t.id;
+                    const cc = CLASS_COLORS[tc] ?? CLASS_COLORS.STANDARD;
+                    return (
+                      <button
+                        key={t.id}
+                        onClick={() => { setSelectedTripId(t.id); setSelectedSeats([]); setPassengerCount(1); }}
+                        className={`w-full text-left rounded-xl border-l-4 border border-gray-100 px-3 py-2.5 transition-all ${
+                          isSelected
+                            ? `${cc.border} bg-brand-50 border-brand-200`
+                            : `${cc.border} hover:bg-gray-50 hover:border-gray-200`
+                        }`}
+                      >
+                        <div className="flex items-center justify-between gap-2">
+                          <div className="min-w-0 flex-1">
+                            <div className="flex items-center gap-1.5 mb-0.5">
+                              <span className={`inline-flex items-center gap-0.5 px-1.5 py-px rounded text-[9px] font-semibold ${cc.badge}`}>
+                                {cc.icon} {tc}
+                              </span>
+                              {t.status === 'BOARDING' && (
+                                <span className="text-[9px] font-semibold text-green-600 bg-green-50 px-1.5 py-px rounded">● Embarquement</span>
+                              )}
+                            </div>
+                            <p className={`text-sm font-semibold truncate ${isSelected ? 'text-brand-700' : 'text-gray-800'}`}>
+                              {t.route?.originCity?.name ?? '?'} → {t.route?.destinationCity?.name ?? '?'}
+                            </p>
+                            <div className="flex items-center gap-2 mt-0.5 text-xs text-gray-400">
+                              <span className="flex items-center gap-0.5"><Clock size={10} /> {dayjs(t.departureAt).format('HH:mm')}</span>
+                              {t.vehicle?.plate && <span className="flex items-center gap-0.5"><MapPin size={10} /> {t.vehicle.plate}</span>}
+                            </div>
+                          </div>
+                          <div className="shrink-0 text-right">
+                            <p className={`text-sm font-bold ${isSelected ? 'text-brand-600' : 'text-gray-700'}`}>{formatCFA(t.price)}</p>
+                            <p className={`text-xs mt-0.5 font-medium ${t.availableSeats <= 5 ? 'text-amber-600' : 'text-green-600'}`}>
+                              {t.availableSeats} pl.
+                            </p>
+                          </div>
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+              {formErrors.trip && <p className="text-red-500 text-xs">{formErrors.trip}</p>}
             </div>
 
-            {availableTrips.length === 0 ? (
-              <div className="text-center py-6 text-gray-400">
-                <Bus size={28} className="mx-auto mb-2 opacity-30" />
-                <p className="text-sm">Aucun voyage disponible aujourd'hui</p>
-              </div>
-            ) : (
-              <div className="space-y-2 max-h-64 overflow-y-auto pr-1">
-                {availableTrips.map((t: any) => {
-                  const tc = t.tripClass ?? 'STANDARD';
-                  const isSelected = selectedTripId === t.id;
-                  const classColors: Record<string, { border: string; badge: string; icon: React.ReactNode }> = {
-                    VIP:      { border: 'border-l-amber-400', badge: 'bg-amber-100 text-amber-700', icon: <Crown size={10} /> },
-                    EXPRESS:  { border: 'border-l-blue-400',  badge: 'bg-blue-100 text-blue-700',   icon: <Zap size={10} /> },
-                    STANDARD: { border: 'border-l-gray-300',  badge: 'bg-gray-100 text-gray-600',   icon: <Bus size={10} /> },
-                  };
-                  const cc = classColors[tc] ?? classColors.STANDARD;
-                  return (
-                    <button key={t.id}
-                      onClick={() => { setSelectedTripId(t.id); setSelectedSeats([]); setPassengerCount(1); }}
-                      className={`w-full text-left rounded-xl border-l-4 border border-gray-100 px-3 py-2.5 transition-all ${
-                        isSelected
-                          ? `${cc.border} bg-brand-50 border-brand-200`
-                          : `${cc.border} hover:bg-gray-50 hover:border-gray-200`
-                      }`}
-                    >
-                      <div className="flex items-center justify-between gap-2">
-                        <div className="min-w-0 flex-1">
-                          <div className="flex items-center gap-1.5 mb-0.5">
-                            <span className={`inline-flex items-center gap-0.5 px-1.5 py-px rounded text-[9px] font-semibold ${cc.badge}`}>
-                              {cc.icon} {tc}
-                            </span>
-                            {t.status === 'BOARDING' && (
-                              <span className="text-[9px] font-semibold text-green-600 bg-green-50 px-1.5 py-px rounded">● Embarquement</span>
-                            )}
-                          </div>
-                          <p className={`text-sm font-semibold truncate ${isSelected ? 'text-brand-700' : 'text-gray-800'}`}>
-                            {t.route?.originCity?.name ?? '?'} → {t.route?.destinationCity?.name ?? '?'}
-                          </p>
-                          <div className="flex items-center gap-2 mt-0.5 text-xs text-gray-400">
-                            <span className="flex items-center gap-0.5"><Clock size={10} /> {dayjs(t.departureAt).format('HH:mm')}</span>
-                            {t.vehicle?.plate && <span className="flex items-center gap-0.5"><MapPin size={10} /> {t.vehicle.plate}</span>}
-                          </div>
-                        </div>
-                        <div className="shrink-0 text-right">
-                          <p className={`text-sm font-bold ${isSelected ? 'text-brand-600' : 'text-gray-700'}`}>{formatCFA(t.price)}</p>
-                          <p className={`text-xs mt-0.5 font-medium ${t.availableSeats <= 5 ? 'text-amber-600' : 'text-green-600'}`}>
-                            {t.availableSeats} pl.
-                          </p>
-                        </div>
-                      </div>
-                    </button>
-                  );
-                })}
-              </div>
-            )}
-            {formErrors.trip && <p className="text-red-500 text-xs">{formErrors.trip}</p>}
-          </div>
+            {/* Colonne droite : sièges + infos passager + bouton */}
+            <div className="space-y-4">
 
-          {/* Sièges / Nombre de passagers */}
-          {selectedTrip && (
-            <div className="bg-white rounded-xl border border-gray-100 p-5 space-y-4">
-              {useAdvancedSeats ? (
-                <>
-                  <div className="flex items-center justify-between">
-                    <h2 className="font-semibold text-gray-800">2. Choisir les sièges</h2>
-                    {selectedSeats.length > 0 && (
-                      <span className="text-xs font-semibold text-brand-600 bg-brand-50 px-2 py-0.5 rounded-full">
-                        {selectedSeats.length} sélectionné{selectedSeats.length > 1 ? 's' : ''} · {formatCFA(selectedTrip.price * selectedSeats.length)}
-                      </span>
+              {/* Sièges / Nombre de passagers */}
+              {selectedTrip ? (
+                <div className="bg-white rounded-xl border border-gray-100 p-5 space-y-4">
+                  {useAdvancedSeats ? (
+                    <>
+                      <div className="flex items-center justify-between">
+                        <h2 className="font-semibold text-gray-800">2. Choisir les sièges</h2>
+                        {selectedSeats.length > 0 && (
+                          <span className="text-xs font-semibold text-brand-600 bg-brand-50 px-2 py-0.5 rounded-full">
+                            {selectedSeats.length} sélectionné{selectedSeats.length > 1 ? 's' : ''} · {formatCFA(selectedTrip.price * selectedSeats.length)}
+                          </span>
+                        )}
+                      </div>
+                      {seats.length === 0 ? (
+                        <div className="flex items-center justify-center py-8 text-gray-400 gap-2">
+                          <Loader2 size={16} className="animate-spin" />
+                          <span className="text-sm">Chargement des sièges…</span>
+                        </div>
+                      ) : (
+                        <div className="overflow-x-auto flex justify-center py-2">
+                          <BusSeatMap
+                            seats={seats}
+                            selectedSeats={selectedSeats}
+                            onToggle={toggleSeat}
+                            tripClass={selectedTrip.tripClass ?? 'STANDARD'}
+                          />
+                        </div>
+                      )}
+                    </>
+                  ) : (
+                    <>
+                      <div className="flex items-center justify-between">
+                        <h2 className="font-semibold text-gray-800">2. Nombre de passagers</h2>
+                        <span className="text-xs text-gray-400">
+                          {selectedTrip.availableSeats} place{selectedTrip.availableSeats !== 1 ? 's' : ''} dispo.
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-4">
+                        <div className="flex items-center border border-gray-200 rounded-xl overflow-hidden">
+                          <button type="button" onClick={() => setPassengerCount((n) => Math.max(1, n - 1))}
+                            disabled={passengerCount <= 1}
+                            className="w-10 h-10 flex items-center justify-center text-lg font-bold text-gray-600 hover:bg-gray-50 disabled:opacity-30 transition">−</button>
+                          <span className="w-12 text-center font-bold text-gray-900 text-lg tabular-nums">{passengerCount}</span>
+                          <button type="button" onClick={() => setPassengerCount((n) => Math.min(selectedTrip.availableSeats, n + 1))}
+                            disabled={passengerCount >= selectedTrip.availableSeats}
+                            className="w-10 h-10 flex items-center justify-center text-lg font-bold text-gray-600 hover:bg-gray-50 disabled:opacity-30 transition">+</button>
+                        </div>
+                        <p className="text-sm text-brand-600 font-medium">Total : {formatCFA(selectedTrip.price * passengerCount)}</p>
+                      </div>
+                      <p className="text-xs text-gray-400 italic">Ce voyage utilise le mode sans numérotation des sièges.</p>
+                    </>
+                  )}
+                  {formErrors.seats && <p className="text-red-500 text-xs">{formErrors.seats}</p>}
+                </div>
+              ) : (
+                <div className="bg-gray-50 border border-dashed border-gray-200 rounded-xl p-6 flex flex-col items-center justify-center text-center gap-2 text-gray-400">
+                  <Bus size={24} className="opacity-30" />
+                  <p className="text-sm">Sélectionnez un voyage pour choisir les sièges</p>
+                </div>
+              )}
+
+              {/* Infos passager */}
+              <div className="bg-white rounded-xl border border-gray-100 p-5 space-y-4">
+                <div className="flex items-center justify-between">
+                  <h2 className="font-semibold text-gray-800">3. Informations passager</h2>
+                  <span className="text-xs text-gray-400 italic">optionnel</span>
+                </div>
+
+                {/* Téléphone + lookup */}
+                <div className="space-y-2">
+                  <label className="block text-xs font-medium text-gray-600">Téléphone</label>
+                  <div className="relative">
+                    <PhoneInput
+                      value={form.phone}
+                      onChange={(v) => {
+                        setForm((p) => ({ ...p, phone: v, firstName: '', lastName: '' }));
+                        setPassengerLookup({ loading: false, found: null, notFound: false });
+                      }}
+                      className={formErrors.phone ? 'border-red-400' : ''}
+                    />
+                    {passengerLookup.loading && (
+                      <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                        <Loader2 size={15} className="animate-spin text-gray-400" />
+                      </div>
                     )}
                   </div>
-                  {seats.length === 0 ? (
-                    <div className="flex items-center justify-center py-6 text-gray-400 gap-2">
-                      <Loader2 size={16} className="animate-spin" />
-                      <span className="text-sm">Chargement des sièges…</span>
-                    </div>
-                  ) : (
-                    <div className="overflow-x-auto flex justify-center py-2">
-                      <BusSeatMap
-                        seats={seats}
-                        selectedSeats={selectedSeats}
-                        onToggle={toggleSeat}
-                        tripClass={selectedTrip.tripClass ?? 'STANDARD'}
-                      />
+                  {formErrors.phone && <p className="text-red-500 text-xs">{formErrors.phone}</p>}
+
+                  {passengerLookup.found && (
+                    <div className="flex items-center gap-3 px-3 py-2.5 bg-green-50 border border-green-200 rounded-xl">
+                      <div className="w-8 h-8 rounded-full bg-green-100 flex items-center justify-center flex-shrink-0">
+                        {passengerLookup.found.avatar ? (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img src={passengerLookup.found.avatar} alt="" className="w-8 h-8 rounded-full object-cover" />
+                        ) : (
+                          <span className="text-xs font-bold text-green-700">
+                            {passengerLookup.found.firstName?.[0]}{passengerLookup.found.lastName?.[0]}
+                          </span>
+                        )}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-semibold text-green-800 truncate">
+                          {passengerLookup.found.firstName} {passengerLookup.found.lastName}
+                        </p>
+                        <p className="text-xs text-green-600 truncate">{passengerLookup.found.email}</p>
+                      </div>
+                      <div className="flex items-center gap-1 text-green-600 flex-shrink-0">
+                        <UserCheck size={15} />
+                        <span className="text-xs font-medium">Identifié</span>
+                      </div>
                     </div>
                   )}
-                </>
-              ) : (
-                <>
-                  <div className="flex items-center justify-between">
-                    <h2 className="font-semibold text-gray-800">2. Nombre de passagers</h2>
-                    <span className="text-xs text-gray-400">
-                      {selectedTrip.availableSeats} place{selectedTrip.availableSeats !== 1 ? 's' : ''} disponible{selectedTrip.availableSeats !== 1 ? 's' : ''}
-                    </span>
-                  </div>
-                  <div className="flex items-center gap-4">
-                    <div className="flex items-center border border-gray-200 rounded-xl overflow-hidden">
-                      <button type="button" onClick={() => setPassengerCount((n) => Math.max(1, n - 1))}
-                        disabled={passengerCount <= 1}
-                        className="w-10 h-10 flex items-center justify-center text-lg font-bold text-gray-600 hover:bg-gray-50 disabled:opacity-30 transition">−</button>
-                      <span className="w-12 text-center font-bold text-gray-900 text-lg tabular-nums">{passengerCount}</span>
-                      <button type="button" onClick={() => setPassengerCount((n) => Math.min(selectedTrip.availableSeats, n + 1))}
-                        disabled={passengerCount >= selectedTrip.availableSeats}
-                        className="w-10 h-10 flex items-center justify-center text-lg font-bold text-gray-600 hover:bg-gray-50 disabled:opacity-30 transition">+</button>
+
+                  {passengerLookup.notFound && (
+                    <div className="flex items-center gap-2 px-3 py-2 bg-gray-50 border border-gray-200 rounded-xl">
+                      <UserX size={14} className="text-gray-400 flex-shrink-0" />
+                      <p className="text-xs text-gray-500">
+                        Numéro inconnu — un nouveau compte passager sera créé automatiquement.
+                      </p>
                     </div>
-                    <p className="text-sm text-brand-600 font-medium">Total : {formatCFA(selectedTrip.price * passengerCount)}</p>
-                  </div>
-                  <p className="text-xs text-gray-400 italic">Ce voyage utilise le mode sans numérotation des sièges.</p>
-                </>
-              )}
-              {formErrors.seats && <p className="text-red-500 text-xs">{formErrors.seats}</p>}
-            </div>
-          )}
+                  )}
+                </div>
 
-          {/* Infos passager */}
-          <div className="bg-white rounded-xl border border-gray-100 p-5 space-y-4">
-            <div className="flex items-center justify-between">
-              <h2 className="font-semibold text-gray-800">3. Informations passager</h2>
-              <span className="text-xs text-gray-400 italic">optionnel</span>
-            </div>
-
-            {/* ── Téléphone + lookup ─────────────────────────────────────── */}
-            <div className="space-y-2">
-              <label className="block text-xs font-medium text-gray-600">Téléphone</label>
-              <div className="relative">
-                <PhoneInput
-                  value={form.phone}
-                  onChange={(v) => {
-                    setForm((p) => ({ ...p, phone: v, firstName: '', lastName: '' }));
-                    setPassengerLookup({ loading: false, found: null, notFound: false });
-                  }}
-                  className={formErrors.phone ? 'border-red-400' : ''}
-                />
-                {passengerLookup.loading && (
-                  <div className="absolute right-3 top-1/2 -translate-y-1/2">
-                    <Loader2 size={15} className="animate-spin text-gray-400" />
+                {/* Prénom / Nom */}
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs font-medium text-gray-600 mb-1">
+                      Prénom
+                      {passengerLookup.found && <span className="ml-1 text-green-600 font-normal">(compte)</span>}
+                    </label>
+                    <input
+                      value={form.firstName}
+                      onChange={(e) => setForm((p) => ({ ...p, firstName: e.target.value }))}
+                      placeholder="Kouassi"
+                      readOnly={!!passengerLookup.found}
+                      className={`${inputCls()} ${passengerLookup.found ? 'bg-gray-50 text-gray-500 cursor-default' : ''}`}
+                    />
                   </div>
+                  <div>
+                    <label className="block text-xs font-medium text-gray-600 mb-1">
+                      Nom
+                      {passengerLookup.found && <span className="ml-1 text-green-600 font-normal">(compte)</span>}
+                    </label>
+                    <input
+                      value={form.lastName}
+                      onChange={(e) => setForm((p) => ({ ...p, lastName: e.target.value }))}
+                      placeholder="Yao"
+                      readOnly={!!passengerLookup.found}
+                      className={`${inputCls()} ${passengerLookup.found ? 'bg-gray-50 text-gray-500 cursor-default' : ''}`}
+                    />
+                  </div>
+                </div>
+
+                {/* Mode de paiement */}
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 mb-1">Mode de paiement</label>
+                  <div className="flex flex-wrap gap-2">
+                    {PAYMENT_METHODS.map((m) => (
+                      <button
+                        key={m.value}
+                        type="button"
+                        onClick={() => setForm((p) => ({ ...p, paymentMethod: m.value }))}
+                        className={`px-3 py-2 rounded-lg text-sm border transition-all ${
+                          form.paymentMethod === m.value
+                            ? 'border-brand-500 bg-brand-50 text-brand-700 font-medium'
+                            : 'border-gray-200 text-gray-600 hover:border-gray-300'
+                        }`}
+                      >
+                        {m.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
+              {/* Bouton vendre */}
+              <button
+                onClick={handleSell}
+                disabled={selling}
+                className="w-full bg-brand-500 hover:bg-brand-600 text-white font-semibold rounded-xl py-3.5 flex items-center justify-center gap-2 transition disabled:opacity-60 text-sm"
+              >
+                {selling ? (
+                  <><Loader2 size={16} className="animate-spin" /> Création en cours...</>
+                ) : (
+                  <><Plus size={16} /> Créer et imprimer le ticket</>
                 )}
-              </div>
-              {formErrors.phone && <p className="text-red-500 text-xs">{formErrors.phone}</p>}
+              </button>
 
-              {/* Passager trouvé */}
-              {passengerLookup.found && (
-                <div className="flex items-center gap-3 px-3 py-2.5 bg-green-50 border border-green-200 rounded-xl">
-                  <div className="w-8 h-8 rounded-full bg-green-100 flex items-center justify-center flex-shrink-0">
-                    {passengerLookup.found.avatar ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img src={passengerLookup.found.avatar} alt="" className="w-8 h-8 rounded-full object-cover" />
-                    ) : (
-                      <span className="text-xs font-bold text-green-700">
-                        {passengerLookup.found.firstName?.[0]}{passengerLookup.found.lastName?.[0]}
-                      </span>
-                    )}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-semibold text-green-800 truncate">
-                      {passengerLookup.found.firstName} {passengerLookup.found.lastName}
-                    </p>
-                    <p className="text-xs text-green-600 truncate">{passengerLookup.found.email}</p>
-                  </div>
-                  <div className="flex items-center gap-1 text-green-600 flex-shrink-0">
-                    <UserCheck size={15} />
-                    <span className="text-xs font-medium">Identifié</span>
-                  </div>
-                </div>
-              )}
-
-              {/* Passager inconnu */}
-              {passengerLookup.notFound && (
-                <div className="flex items-center gap-2 px-3 py-2 bg-gray-50 border border-gray-200 rounded-xl">
-                  <UserX size={14} className="text-gray-400 flex-shrink-0" />
-                  <p className="text-xs text-gray-500">
-                    Numéro inconnu — un nouveau compte passager sera créé automatiquement.
-                  </p>
-                </div>
-              )}
-            </div>
-
-            {/* ── Prénom / Nom ────────────────────────────────────────────── */}
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="block text-xs font-medium text-gray-600 mb-1">
-                  Prénom
-                  {passengerLookup.found && <span className="ml-1 text-green-600 font-normal">(depuis le compte)</span>}
-                </label>
-                <input
-                  value={form.firstName}
-                  onChange={(e) => setForm((p) => ({ ...p, firstName: e.target.value }))}
-                  placeholder="Kouassi"
-                  readOnly={!!passengerLookup.found}
-                  className={`${inputCls()} ${passengerLookup.found ? 'bg-gray-50 text-gray-500 cursor-default' : ''}`}
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-gray-600 mb-1">
-                  Nom
-                  {passengerLookup.found && <span className="ml-1 text-green-600 font-normal">(depuis le compte)</span>}
-                </label>
-                <input
-                  value={form.lastName}
-                  onChange={(e) => setForm((p) => ({ ...p, lastName: e.target.value }))}
-                  placeholder="Yao"
-                  readOnly={!!passengerLookup.found}
-                  className={`${inputCls()} ${passengerLookup.found ? 'bg-gray-50 text-gray-500 cursor-default' : ''}`}
-                />
-              </div>
-            </div>
-
-            {/* ── Mode de paiement ────────────────────────────────────────── */}
-            <div>
-              <label className="block text-xs font-medium text-gray-600 mb-1">Mode de paiement</label>
-              <div className="flex flex-wrap gap-2">
-                {PAYMENT_METHODS.map((m) => (
-                  <button
-                    key={m.value}
-                    type="button"
-                    onClick={() => setForm((p) => ({ ...p, paymentMethod: m.value }))}
-                    className={`px-3 py-2 rounded-lg text-sm border transition-all ${
-                      form.paymentMethod === m.value
-                        ? 'border-brand-500 bg-brand-50 text-brand-700 font-medium'
-                        : 'border-gray-200 text-gray-600 hover:border-gray-300'
-                    }`}
-                  >
-                    {m.label}
-                  </button>
-                ))}
-              </div>
             </div>
           </div>
-
-          <button
-            onClick={handleSell}
-            disabled={selling}
-            className="w-full bg-brand-500 hover:bg-brand-600 text-white font-semibold rounded-xl py-3.5 flex items-center justify-center gap-2 transition disabled:opacity-60 text-sm"
-          >
-            {selling ? (
-              <><Loader2 size={16} className="animate-spin" /> Création en cours...</>
-            ) : (
-              <><Plus size={16} /> Créer et imprimer le ticket</>
-            )}
-          </button>
         </div>
       )}
 
@@ -849,27 +863,30 @@ export default function BilletteriePage() {
           </div>
 
           {searchResults.length > 0 && (
-            <div className="space-y-2">
+            <div className="grid grid-cols-2 gap-3">
               {searchResults.map((b: any) => (
-                <div key={b.id} className="bg-white border border-gray-100 rounded-xl p-4 flex items-center gap-4">
+                <div key={b.id} className="bg-white border border-gray-100 rounded-xl p-4 flex items-start gap-4">
                   <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 flex-wrap">
+                    <div className="flex items-center gap-2 flex-wrap mb-1">
                       <span className="font-mono text-xs font-medium text-gray-600">{b.reference}</span>
                       <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
                         b.status === 'CONFIRMED' ? 'bg-green-100 text-green-700' :
-                        b.status === 'PENDING' ? 'bg-yellow-100 text-yellow-700' :
+                        b.status === 'PENDING'   ? 'bg-yellow-100 text-yellow-700' :
                         'bg-gray-100 text-gray-600'
                       }`}>{b.status}</span>
                     </div>
-                    <p className="font-semibold text-gray-900 mt-1">
+                    <p className="font-semibold text-gray-900 text-sm truncate">
                       {b.passenger?.firstName} {b.passenger?.lastName}
                     </p>
-                    <p className="text-xs text-gray-500">
-                      {b.trip?.route?.originCity?.name} → {b.trip?.route?.destinationCity?.name} — {dayjs(b.trip?.departureAt).format('DD/MM HH:mm')} — Sièges : {b.seatNumbers?.join(', ')}
+                    <p className="text-xs text-gray-500 mt-0.5 truncate">
+                      {b.trip?.route?.originCity?.name} → {b.trip?.route?.destinationCity?.name}
+                    </p>
+                    <p className="text-xs text-gray-400 mt-0.5">
+                      {dayjs(b.trip?.departureAt).format('DD/MM HH:mm')} · Sièges : {b.seatNumbers?.join(', ')}
                     </p>
                   </div>
                   <div className="text-right shrink-0">
-                    <p className="font-semibold text-gray-900">{formatCFA(b.totalAmount)}</p>
+                    <p className="font-semibold text-gray-900 text-sm">{formatCFA(b.totalAmount)}</p>
                     <button
                       onClick={() => handlePrint(b)}
                       disabled={printingId === b.id}
