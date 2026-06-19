@@ -1,3 +1,5 @@
 {
-  "installCommand": "echo 'Dependencies already installed by CI'"
+  "framework": "nextjs",
+  "installCommand": "echo 'Dependencies pre-installed by CI'",
+  "buildCommand": "pnpm run build"
 }
