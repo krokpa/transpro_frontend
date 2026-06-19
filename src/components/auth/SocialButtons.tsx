@@ -64,24 +64,12 @@ function openFacebookOAuth(): Promise<string> {
   });
 }
 
-// ── Main component ─────────────────────────────────────────────────────────────
+// ── Google button (isolated so useGoogleLogin is only called when provider is mounted) ──
 
-export function SocialButtons() {
-  const router      = useRouter();
-  const { setAuth } = useAuthStore();
-  const [fbLoading, setFbLoading] = useState(false);
-
-  // ── Google ────────────────────────────────────────────────────────────────
+function GoogleButton({ onSuccess }: { onSuccess: (token: string) => void }) {
   const googleLogin = useGoogleLogin({
     flow: 'implicit',
-    onSuccess: async (tokenResponse) => {
-      try {
-        const res = await authApi.socialLogin('google', tokenResponse.access_token) as any;
-        finishLogin(res, setAuth, router);
-      } catch (err: any) {
-        toast.error(err?.response?.data?.error || 'Erreur de connexion Google');
-      }
-    },
+    onSuccess: (tokenResponse) => onSuccess(tokenResponse.access_token),
     onError: (error) => {
       if (error.error !== 'access_denied') {
         toast.error('Erreur de connexion Google');
@@ -89,7 +77,35 @@ export function SocialButtons() {
     },
   });
 
-  // ── Facebook ──────────────────────────────────────────────────────────────
+  return (
+    <button
+      onClick={() => googleLogin()}
+      className="w-full flex items-center justify-center gap-3 px-4 py-2.5 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 transition-all duration-150 text-sm font-medium text-slate-700 shadow-sm"
+    >
+      <GoogleIcon />
+      Continuer avec Google
+    </button>
+  );
+}
+
+// ── Main component ─────────────────────────────────────────────────────────────
+
+const GOOGLE_ENABLED = !!process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID;
+
+export function SocialButtons() {
+  const router      = useRouter();
+  const { setAuth } = useAuthStore();
+  const [fbLoading, setFbLoading] = useState(false);
+
+  async function handleGoogle(token: string) {
+    try {
+      const res = await authApi.socialLogin('google', token) as any;
+      finishLogin(res, setAuth, router);
+    } catch (err: any) {
+      toast.error(err?.response?.data?.error || 'Erreur de connexion Google');
+    }
+  }
+
   async function handleFacebook() {
     setFbLoading(true);
     try {
@@ -106,14 +122,7 @@ export function SocialButtons() {
 
   return (
     <div className="space-y-3">
-      {/* Google */}
-      <button
-        onClick={() => googleLogin()}
-        className="w-full flex items-center justify-center gap-3 px-4 py-2.5 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 transition-all duration-150 text-sm font-medium text-slate-700 shadow-sm"
-      >
-        <GoogleIcon />
-        Continuer avec Google
-      </button>
+      {GOOGLE_ENABLED && <GoogleButton onSuccess={handleGoogle} />}
 
       {/* Facebook */}
       <button
