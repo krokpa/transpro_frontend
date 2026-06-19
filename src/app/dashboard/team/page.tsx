@@ -4,10 +4,12 @@ import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { confirm } from '@/lib/confirm';
-import { Users, UserPlus, Trash2, ShieldCheck, User, Eye, EyeOff, Loader2 } from 'lucide-react';
+import { Users, UserPlus, Trash2, ShieldCheck, User, Eye, EyeOff, Loader2, Mail, Phone, Clock } from 'lucide-react';
 import { teamApi } from '@/lib/api';
 import { PhoneInput } from '@/components/ui/PhoneInput';
 import { useAuthStore } from '@/store/auth.store';
+import { ViewToggle } from '@/components/ui/ViewToggle';
+import { useViewMode } from '@/hooks/useViewMode';
 import dayjs from 'dayjs';
 import 'dayjs/locale/fr';
 dayjs.locale('fr');
@@ -45,6 +47,7 @@ export default function TeamPage() {
 
   const [showInvite, setShowInvite] = useState(false);
   const [roleFilter, setRoleFilter] = useState<string>('ALL');
+  const [viewMode, setViewMode] = useViewMode('team');
   const [showPwd, setShowPwd] = useState(false);
   const [form, setForm] = useState({
     firstName: '', lastName: '', email: '', phone: '',
@@ -134,14 +137,17 @@ export default function TeamPage() {
             {members.length} membre{members.length !== 1 ? 's' : ''} dans votre compagnie
           </p>
         </div>
-        {(isOwner || user?.role === 'COMPANY_ADMIN') && (
-          <button
-            onClick={() => setShowInvite(true)}
-            className="flex items-center gap-2 bg-brand-500 hover:bg-brand-600 text-white px-4 py-2.5 rounded-xl text-sm font-medium transition shadow-sm shadow-brand-500/20"
-          >
-            <UserPlus size={16} /> Inviter un membre
-          </button>
-        )}
+        <div className="flex items-center gap-3">
+          <ViewToggle value={viewMode} onChange={setViewMode} />
+          {(isOwner || user?.role === 'COMPANY_ADMIN') && (
+            <button
+              onClick={() => setShowInvite(true)}
+              className="flex items-center gap-2 bg-brand-500 hover:bg-brand-600 text-white px-4 py-2.5 rounded-xl text-sm font-medium transition shadow-sm shadow-brand-500/20"
+            >
+              <UserPlus size={16} /> Inviter un membre
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Role filter tabs */}
@@ -164,19 +170,101 @@ export default function TeamPage() {
         ))}
       </div>
 
-      {/* Members list */}
-      <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
-        {isLoading ? (
-          <div className="flex items-center justify-center h-40">
-            <Loader2 size={24} className="animate-spin text-brand-500" />
+      {/* Members — list view */}
+      {viewMode === 'list' && (
+        <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
+          {isLoading ? (
+            <div className="flex items-center justify-center h-40">
+              <Loader2 size={24} className="animate-spin text-brand-500" />
+            </div>
+          ) : filtered.length === 0 ? (
+            <div className="flex flex-col items-center justify-center h-40 text-gray-400 gap-2">
+              <Users size={36} className="text-gray-200" />
+              <p className="text-sm">Aucun membre trouvé</p>
+            </div>
+          ) : (
+            <ul className="divide-y divide-gray-50">
+              {filtered.map((m) => {
+                const cfg = ROLE_CONFIG[m.role] ?? { label: m.role, className: 'bg-gray-100 text-gray-600' };
+                const initials = `${m.firstName[0] ?? ''}${m.lastName[0] ?? ''}`.toUpperCase();
+                const isSelf = m.id === (user as any)?.id;
+                const isThisOwner = m.role === 'COMPANY_OWNER';
+
+                return (
+                  <li key={m.id} className="flex items-center gap-4 px-6 py-4 hover:bg-gray-50 transition">
+                    <div className="w-10 h-10 rounded-full bg-brand-50 text-brand-600 flex items-center justify-center text-sm font-bold shrink-0">
+                      {initials}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <p className="text-sm font-semibold text-gray-900">
+                          {m.firstName} {m.lastName}
+                          {isSelf && <span className="text-xs text-gray-400 font-normal ml-1">(vous)</span>}
+                        </p>
+                        <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${cfg.className}`}>
+                          {cfg.label}
+                        </span>
+                        {!m.isActive && (
+                          <span className="text-xs px-2 py-0.5 rounded-full bg-red-50 text-red-500">Inactif</span>
+                        )}
+                      </div>
+                      <p className="text-xs text-gray-500 mt-0.5">{m.email}</p>
+                      {m.phone && <p className="text-xs text-gray-400">{m.phone}</p>}
+                    </div>
+                    <div className="hidden md:block text-right shrink-0">
+                      <p className="text-xs text-gray-400">Dernière connexion</p>
+                      <p className="text-xs text-gray-600 font-medium">
+                        {m.lastLoginAt ? dayjs(m.lastLoginAt).format('DD/MM/YYYY HH:mm') : '—'}
+                      </p>
+                    </div>
+                    {isOwner && !isSelf && !isThisOwner && (
+                      <div className="flex items-center gap-2 shrink-0">
+                        <select
+                          value={m.role}
+                          onChange={(e) => roleMut.mutate({ id: m.id, role: e.target.value })}
+                          disabled={roleMut.isPending}
+                          className="text-xs border border-gray-200 rounded-lg px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-brand-500 bg-white text-gray-700 disabled:opacity-50"
+                        >
+                          {ASSIGNABLE_ROLES.map((r) => (
+                            <option key={r.value} value={r.value}>{r.label}</option>
+                          ))}
+                        </select>
+                        <button
+                          onClick={async () => {
+                            if (await confirm({ title: `Retirer ${m.firstName} ${m.lastName} ?`, description: 'Cette personne n\'aura plus accès à la compagnie.', variant: 'danger', confirmLabel: 'Retirer' }))
+                              removeMut.mutate(m.id);
+                          }}
+                          disabled={removeMut.isPending}
+                          className="p-1.5 text-gray-300 hover:text-red-500 hover:bg-red-50 rounded-lg transition disabled:opacity-50"
+                          title="Retirer de la compagnie"
+                        >
+                          <Trash2 size={14} />
+                        </button>
+                      </div>
+                    )}
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+        </div>
+      )}
+
+      {/* Members — grid view */}
+      {viewMode === 'grid' && (
+        isLoading ? (
+          <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+            {Array.from({ length: 8 }).map((_, i) => (
+              <div key={i} className="h-48 bg-gray-100 rounded-xl animate-pulse" />
+            ))}
           </div>
         ) : filtered.length === 0 ? (
-          <div className="flex flex-col items-center justify-center h-40 text-gray-400 gap-2">
+          <div className="flex flex-col items-center justify-center h-40 bg-white rounded-xl border border-gray-100 text-gray-400 gap-2">
             <Users size={36} className="text-gray-200" />
             <p className="text-sm">Aucun membre trouvé</p>
           </div>
         ) : (
-          <ul className="divide-y divide-gray-50">
+          <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
             {filtered.map((m) => {
               const cfg = ROLE_CONFIG[m.role] ?? { label: m.role, className: 'bg-gray-100 text-gray-600' };
               const initials = `${m.firstName[0] ?? ''}${m.lastName[0] ?? ''}`.toUpperCase();
@@ -184,46 +272,54 @@ export default function TeamPage() {
               const isThisOwner = m.role === 'COMPANY_OWNER';
 
               return (
-                <li key={m.id} className="flex items-center gap-4 px-6 py-4 hover:bg-gray-50 transition">
-                  {/* Avatar */}
-                  <div className="w-10 h-10 rounded-full bg-brand-50 text-brand-600 flex items-center justify-center text-sm font-bold shrink-0">
-                    {initials}
-                  </div>
-
-                  {/* Info */}
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <p className="text-sm font-semibold text-gray-900">
-                        {m.firstName} {m.lastName}
-                        {isSelf && <span className="text-xs text-gray-400 font-normal ml-1">(vous)</span>}
-                      </p>
-                      <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${cfg.className}`}>
-                        {cfg.label}
-                      </span>
-                      {!m.isActive && (
-                        <span className="text-xs px-2 py-0.5 rounded-full bg-red-50 text-red-500">Inactif</span>
-                      )}
+                <div key={m.id} className="bg-white rounded-xl border border-gray-100 shadow-sm p-5 flex flex-col gap-4">
+                  {/* Avatar + name */}
+                  <div className="flex flex-col items-center gap-2 text-center">
+                    <div className="w-14 h-14 rounded-full bg-brand-50 text-brand-600 flex items-center justify-center text-lg font-bold">
+                      {initials}
                     </div>
-                    <p className="text-xs text-gray-500 mt-0.5">{m.email}</p>
-                    {m.phone && <p className="text-xs text-gray-400">{m.phone}</p>}
+                    <div>
+                      <p className="text-sm font-semibold text-gray-900 leading-tight">
+                        {m.firstName} {m.lastName}
+                        {isSelf && <span className="text-xs text-gray-400 font-normal block">vous</span>}
+                      </p>
+                      <div className="flex items-center justify-center gap-1.5 mt-1.5 flex-wrap">
+                        <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${cfg.className}`}>
+                          {cfg.label}
+                        </span>
+                        {!m.isActive && (
+                          <span className="text-xs px-2 py-0.5 rounded-full bg-red-50 text-red-500">Inactif</span>
+                        )}
+                      </div>
+                    </div>
                   </div>
 
-                  {/* Last login */}
-                  <div className="hidden md:block text-right shrink-0">
-                    <p className="text-xs text-gray-400">Dernière connexion</p>
-                    <p className="text-xs text-gray-600 font-medium">
-                      {m.lastLoginAt ? dayjs(m.lastLoginAt).format('DD/MM/YYYY HH:mm') : '—'}
-                    </p>
+                  {/* Contact info */}
+                  <div className="space-y-1.5 text-xs text-gray-500 border-t border-gray-50 pt-3">
+                    <div className="flex items-center gap-1.5 min-w-0">
+                      <Mail size={11} className="text-gray-300 shrink-0" />
+                      <span className="truncate">{m.email}</span>
+                    </div>
+                    {m.phone && (
+                      <div className="flex items-center gap-1.5">
+                        <Phone size={11} className="text-gray-300 shrink-0" />
+                        <span>{m.phone}</span>
+                      </div>
+                    )}
+                    <div className="flex items-center gap-1.5">
+                      <Clock size={11} className="text-gray-300 shrink-0" />
+                      <span>{m.lastLoginAt ? dayjs(m.lastLoginAt).format('DD/MM/YYYY') : 'Jamais connecté'}</span>
+                    </div>
                   </div>
 
                   {/* Actions */}
                   {isOwner && !isSelf && !isThisOwner && (
-                    <div className="flex items-center gap-2 shrink-0">
+                    <div className="flex items-center gap-2 border-t border-gray-50 pt-3">
                       <select
                         value={m.role}
                         onChange={(e) => roleMut.mutate({ id: m.id, role: e.target.value })}
                         disabled={roleMut.isPending}
-                        className="text-xs border border-gray-200 rounded-lg px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-brand-500 bg-white text-gray-700 disabled:opacity-50"
+                        className="flex-1 text-xs border border-gray-200 rounded-lg px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-brand-500 bg-white text-gray-700 disabled:opacity-50"
                       >
                         {ASSIGNABLE_ROLES.map((r) => (
                           <option key={r.value} value={r.value}>{r.label}</option>
@@ -235,19 +331,19 @@ export default function TeamPage() {
                             removeMut.mutate(m.id);
                         }}
                         disabled={removeMut.isPending}
-                        className="p-1.5 text-gray-300 hover:text-red-500 hover:bg-red-50 rounded-lg transition disabled:opacity-50"
+                        className="p-1.5 text-gray-300 hover:text-red-500 hover:bg-red-50 rounded-lg transition disabled:opacity-50 shrink-0"
                         title="Retirer de la compagnie"
                       >
                         <Trash2 size={14} />
                       </button>
                     </div>
                   )}
-                </li>
+                </div>
               );
             })}
-          </ul>
-        )}
-      </div>
+          </div>
+        )
+      )}
 
       {/* Invite modal */}
       {showInvite && (
