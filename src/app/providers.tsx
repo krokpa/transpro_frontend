@@ -60,21 +60,27 @@ const queryClient = new QueryClient({
   },
 });
 
-const GOOGLE_CLIENT_ID = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID ?? '';
+const GOOGLE_CLIENT_ID = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID;
 
 export default function Providers({ children }: { children: React.ReactNode }) {
+  const inner = (
+    <QueryClientProvider client={queryClient}>
+      <AppLoader>
+        {children}
+      </AppLoader>
+      <Toaster position="top-right" richColors />
+      <ConfirmDialog />
+      <ThemeInit />
+      <ThemePanel />
+      <ReactQueryDevtools initialIsOpen={false} />
+    </QueryClientProvider>
+  );
+
+  if (!GOOGLE_CLIENT_ID) return inner;
+
   return (
     <GoogleOAuthProvider clientId={GOOGLE_CLIENT_ID}>
-      <QueryClientProvider client={queryClient}>
-        <AppLoader>
-          {children}
-        </AppLoader>
-        <Toaster position="top-right" richColors />
-        <ConfirmDialog />
-        <ThemeInit />
-        <ThemePanel />
-        <ReactQueryDevtools initialIsOpen={false} />
-      </QueryClientProvider>
+      {inner}
     </GoogleOAuthProvider>
   );
 }
