@@ -344,7 +344,7 @@ export default function SettingsPage() {
   const currentStatus: TenantStatus = tenantData?.status ?? TenantStatus.TRIAL;
 
   return (
-    <div className="space-y-6 max-w-3xl">
+    <div className="space-y-6">
       <h1 className="text-2xl font-bold text-gray-900">Paramètres</h1>
 
       <div className="flex gap-1 bg-gray-100 p-1 rounded-xl w-fit">
@@ -365,253 +365,265 @@ export default function SettingsPage() {
       </div>
 
       {activeTab === 'company' && (
-        <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-6 space-y-6">
-          <h2 className="text-lg font-semibold text-gray-900">Profil de la compagnie</h2>
+        <div className="grid grid-cols-2 gap-5 items-start">
+          {/* Left — company info form */}
+          <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-6 space-y-6">
+            <h2 className="text-lg font-semibold text-gray-900">Profil de la compagnie</h2>
 
-          {tenantLoading ? (
-            <div className="space-y-3">
-              {Array.from({ length: 4 }).map((_, i) => (
-                <div key={i} className="h-10 bg-gray-100 rounded-lg animate-pulse" />
-              ))}
-            </div>
-          ) : (
-            <>
-              <div className="flex flex-wrap gap-3">
-                <div className="flex items-center gap-2">
-                  <span className="text-sm text-gray-500">Plan:</span>
-                  <span className={`text-xs px-2 py-1 rounded-full font-semibold ${planConfig[currentPlan].color}`}>
-                    {planConfig[currentPlan].label}
-                  </span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <span className="text-sm text-gray-500">Statut:</span>
-                  <span className={`text-xs px-2 py-1 rounded-full font-medium ${tenantStatusConfig[currentStatus].className}`}>
-                    {tenantStatusConfig[currentStatus].label}
-                  </span>
-                </div>
-                {tenantData?.trialEndsAt && currentStatus === TenantStatus.TRIAL && (
+            {tenantLoading ? (
+              <div className="space-y-3">
+                {Array.from({ length: 4 }).map((_, i) => (
+                  <div key={i} className="h-10 bg-gray-100 rounded-lg animate-pulse" />
+                ))}
+              </div>
+            ) : (
+              <>
+                <div className="flex flex-wrap gap-3">
                   <div className="flex items-center gap-2">
-                    <span className="text-sm text-gray-500">Fin d&apos;essai:</span>
-                    <span className="text-sm font-medium text-gray-700">
-                      {dayjs(tenantData.trialEndsAt).format('DD/MM/YYYY')}
+                    <span className="text-sm text-gray-500">Plan:</span>
+                    <span className={`text-xs px-2 py-1 rounded-full font-semibold ${planConfig[currentPlan].color}`}>
+                      {planConfig[currentPlan].label}
                     </span>
                   </div>
-                )}
-              </div>
-
-              <form onSubmit={handleCompanySubmit} className="space-y-4">
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Logo</label>
-                  <div className="flex items-center gap-4">
-                    <div className="w-16 h-16 rounded-xl border-2 border-dashed border-gray-200 flex items-center justify-center overflow-hidden bg-gray-50 shrink-0">
-                      {companyForm.logo ? (
-                        <img src={companyForm.logo} alt="logo" className="w-full h-full object-contain p-1" />
-                      ) : (
-                        <span className="text-gray-300 text-xs text-center leading-tight">Aucun logo</span>
-                      )}
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm text-gray-500">Statut:</span>
+                    <span className={`text-xs px-2 py-1 rounded-full font-medium ${tenantStatusConfig[currentStatus].className}`}>
+                      {tenantStatusConfig[currentStatus].label}
+                    </span>
+                  </div>
+                  {tenantData?.trialEndsAt && currentStatus === TenantStatus.TRIAL && (
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm text-gray-500">Fin d&apos;essai:</span>
+                      <span className="text-sm font-medium text-gray-700">
+                        {dayjs(tenantData.trialEndsAt).format('DD/MM/YYYY')}
+                      </span>
                     </div>
-                    <div className="flex flex-col gap-2">
-                      <label className="cursor-pointer inline-flex items-center gap-2 px-3 py-2 border border-gray-200 rounded-lg text-sm text-gray-700 hover:bg-gray-50 transition">
-                        <Upload size={14} />
-                        Importer un fichier
-                        <input type="file" accept="image/*" className="hidden" onChange={handleLogoFile} />
+                  )}
+                </div>
+
+                <form onSubmit={handleCompanySubmit} className="space-y-4">
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Logo</label>
+                    <div className="flex items-center gap-4">
+                      <div className="w-16 h-16 rounded-xl border-2 border-dashed border-gray-200 flex items-center justify-center overflow-hidden bg-gray-50 shrink-0">
+                        {companyForm.logo ? (
+                          <img src={companyForm.logo} alt="logo" className="w-full h-full object-contain p-1" />
+                        ) : (
+                          <span className="text-gray-300 text-xs text-center leading-tight">Aucun logo</span>
+                        )}
+                      </div>
+                      <div className="flex flex-col gap-2">
+                        <label className="cursor-pointer inline-flex items-center gap-2 px-3 py-2 border border-gray-200 rounded-lg text-sm text-gray-700 hover:bg-gray-50 transition">
+                          <Upload size={14} />
+                          Importer un fichier
+                          <input type="file" accept="image/*" className="hidden" onChange={handleLogoFile} />
+                        </label>
+                        {companyForm.logo && (
+                          <button
+                            type="button"
+                            onClick={() => setCompanyForm((p) => ({ ...p, logo: null }))}
+                            className="inline-flex items-center gap-1.5 text-xs text-red-500 hover:text-red-600"
+                          >
+                            <X size={12} /> Supprimer le logo
+                          </button>
+                        )}
+                        <p className="text-xs text-gray-400">PNG, JPG, SVG · max 500 Ko</p>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Nom de la compagnie
                       </label>
-                      {companyForm.logo && (
-                        <button
-                          type="button"
-                          onClick={() => setCompanyForm((p) => ({ ...p, logo: null }))}
-                          className="inline-flex items-center gap-1.5 text-xs text-red-500 hover:text-red-600"
-                        >
-                          <X size={12} /> Supprimer le logo
-                        </button>
-                      )}
-                      <p className="text-xs text-gray-400">PNG, JPG, SVG · max 500 Ko</p>
+                      <input
+                        type="text"
+                        value={companyForm.name}
+                        onChange={(e) => setCompanyForm((p) => ({ ...p, name: e.target.value }))}
+                        className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Sigle <span className="text-gray-400 font-normal">(abréviation)</span>
+                      </label>
+                      <input
+                        type="text"
+                        value={companyForm.sigle}
+                        onChange={(e) => setCompanyForm((p) => ({ ...p, sigle: e.target.value.toUpperCase().slice(0, 10) }))}
+                        placeholder="ex. STI, CTB, STA"
+                        maxLength={10}
+                        className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500 uppercase placeholder:normal-case"
+                      />
+                      <p className="text-xs text-gray-400 mt-0.5">Affiché dans la barre latérale si le nom est long</p>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Email
+                      </label>
+                      <input
+                        type="email"
+                        value={tenantData?.email ?? ''}
+                        readOnly
+                        className="w-full border border-gray-100 rounded-lg px-3 py-2 text-sm bg-gray-50 text-gray-500 cursor-not-allowed"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Téléphone
+                      </label>
+                      <PhoneInput
+                        value={companyForm.phone}
+                        onChange={(v) => setCompanyForm((p) => ({ ...p, phone: v }))}
+                      />
+                    </div>
+                    <div className="col-span-2">
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Adresse
+                      </label>
+                      <input
+                        type="text"
+                        value={companyForm.address}
+                        onChange={(e) => setCompanyForm((p) => ({ ...p, address: e.target.value }))}
+                        className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Ville</label>
+                      <SearchableSelect
+                        options={cityOptions}
+                        value={companyForm.cityId}
+                        onChange={(v) => setCompanyForm((p) => ({ ...p, cityId: v }))}
+                        placeholder="Choisir une ville..."
+                        clearable
+                      />
                     </div>
                   </div>
-                </div>
 
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Nom de la compagnie
-                    </label>
-                    <input
-                      type="text"
-                      value={companyForm.name}
-                      onChange={(e) => setCompanyForm((p) => ({ ...p, name: e.target.value }))}
-                      className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
-                    />
+                  <div className="flex justify-end">
+                    <button
+                      type="submit"
+                      disabled={updateTenantMutation.isPending}
+                      className="bg-brand-500 hover:bg-brand-600 text-white px-5 py-2 rounded-lg text-sm font-medium flex items-center gap-2 transition disabled:opacity-60"
+                    >
+                      {updateTenantMutation.isPending && <Loader2 size={14} className="animate-spin" />}
+                      Enregistrer
+                    </button>
                   </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Sigle <span className="text-gray-400 font-normal">(abréviation)</span>
-                    </label>
-                    <input
-                      type="text"
-                      value={companyForm.sigle}
-                      onChange={(e) => setCompanyForm((p) => ({ ...p, sigle: e.target.value.toUpperCase().slice(0, 10) }))}
-                      placeholder="ex. STI, CTB, STA"
-                      maxLength={10}
-                      className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500 uppercase placeholder:normal-case"
-                    />
-                    <p className="text-xs text-gray-400 mt-0.5">Affiché dans la barre latérale si le nom est long</p>
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Email
-                    </label>
-                    <input
-                      type="email"
-                      value={tenantData?.email ?? ''}
-                      readOnly
-                      className="w-full border border-gray-100 rounded-lg px-3 py-2 text-sm bg-gray-50 text-gray-500 cursor-not-allowed"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Téléphone
-                    </label>
-                    <PhoneInput
-                      value={companyForm.phone}
-                      onChange={(v) => setCompanyForm((p) => ({ ...p, phone: v }))}
-                    />
-                  </div>
-                  <div className="col-span-2">
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Adresse
-                    </label>
-                    <input
-                      type="text"
-                      value={companyForm.address}
-                      onChange={(e) => setCompanyForm((p) => ({ ...p, address: e.target.value }))}
-                      className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Ville</label>
-                    <SearchableSelect
-                      options={cityOptions}
-                      value={companyForm.cityId}
-                      onChange={(v) => setCompanyForm((p) => ({ ...p, cityId: v }))}
-                      placeholder="Choisir une ville..."
-                      clearable
-                    />
-                  </div>
-                </div>
+                </form>
+              </>
+            )}
+          </div>
 
-                {/* GPS Map Picker */}
-                <div>
-                  <div className="flex items-center justify-between mb-1">
-                    <label className="block text-sm font-medium text-gray-700">
-                      Position GPS du siège <span className="text-gray-400 font-normal">(optionnel)</span>
-                    </label>
-                    {(companyForm.latitude != null || companyForm.longitude != null) && (
-                      <button
-                        type="button"
-                        onClick={() => setCompanyForm((p) => ({ ...p, latitude: null, longitude: null }))}
-                        className="text-xs text-red-400 hover:text-red-600 transition"
-                      >
-                        Effacer
-                      </button>
-                    )}
-                  </div>
-                  <Suspense fallback={<div className="h-64 rounded-xl border border-gray-200 bg-gray-50 flex items-center justify-center text-sm text-gray-400">Chargement de la carte...</div>}>
-                    <MapPicker
-                      lat={companyForm.latitude}
-                      lng={companyForm.longitude}
-                      onChange={(lat, lng) => setCompanyForm((p) => ({ ...p, latitude: lat, longitude: lng }))}
-                    />
-                  </Suspense>
-                </div>
-
-                <div className="flex justify-end">
-                  <button
-                    type="submit"
-                    disabled={updateTenantMutation.isPending}
-                    className="bg-brand-500 hover:bg-brand-600 text-white px-5 py-2 rounded-lg text-sm font-medium flex items-center gap-2 transition disabled:opacity-60"
-                  >
-                    {updateTenantMutation.isPending && <Loader2 size={14} className="animate-spin" />}
-                    Enregistrer
-                  </button>
-                </div>
-              </form>
-            </>
-          )}
+          {/* Right — GPS map */}
+          <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-6 space-y-3">
+            <div className="flex items-center justify-between">
+              <div>
+                <h2 className="text-lg font-semibold text-gray-900">Position GPS</h2>
+                <p className="text-sm text-gray-400 mt-0.5">Siège de la compagnie <span className="text-gray-300">(optionnel)</span></p>
+              </div>
+              {(companyForm.latitude != null || companyForm.longitude != null) && (
+                <button
+                  type="button"
+                  onClick={() => setCompanyForm((p) => ({ ...p, latitude: null, longitude: null }))}
+                  className="text-xs text-red-400 hover:text-red-600 transition"
+                >
+                  Effacer
+                </button>
+              )}
+            </div>
+            <Suspense fallback={<div className="h-96 rounded-xl border border-gray-200 bg-gray-50 flex items-center justify-center text-sm text-gray-400">Chargement de la carte...</div>}>
+              <MapPicker
+                lat={companyForm.latitude}
+                lng={companyForm.longitude}
+                onChange={(lat, lng) => setCompanyForm((p) => ({ ...p, latitude: lat, longitude: lng }))}
+              />
+            </Suspense>
+            {companyForm.latitude != null && companyForm.longitude != null && (
+              <p className="text-xs text-gray-400 text-center font-mono">
+                {companyForm.latitude.toFixed(6)}, {companyForm.longitude.toFixed(6)}
+              </p>
+            )}
+          </div>
         </div>
       )}
 
       {activeTab === 'profile' && (
-        <div className="space-y-5">
-          {/* Avatar */}
-          <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-6">
-            <h2 className="text-lg font-semibold text-gray-900 mb-4">Photo de profil</h2>
-            <div className="flex items-center gap-5">
-              <input ref={avatarFileRef} type="file" accept="image/*" className="hidden" onChange={handleAvatarFile} />
-              <div
-                className="relative group cursor-pointer"
-                onClick={() => avatarFileRef.current?.click()}
-              >
-                <UserAvatar
-                  firstName={user?.firstName}
-                  lastName={user?.lastName}
-                  avatar={(user as any)?.avatar}
-                  size={72}
-                  className="!rounded-xl shadow"
-                />
-                <div className="absolute inset-0 bg-black/40 rounded-xl flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                  {avatarMut.isPending
-                    ? <Loader2 size={18} className="text-white animate-spin" />
-                    : <Camera size={18} className="text-white" />}
-                </div>
-              </div>
-              <div>
-                <p className="text-sm font-medium text-gray-700">{user?.firstName} {user?.lastName}</p>
-                <p className="text-xs text-gray-400 mt-0.5 mb-2">{user?.email}</p>
-                <button
-                  type="button"
+        <div className="grid grid-cols-2 gap-5 items-start">
+          {/* Left — avatar + personal info */}
+          <div className="space-y-5">
+            <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-6">
+              <h2 className="text-lg font-semibold text-gray-900 mb-4">Photo de profil</h2>
+              <div className="flex items-center gap-5">
+                <input ref={avatarFileRef} type="file" accept="image/*" className="hidden" onChange={handleAvatarFile} />
+                <div
+                  className="relative group cursor-pointer"
                   onClick={() => avatarFileRef.current?.click()}
-                  className="text-xs text-brand-600 hover:text-brand-700 font-medium flex items-center gap-1 transition"
                 >
-                  <Camera size={12} /> Modifier la photo
-                </button>
+                  <UserAvatar
+                    firstName={user?.firstName}
+                    lastName={user?.lastName}
+                    avatar={(user as any)?.avatar}
+                    size={72}
+                    className="!rounded-xl shadow"
+                  />
+                  <div className="absolute inset-0 bg-black/40 rounded-xl flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                    {avatarMut.isPending
+                      ? <Loader2 size={18} className="text-white animate-spin" />
+                      : <Camera size={18} className="text-white" />}
+                  </div>
+                </div>
+                <div>
+                  <p className="text-sm font-medium text-gray-700">{user?.firstName} {user?.lastName}</p>
+                  <p className="text-xs text-gray-400 mt-0.5 mb-2">{user?.email}</p>
+                  <button
+                    type="button"
+                    onClick={() => avatarFileRef.current?.click()}
+                    className="text-xs text-brand-600 hover:text-brand-700 font-medium flex items-center gap-1 transition"
+                  >
+                    <Camera size={12} /> Modifier la photo
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-6">
+              <h2 className="text-lg font-semibold text-gray-900 mb-4">Informations personnelles</h2>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Prénom</label>
+                  <div className="border border-gray-100 rounded-lg px-3 py-2 text-sm bg-gray-50 text-gray-700">
+                    {user?.firstName ?? '—'}
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Nom</label>
+                  <div className="border border-gray-100 rounded-lg px-3 py-2 text-sm bg-gray-50 text-gray-700">
+                    {user?.lastName ?? '—'}
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
+                  <div className="border border-gray-100 rounded-lg px-3 py-2 text-sm bg-gray-50 text-gray-700">
+                    {user?.email ?? '—'}
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Téléphone</label>
+                  <div className="border border-gray-100 rounded-lg px-3 py-2 text-sm bg-gray-50 text-gray-700">
+                    {(user as any)?.phone ?? '—'}
+                  </div>
+                </div>
               </div>
             </div>
           </div>
 
-          <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-6">
-            <h2 className="text-lg font-semibold text-gray-900 mb-4">Informations personnelles</h2>
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Prénom</label>
-                <div className="border border-gray-100 rounded-lg px-3 py-2 text-sm bg-gray-50 text-gray-700">
-                  {user?.firstName ?? '—'}
-                </div>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Nom</label>
-                <div className="border border-gray-100 rounded-lg px-3 py-2 text-sm bg-gray-50 text-gray-700">
-                  {user?.lastName ?? '—'}
-                </div>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
-                <div className="border border-gray-100 rounded-lg px-3 py-2 text-sm bg-gray-50 text-gray-700">
-                  {user?.email ?? '—'}
-                </div>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Téléphone</label>
-                <div className="border border-gray-100 rounded-lg px-3 py-2 text-sm bg-gray-50 text-gray-700">
-                  {(user as any)?.phone ?? '—'}
-                </div>
-              </div>
-            </div>
-          </div>
-
+          {/* Right — password */}
           <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-6">
             <h2 className="text-lg font-semibold text-gray-900 mb-4">Changer le mot de passe</h2>
-            <form onSubmit={handlePasswordSubmit} className="space-y-4 max-w-sm">
+            <form onSubmit={handlePasswordSubmit} className="space-y-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   Mot de passe actuel
@@ -992,7 +1004,7 @@ export default function SettingsPage() {
 
             <div className="space-y-2">
               <label className="block text-sm font-medium text-gray-700">Position du logo</label>
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+              <div className="grid grid-cols-4 gap-3">
                 {([
                   { value: 'none',      label: 'Aucun',       desc: 'Pas de logo' },
                   { value: 'header',    label: 'En-tête',     desc: 'Logo dans l\'en-tête' },
@@ -1101,38 +1113,40 @@ export default function SettingsPage() {
             )}
           </div>
 
-          {/* Permissions par catégorie */}
-          {Object.entries(permsByCategory).map(([category, perms]) => (
-            <div key={category} className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
-              <div className="px-5 py-3 border-b border-gray-50 bg-gray-50/50">
-                <h3 className="text-sm font-semibold text-gray-700">{category}</h3>
-              </div>
-              <div className="divide-y divide-gray-50">
-                {perms.map((p) => {
-                  const has = userPerms.includes(p.code);
-                  return (
-                    <div key={p.code} className={`flex items-center justify-between px-5 py-3 ${!has ? 'opacity-40' : ''}`}>
-                      <div className="flex items-center gap-3">
-                        {has
-                          ? <CheckCircle2 size={15} className="text-green-500 shrink-0" />
-                          : <XCircle size={15} className="text-gray-300 shrink-0" />
-                        }
-                        <div>
-                          <p className="text-sm text-gray-800">{p.label}</p>
-                          <p className="text-xs text-gray-400 font-mono">{p.code}</p>
+          {/* Permissions par catégorie — 2 colonnes */}
+          <div className="grid grid-cols-2 gap-5 items-start">
+            {Object.entries(permsByCategory).map(([category, perms]) => (
+              <div key={category} className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
+                <div className="px-5 py-3 border-b border-gray-50 bg-gray-50/50">
+                  <h3 className="text-sm font-semibold text-gray-700">{category}</h3>
+                </div>
+                <div className="divide-y divide-gray-50">
+                  {perms.map((p) => {
+                    const has = userPerms.includes(p.code);
+                    return (
+                      <div key={p.code} className={`flex items-center justify-between px-5 py-3 ${!has ? 'opacity-40' : ''}`}>
+                        <div className="flex items-center gap-3">
+                          {has
+                            ? <CheckCircle2 size={15} className="text-green-500 shrink-0" />
+                            : <XCircle size={15} className="text-gray-300 shrink-0" />
+                          }
+                          <div>
+                            <p className="text-sm text-gray-800">{p.label}</p>
+                            <p className="text-xs text-gray-400 font-mono">{p.code}</p>
+                          </div>
                         </div>
+                        <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${
+                          has ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-400'
+                        }`}>
+                          {has ? 'Autorisé' : 'Refusé'}
+                        </span>
                       </div>
-                      <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${
-                        has ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-400'
-                      }`}>
-                        {has ? 'Autorisé' : 'Refusé'}
-                      </span>
-                    </div>
-                  );
-                })}
+                    );
+                  })}
+                </div>
               </div>
-            </div>
-          ))}
+            ))}
+          </div>
         </div>
       )}
     </div>
