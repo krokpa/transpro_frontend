@@ -223,7 +223,7 @@ export default function SubscriptionPage() {
   }
 
   return (
-    <div className="space-y-6 max-w-4xl">
+    <div className="space-y-5">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold text-gray-900">Abonnement</h1>
         <span className="text-sm text-gray-400">Membre depuis {dayjs(tenant?.createdAt).format('MMMM YYYY')}</span>
@@ -231,135 +231,140 @@ export default function SubscriptionPage() {
 
       <StatusBanner tenant={tenant} />
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-        {/* Plan actuel */}
-        <div className="bg-white rounded-2xl border border-gray-100 p-6 space-y-4">
-          <div className="flex items-center justify-between">
-            <h2 className="font-semibold text-gray-900">Plan actuel</h2>
-            <span className={`text-xs px-2.5 py-1 rounded-full font-semibold ${PLAN_UI[plan].color}`}>{planCfg.label}</span>
+      {/* ── Corps principal : 3 colonnes ──────────────────────────────────── */}
+      <div className="grid grid-cols-3 gap-5 items-start">
+
+        {/* Colonne gauche : plan actuel + utilisation */}
+        <div className="space-y-5">
+
+          {/* Plan actuel */}
+          <div className="bg-white rounded-2xl border border-gray-100 p-6 space-y-4">
+            <div className="flex items-center justify-between">
+              <h2 className="font-semibold text-gray-900">Plan actuel</h2>
+              <span className={`text-xs px-2.5 py-1 rounded-full font-semibold ${PLAN_UI[plan].color}`}>{planCfg.label}</span>
+            </div>
+            <div>
+              <p className="text-3xl font-bold text-gray-900">
+                {formatCFA(planCfg.priceMonthly)}
+                <span className="text-base font-normal text-gray-400">/mois</span>
+              </p>
+              <p className="text-sm text-gray-500 mt-1">{planCfg.description}</p>
+            </div>
+            <ul className="space-y-1.5">
+              {FEATURES_TABLE.map((f) => {
+                const included = features[f.key];
+                return (
+                  <li key={f.key} className={`flex items-center gap-2 text-sm ${included ? 'text-gray-700' : 'text-gray-300'}`}>
+                    {included
+                      ? <CheckCircle size={14} className="text-green-500 shrink-0" />
+                      : <XCircle size={14} className="text-gray-200 shrink-0" />
+                    }
+                    {f.label}
+                  </li>
+                );
+              })}
+            </ul>
           </div>
-          <div>
-            <p className="text-3xl font-bold text-gray-900">
-              {formatCFA(planCfg.priceMonthly)}
-              <span className="text-base font-normal text-gray-400">/mois</span>
+
+          {/* Utilisation */}
+          <div className="bg-white rounded-2xl border border-gray-100 p-6 space-y-4">
+            <h2 className="font-semibold text-gray-900">Utilisation</h2>
+            <UsageMeter label="Utilisateurs staff" icon={Users}     used={usage.users    ?? 0} max={limits.maxUsers} />
+            <UsageMeter label="Gares"               icon={Building2} used={usage.stations  ?? 0} max={limits.maxStations} />
+            <UsageMeter label="Véhicules"           icon={Truck}     used={usage.vehicles  ?? 0} max={limits.maxVehicles} />
+            <UsageMeter label="Chauffeurs"          icon={UserCheck} used={usage.drivers   ?? 0} max={limits.maxDrivers} />
+            <UsageMeter label="Itinéraires"         icon={Route}     used={usage.routes    ?? 0} max={limits.maxRoutes} />
+            <p className="text-xs text-gray-400 pt-1 border-t border-gray-50">
+              Passez au plan supérieur pour augmenter les limites.
             </p>
-            <p className="text-sm text-gray-500 mt-1">{planCfg.description}</p>
           </div>
-          {/* Features incluses */}
-          <ul className="space-y-1.5">
-            {FEATURES_TABLE.map((f) => {
-              const included = features[f.key];
-              return (
-                <li key={f.key} className={`flex items-center gap-2 text-sm ${included ? 'text-gray-700' : 'text-gray-300'}`}>
-                  {included
-                    ? <CheckCircle size={14} className="text-green-500 shrink-0" />
-                    : <XCircle size={14} className="text-gray-200 shrink-0" />
-                  }
-                  {f.label}
-                </li>
-              );
-            })}
-          </ul>
+
         </div>
 
-        {/* Utilisation */}
-        <div className="bg-white rounded-2xl border border-gray-100 p-6 space-y-4">
-          <h2 className="font-semibold text-gray-900">Utilisation des ressources</h2>
-          <UsageMeter label="Utilisateurs staff" icon={Users}    used={usage.users    ?? 0} max={limits.maxUsers} />
-          <UsageMeter label="Gares"               icon={Building2} used={usage.stations  ?? 0} max={limits.maxStations} />
-          <UsageMeter label="Véhicules"           icon={Truck}   used={usage.vehicles  ?? 0} max={limits.maxVehicles} />
-          <UsageMeter label="Chauffeurs"          icon={UserCheck} used={usage.drivers   ?? 0} max={limits.maxDrivers} />
-          <UsageMeter label="Itinéraires"         icon={Route}   used={usage.routes    ?? 0} max={limits.maxRoutes} />
-          <p className="text-xs text-gray-400 pt-1 border-t border-gray-50">
-            Les limites s'appliquent selon votre plan. Passez au plan supérieur pour les augmenter.
-          </p>
-        </div>
-      </div>
-
-      {/* Comparatif plans */}
-      <div className="bg-white rounded-2xl border border-gray-100 p-6 space-y-5">
-        <div>
-          <h2 className="font-semibold text-gray-900">Comparer les plans</h2>
-          <p className="text-sm text-gray-500 mt-0.5">Contactez notre équipe commerciale pour modifier votre abonnement.</p>
-        </div>
-
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-          {PLAN_ORDER.map((p) => {
-            const cfg = PLAN_PRICING[p];
-            const lim = PLAN_LIMITS[p];
-            const feat = PLAN_FEATURES[p];
-            const ui = PLAN_UI[p];
-            const isCurrent = p === plan;
-            const isUpgrade = PLAN_ORDER.indexOf(p) > PLAN_ORDER.indexOf(plan);
-
-            return (
-              <div key={p} className={`rounded-xl border-2 p-5 flex flex-col gap-3 ${isCurrent ? `${ui.ring} bg-brand-50/50` : 'border-gray-100'}`}>
-                <div>
-                  <div className="flex items-center justify-between mb-1">
-                    <span className="font-semibold text-gray-900">{cfg.label}</span>
-                    {isCurrent && <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${ui.badge}`}>Actuel</span>}
-                  </div>
-                  <p className="text-xl font-bold text-gray-900">
-                    {formatCFA(cfg.priceMonthly)}<span className="text-xs font-normal text-gray-400">/mois</span>
-                  </p>
-                  <p className="text-xs text-gray-400 mt-1">{cfg.description}</p>
-                </div>
-
-                {/* Limites */}
-                <div className="space-y-0.5 text-xs text-gray-500">
-                  <p>{lim.maxUsers >= 999 ? 'Utilisateurs illimités' : `Jusqu'à ${lim.maxUsers} utilisateurs`}</p>
-                  <p>{lim.maxStations >= 999 ? 'Gares illimitées' : `Jusqu'à ${lim.maxStations} gare${lim.maxStations > 1 ? 's' : ''}`}</p>
-                  <p>{lim.maxVehicles >= 999 ? 'Véhicules illimités' : `Jusqu'à ${lim.maxVehicles} véhicules`}</p>
-                </div>
-
-                {/* Features */}
-                <ul className="space-y-1 flex-1">
-                  {FEATURES_TABLE.filter((f) => feat[f.key]).map((f) => (
-                    <li key={f.key} className="flex items-start gap-1.5 text-xs text-gray-600">
-                      <CheckCircle size={11} className="text-green-500 shrink-0 mt-0.5" />
-                      {f.label}
-                    </li>
-                  ))}
-                </ul>
-
-                {!isCurrent && (
-                  isUpgrade ? (
-                    <button
-                      onClick={() => handleSubscribe(p)}
-                      disabled={subscribeMut.isPending}
-                      className="w-full flex items-center justify-center gap-2 py-2 rounded-lg text-sm font-semibold bg-brand-500 hover:bg-brand-600 text-white transition disabled:opacity-50"
-                    >
-                      {subscribeMut.isPending && subscribingPlan === p
-                        ? <Loader2 size={14} className="animate-spin" />
-                        : <ExternalLink size={14} />
-                      }
-                      {`Passer à ${cfg.label}`}
-                    </button>
-                  ) : (
-                    <a
-                      href={`mailto:commercial@transpro.ci?subject=Demande de passage au plan ${cfg.label}`}
-                      className="w-full text-center py-2 rounded-lg text-sm font-semibold border border-gray-200 text-gray-600 hover:bg-gray-50 transition"
-                    >
-                      Rétrograder (contacter)
-                    </a>
-                  )
-                )}
-              </div>
-            );
-          })}
-        </div>
-
-        <div className="flex flex-wrap items-center gap-4 pt-3 border-t border-gray-100">
-          <p className="text-xs text-gray-400 flex-1">Toute modification est effective au prochain cycle de facturation.</p>
-          <div className="flex items-center gap-4 text-sm">
-            <a href="mailto:commercial@transpro.ci" className="flex items-center gap-1.5 text-brand-600 hover:text-brand-700 font-medium">
+        {/* Colonnes centrale + droite : comparatif plans (col-span-2) */}
+        <div className="col-span-2 bg-white rounded-2xl border border-gray-100 p-6 space-y-5">
+          <div className="flex items-start justify-between gap-4">
+            <div>
+              <h2 className="font-semibold text-gray-900">Comparer les plans</h2>
+              <p className="text-sm text-gray-500 mt-0.5">Contactez notre équipe commerciale pour modifier votre abonnement.</p>
+            </div>
+            <a href="mailto:commercial@transpro.ci" className="shrink-0 flex items-center gap-1.5 text-brand-600 hover:text-brand-700 font-medium text-sm">
               <Mail size={14} /> commercial@transpro.ci
             </a>
           </div>
+
+          <div className="grid grid-cols-3 gap-4">
+            {PLAN_ORDER.map((p) => {
+              const cfg = PLAN_PRICING[p];
+              const lim = PLAN_LIMITS[p];
+              const feat = PLAN_FEATURES[p];
+              const ui = PLAN_UI[p];
+              const isCurrent = p === plan;
+              const isUpgrade = PLAN_ORDER.indexOf(p) > PLAN_ORDER.indexOf(plan);
+
+              return (
+                <div key={p} className={`rounded-xl border-2 p-5 flex flex-col gap-3 ${isCurrent ? `${ui.ring} bg-brand-50/50` : 'border-gray-100'}`}>
+                  <div>
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="font-semibold text-gray-900">{cfg.label}</span>
+                      {isCurrent && <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${ui.badge}`}>Actuel</span>}
+                    </div>
+                    <p className="text-xl font-bold text-gray-900">
+                      {formatCFA(cfg.priceMonthly)}<span className="text-xs font-normal text-gray-400">/mois</span>
+                    </p>
+                    <p className="text-xs text-gray-400 mt-1">{cfg.description}</p>
+                  </div>
+
+                  <div className="space-y-0.5 text-xs text-gray-500">
+                    <p>{lim.maxUsers >= 999 ? 'Utilisateurs illimités' : `Jusqu'à ${lim.maxUsers} utilisateurs`}</p>
+                    <p>{lim.maxStations >= 999 ? 'Gares illimitées' : `Jusqu'à ${lim.maxStations} gare${lim.maxStations > 1 ? 's' : ''}`}</p>
+                    <p>{lim.maxVehicles >= 999 ? 'Véhicules illimités' : `Jusqu'à ${lim.maxVehicles} véhicules`}</p>
+                  </div>
+
+                  <ul className="space-y-1 flex-1">
+                    {FEATURES_TABLE.filter((f) => feat[f.key]).map((f) => (
+                      <li key={f.key} className="flex items-start gap-1.5 text-xs text-gray-600">
+                        <CheckCircle size={11} className="text-green-500 shrink-0 mt-0.5" />
+                        {f.label}
+                      </li>
+                    ))}
+                  </ul>
+
+                  {!isCurrent && (
+                    isUpgrade ? (
+                      <button
+                        onClick={() => handleSubscribe(p)}
+                        disabled={subscribeMut.isPending}
+                        className="w-full flex items-center justify-center gap-2 py-2 rounded-lg text-sm font-semibold bg-brand-500 hover:bg-brand-600 text-white transition disabled:opacity-50"
+                      >
+                        {subscribeMut.isPending && subscribingPlan === p
+                          ? <Loader2 size={14} className="animate-spin" />
+                          : <ExternalLink size={14} />
+                        }
+                        {`Passer à ${cfg.label}`}
+                      </button>
+                    ) : (
+                      <a
+                        href={`mailto:commercial@transpro.ci?subject=Demande de passage au plan ${cfg.label}`}
+                        className="w-full text-center py-2 rounded-lg text-sm font-semibold border border-gray-200 text-gray-600 hover:bg-gray-50 transition"
+                      >
+                        Rétrograder (contacter)
+                      </a>
+                    )
+                  )}
+                </div>
+              );
+            })}
+          </div>
+
+          <p className="text-xs text-gray-400 pt-3 border-t border-gray-100">
+            Toute modification est effective au prochain cycle de facturation.
+          </p>
         </div>
+
       </div>
 
-      {/* Historique */}
+      {/* ── Historique ────────────────────────────────────────────────────── */}
       {history.length > 0 && (
         <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden">
           <div className="px-6 py-4 border-b border-gray-50">
