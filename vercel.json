@@ -1,5 +1,5 @@
 {
   "framework": "nextjs",
-  "installCommand": "echo 'Dependencies pre-installed by CI'",
-  "buildCommand": "pnpm run build"
+  "installCommand": "echo skip",
+  "buildCommand": "true"
 }
