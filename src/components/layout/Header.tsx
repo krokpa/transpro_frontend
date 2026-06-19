@@ -31,6 +31,7 @@ const PAGE_TITLES: Record<string, string> = {
   '/dashboard/stations':          'Gares',
   '/dashboard/subscription':      'Abonnement',
   '/dashboard/statements':        'Relevés & Reversements',
+  '/dashboard/campaigns':         'Campagnes de notifications',
   '/dashboard/delivery-requests': 'Livraisons à domicile',
   '/dashboard/luggage':           'Bagages passagers',
   '/dashboard/cities':            'Villes',
