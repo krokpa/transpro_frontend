@@ -2,10 +2,10 @@
 
 import { useState, useEffect, useRef, lazy, Suspense } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { tenantsApi, api, usersApi, authApi, citiesApi, twoFactorApi } from '@/lib/api';
+import { tenantsApi, api, usersApi, authApi, citiesApi, twoFactorApi, adminApi } from '@/lib/api';
 import { useAuthStore } from '@/store/auth.store';
 import { TenantPlan, TenantStatus, PERMISSION_DEFINITIONS } from '@transpro/shared';
-import { Building2, Camera, User, CreditCard, Loader2, Eye, EyeOff, Upload, X, ShieldCheck, CheckCircle2, XCircle, Shield, Lock, KeyRound, Copy, AlertTriangle, FileText } from 'lucide-react';
+import { Building2, Camera, User, CreditCard, Loader2, Eye, EyeOff, Upload, X, ShieldCheck, CheckCircle2, XCircle, Shield, Lock, KeyRound, Copy, AlertTriangle, FileText, LayoutDashboard, Users, Ticket, MapPin, TrendingUp, BadgePercent, Landmark, Clock } from 'lucide-react';
 import QRCode from 'qrcode';
 import { toast } from 'sonner';
 import { UserAvatar } from '@/components/ui/UserAvatar';
@@ -15,7 +15,7 @@ const MapPicker = lazy(() => import('@/components/ui/MapPicker'));
 import { SearchableSelect, SelectOption } from '@/components/ui/SearchableSelect';
 import { PhoneInput } from '@/components/ui/PhoneInput';
 
-type Tab = 'company' | 'profile' | 'subscription' | 'permissions' | 'security' | 'documents';
+type Tab = 'company' | 'profile' | 'subscription' | 'permissions' | 'security' | 'documents' | 'platform';
 
 type TwoFaModal =
   | { type: 'setup'; step: 'loading' | 'scan' | 'confirm' | 'backup'; qrDataUrl?: string; secret?: string; code?: string; backupCodes?: string[] }
@@ -94,7 +94,8 @@ const tenantStatusConfig: Record<TenantStatus, { label: string; className: strin
 export default function SettingsPage() {
   const qc = useQueryClient();
   const { user, setAuth, accessToken, refreshToken } = useAuthStore();
-  const [activeTab, setActiveTab] = useState<Tab>('company');
+  const isSuperAdmin = user?.role === 'SUPER_ADMIN';
+  const [activeTab, setActiveTab] = useState<Tab>(isSuperAdmin ? 'profile' : 'company');
   const avatarFileRef = useRef<HTMLInputElement>(null);
 
   const [companyForm, setCompanyForm] = useState({
@@ -322,14 +323,28 @@ export default function SettingsPage() {
     });
   }
 
-  const tabs: { key: Tab; label: string; icon: React.ReactNode }[] = [
-    { key: 'company',     label: 'Compagnie',   icon: <Building2 size={16} /> },
-    { key: 'profile',     label: 'Mon profil',  icon: <User size={16} /> },
-    { key: 'security',    label: 'Sécurité',    icon: <Shield size={16} /> },
-    { key: 'subscription',label: 'Abonnement',  icon: <CreditCard size={16} /> },
-    { key: 'permissions', label: 'Permissions', icon: <ShieldCheck size={16} /> },
-    { key: 'documents',   label: 'Documents',   icon: <FileText size={16} /> },
-  ];
+  const { data: platformStats } = useQuery({
+    queryKey: ['platform-stats'],
+    queryFn: () => adminApi.platformStats() as any,
+    enabled: isSuperAdmin,
+    staleTime: 60_000,
+  });
+  const ps = (platformStats as any)?.data ?? platformStats as any;
+
+  const tabs: { key: Tab; label: string; icon: React.ReactNode }[] = isSuperAdmin
+    ? [
+        { key: 'profile',  label: 'Mon profil', icon: <User size={16} /> },
+        { key: 'security', label: 'Sécurité',   icon: <Shield size={16} /> },
+        { key: 'platform', label: 'Plateforme', icon: <LayoutDashboard size={16} /> },
+      ]
+    : [
+        { key: 'company',      label: 'Compagnie',   icon: <Building2 size={16} /> },
+        { key: 'profile',      label: 'Mon profil',  icon: <User size={16} /> },
+        { key: 'security',     label: 'Sécurité',    icon: <Shield size={16} /> },
+        { key: 'subscription', label: 'Abonnement',  icon: <CreditCard size={16} /> },
+        { key: 'permissions',  label: 'Permissions', icon: <ShieldCheck size={16} /> },
+        { key: 'documents',    label: 'Documents',   icon: <FileText size={16} /> },
+      ];
 
   // Permissions extraites du JWT courant
   const jwtPayload  = decodeJwtPayload(accessToken);
@@ -364,7 +379,7 @@ export default function SettingsPage() {
         ))}
       </div>
 
-      {activeTab === 'company' && (
+      {activeTab === 'company' && !isSuperAdmin && (
         <div className="grid grid-cols-2 gap-5 items-start">
           {/* Left — company info form */}
           <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-6 space-y-6">
@@ -704,7 +719,7 @@ export default function SettingsPage() {
         </div>
       )}
 
-      {activeTab === 'subscription' && (
+      {activeTab === 'subscription' && !isSuperAdmin && (
         <div className="space-y-5">
           <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-6">
             <h2 className="text-lg font-semibold text-gray-900 mb-1">Votre abonnement</h2>
@@ -986,7 +1001,7 @@ export default function SettingsPage() {
         </div>
       )}
 
-      {activeTab === 'documents' && (
+      {activeTab === 'documents' && !isSuperAdmin && (
         <div className="space-y-5">
           <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-6 space-y-6">
             <div>
@@ -1084,7 +1099,164 @@ export default function SettingsPage() {
         </div>
       )}
 
-      {activeTab === 'permissions' && (
+      {activeTab === 'platform' && (
+        <div className="space-y-5">
+          {/* KPI row */}
+          <div className="grid grid-cols-4 gap-4">
+            {[
+              { label: 'Compagnies actives', value: ps?.tenants?.active ?? '—', icon: <Building2 size={20} />, color: 'text-brand-600 bg-brand-100' },
+              { label: 'Utilisateurs',       value: ps?.users?.total ?? '—',    icon: <Users size={20} />,    color: 'text-purple-600 bg-purple-100' },
+              { label: 'Réservations',       value: ps?.bookings?.confirmed ?? '—', icon: <Ticket size={20} />, color: 'text-green-600 bg-green-100' },
+              { label: 'Voyages',            value: ps?.trips?.total ?? '—',    icon: <MapPin size={20} />,   color: 'text-orange-600 bg-orange-100' },
+            ].map((kpi) => (
+              <div key={kpi.label} className="bg-white rounded-xl border border-gray-100 shadow-sm p-5 flex items-center gap-4">
+                <div className={`w-11 h-11 rounded-xl flex items-center justify-center shrink-0 ${kpi.color}`}>
+                  {kpi.icon}
+                </div>
+                <div>
+                  <p className="text-xs text-gray-500 font-medium">{kpi.label}</p>
+                  <p className="text-2xl font-bold text-gray-900 leading-tight">
+                    {typeof kpi.value === 'number' ? kpi.value.toLocaleString('fr-CI') : kpi.value}
+                  </p>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          <div className="grid grid-cols-2 gap-5 items-start">
+            {/* Left column */}
+            <div className="space-y-5">
+              {/* Revenus */}
+              <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-6 space-y-4">
+                <div className="flex items-center gap-3">
+                  <div className="w-9 h-9 rounded-xl bg-green-100 flex items-center justify-center">
+                    <TrendingUp size={16} className="text-green-600" />
+                  </div>
+                  <h2 className="text-base font-semibold text-gray-900">Revenus plateforme</h2>
+                </div>
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between py-2 border-b border-gray-50">
+                    <span className="text-sm text-gray-500">Volume brut total</span>
+                    <span className="text-sm font-semibold text-gray-900">
+                      {ps?.revenue?.total != null
+                        ? `${(ps.revenue.total as number).toLocaleString('fr-CI')} FCFA`
+                        : <span className="text-gray-300">—</span>}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between py-2 border-b border-gray-50">
+                    <span className="text-sm text-gray-500">Ce mois</span>
+                    <span className="text-sm font-semibold text-gray-900">
+                      {ps?.revenue?.thisMonth != null
+                        ? `${(ps.revenue.thisMonth as number).toLocaleString('fr-CI')} FCFA`
+                        : <span className="text-gray-300">—</span>}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between py-2">
+                    <span className="text-sm text-gray-500">Commission TransPro (4%)</span>
+                    <span className="text-sm font-semibold text-green-700">
+                      {ps?.revenue?.total != null
+                        ? `${Math.round((ps.revenue.total as number) * 0.04).toLocaleString('fr-CI')} FCFA`
+                        : <span className="text-gray-300">—</span>}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Statuts compagnies */}
+              <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-6 space-y-4">
+                <div className="flex items-center gap-3">
+                  <div className="w-9 h-9 rounded-xl bg-brand-100 flex items-center justify-center">
+                    <Landmark size={16} className="text-brand-600" />
+                  </div>
+                  <h2 className="text-base font-semibold text-gray-900">Compagnies</h2>
+                </div>
+                <div className="space-y-2">
+                  {[
+                    { label: 'Actives',           value: ps?.tenants?.active,       dot: 'bg-green-500'  },
+                    { label: "En période d'essai", value: ps?.tenants?.trial,        dot: 'bg-blue-400'   },
+                    { label: 'Suspendues',         value: ps?.tenants?.suspended,    dot: 'bg-red-400'    },
+                    { label: 'Nouvelles ce mois',  value: ps?.tenants?.newThisMonth, dot: 'bg-purple-400' },
+                  ].map((row) => (
+                    <div key={row.label} className="flex items-center justify-between py-1.5">
+                      <div className="flex items-center gap-2.5">
+                        <span className={`w-2 h-2 rounded-full shrink-0 ${row.dot}`} />
+                        <span className="text-sm text-gray-600">{row.label}</span>
+                      </div>
+                      <span className="text-sm font-semibold text-gray-900">{row.value ?? '—'}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            {/* Right column */}
+            <div className="space-y-5">
+              {/* Dernières compagnies */}
+              <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-6 space-y-4">
+                <div className="flex items-center gap-3">
+                  <div className="w-9 h-9 rounded-xl bg-gray-100 flex items-center justify-center">
+                    <Clock size={16} className="text-gray-500" />
+                  </div>
+                  <h2 className="text-base font-semibold text-gray-900">Dernières inscriptions</h2>
+                </div>
+                <div className="space-y-1">
+                  {(ps?.recentTenants ?? []).length === 0 && (
+                    <p className="text-sm text-gray-400 text-center py-4">Aucune donnée</p>
+                  )}
+                  {(ps?.recentTenants ?? []).map((t: any) => (
+                    <div key={t.id} className="flex items-center justify-between py-2.5 border-b border-gray-50 last:border-0">
+                      <div>
+                        <p className="text-sm font-medium text-gray-900">{t.name}</p>
+                        <p className="text-xs text-gray-400">{dayjs(t.createdAt).format('DD/MM/YYYY')}</p>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
+                          t.plan === 'ENTERPRISE' ? 'bg-purple-100 text-purple-700' :
+                          t.plan === 'PROFESSIONAL' ? 'bg-brand-100 text-brand-700' :
+                          'bg-gray-100 text-gray-600'
+                        }`}>{t.plan}</span>
+                        <span className={`text-xs px-2 py-0.5 rounded-full ${
+                          t.status === 'ACTIVE' ? 'bg-green-100 text-green-700' :
+                          t.status === 'TRIAL'  ? 'bg-blue-100 text-blue-700' :
+                          'bg-red-100 text-red-600'
+                        }`}>{t.status}</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Configuration plateforme */}
+              <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-6 space-y-4">
+                <div className="flex items-center gap-3">
+                  <div className="w-9 h-9 rounded-xl bg-orange-100 flex items-center justify-center">
+                    <BadgePercent size={16} className="text-orange-600" />
+                  </div>
+                  <h2 className="text-base font-semibold text-gray-900">Configuration</h2>
+                </div>
+                <div className="space-y-3 text-sm">
+                  {[
+                    { label: 'Commission TransPro',   value: '4 %',                    hint: 'Prélevée sur chaque paiement' },
+                    { label: 'Frais Genius Pay',      value: '1 %',                    hint: 'Prélevés sur paiements en ligne' },
+                    { label: 'Délai de reversement',  value: '5 jours ouvrés',         hint: 'Après clôture de période' },
+                    { label: 'Support',               value: 'support@transpro.ci',    hint: '' },
+                  ].map((row) => (
+                    <div key={row.label} className="flex items-start justify-between py-2 border-b border-gray-50 last:border-0 gap-4">
+                      <div>
+                        <p className="font-medium text-gray-700">{row.label}</p>
+                        {row.hint && <p className="text-xs text-gray-400 mt-0.5">{row.hint}</p>}
+                      </div>
+                      <span className="font-semibold text-gray-900 shrink-0">{row.value}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {activeTab === 'permissions' && !isSuperAdmin && (
         <div className="space-y-5">
           {/* Résumé */}
           <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-5">
