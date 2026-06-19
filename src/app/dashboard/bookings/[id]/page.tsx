@@ -242,7 +242,7 @@ export default function BookingDetailPage() {
   }
 
   return (
-    <div className="space-y-5 max-w-4xl">
+    <div className="space-y-5">
 
       {/* Back */}
       <button
@@ -252,7 +252,7 @@ export default function BookingDetailPage() {
         <ArrowLeft size={15} /> Retour aux réservations
       </button>
 
-      {/* ── Header card ──────────────────────────────────────────────────── */}
+      {/* ── Header card — full width ──────────────────────────────────────── */}
       <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
         {/* Top band */}
         <div className="bg-gradient-to-r from-brand-600 to-brand-500 px-6 py-5 text-white flex items-start justify-between">
@@ -321,7 +321,7 @@ export default function BookingDetailPage() {
             </div>
           </div>
 
-          {/* Voyage */}
+          {/* Sièges */}
           <div className="px-6 py-5">
             <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-wide flex items-center gap-1.5 mb-3">
               <Ticket size={11} /> Sièges réservés
@@ -356,304 +356,317 @@ export default function BookingDetailPage() {
         </div>
       </div>
 
-      {/* ── Tickets section ───────────────────────────────────────────────── */}
-      {b.tickets?.length > 0 && (
-        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm">
-          <div className="px-6 py-4 border-b border-gray-50 flex items-center justify-between">
-            <h2 className="font-semibold text-gray-900 flex items-center gap-2 text-sm">
-              <Ticket size={15} className="text-brand-500" /> Tickets
-            </h2>
-            <span className="text-xs text-gray-400">{b.tickets.length} ticket(s)</span>
-          </div>
-          <div className="divide-y divide-gray-50">
-            {b.tickets.map((ticket: any) => (
-              <div key={ticket.id} className="flex items-center gap-4 px-6 py-3">
-                {/* QR preview */}
-                {ticket.qrCode ? (
-                  <img
-                    src={ticket.qrCode}
-                    alt="QR"
-                    className="w-12 h-12 rounded-lg border border-gray-100 shrink-0 object-contain bg-white p-0.5"
-                  />
-                ) : (
-                  <div className="w-12 h-12 rounded-lg border border-dashed border-gray-200 flex items-center justify-center shrink-0">
-                    <QrCode size={18} className="text-gray-300" />
-                  </div>
-                )}
-                <div className="flex-1">
-                  <p className="text-sm font-semibold text-gray-800">Siège {ticket.seatNumber}</p>
-                  <p className="font-mono text-[11px] text-gray-400 mt-0.5">{ticket.id?.slice(-8)?.toUpperCase()}</p>
-                </div>
-                {ticket.scannedAt ? (
-                  <div className="flex items-center gap-1.5 text-[11px] text-green-600 bg-green-50 px-2.5 py-1 rounded-full font-semibold ring-1 ring-green-200">
-                    <CheckCircle2 size={11} />
-                    Scanné {dayjs(ticket.scannedAt).format('DD/MM HH:mm')}
-                  </div>
-                ) : (
-                  <span className="text-[11px] text-gray-400 bg-gray-50 px-2.5 py-1 rounded-full ring-1 ring-gray-200">
-                    Non scanné
-                  </span>
-                )}
+      {/* ── Two-column body ───────────────────────────────────────────────── */}
+      <div className="grid grid-cols-2 gap-5 items-start">
+
+        {/* Left: Tickets */}
+        <div className="space-y-5">
+
+          {/* Tickets list */}
+          {b.tickets?.length > 0 && (
+            <div className="bg-white rounded-2xl border border-gray-100 shadow-sm">
+              <div className="px-6 py-4 border-b border-gray-50 flex items-center justify-between">
+                <h2 className="font-semibold text-gray-900 flex items-center gap-2 text-sm">
+                  <Ticket size={15} className="text-brand-500" /> Tickets
+                </h2>
+                <span className="text-xs text-gray-400">{b.tickets.length} ticket(s)</span>
               </div>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* ── Tickets manquants (réservation confirmée sans tickets) ──────── */}
-      {canManage && b.status === 'CONFIRMED' && b.tickets?.length === 0 && (
-        <div className="bg-amber-50 border border-amber-200 rounded-2xl px-6 py-4 flex items-center justify-between gap-4">
-          <div className="flex items-center gap-3">
-            <Ticket size={16} className="text-amber-500 shrink-0" />
-            <div>
-              <p className="text-sm font-semibold text-amber-800">Tickets non générés</p>
-              <p className="text-xs text-amber-600 mt-0.5">Cette réservation est confirmée mais ses QR codes n'ont pas été créés.</p>
-            </div>
-          </div>
-          <button
-            onClick={() => genTicketsMut.mutate()}
-            disabled={genTicketsMut.isPending}
-            className="shrink-0 flex items-center gap-1.5 bg-amber-500 hover:bg-amber-600 text-white text-sm font-semibold px-4 py-2 rounded-xl transition disabled:opacity-60"
-          >
-            {genTicketsMut.isPending
-              ? <><Loader2 size={13} className="animate-spin" /> Génération...</>
-              : <><Ticket size={13} /> Générer les tickets</>}
-          </button>
-        </div>
-      )}
-
-      {/* ── Status management (owner/admin only) ──────────────────────────── */}
-      {canManage && transitions.length > 0 && (
-        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm px-6 py-5">
-          <h2 className="font-semibold text-gray-900 flex items-center gap-2 text-sm mb-4">
-            <RefreshCw size={15} className="text-brand-500" /> Changer le statut
-          </h2>
-          <div className="flex flex-wrap gap-2">
-            {transitions.map((t) => (
-              <button
-                key={t.status}
-                disabled={statusMut.isPending}
-                onClick={async () => {
-                  if (!await confirm({ title: `Passer en "${t.label}" ?`, description: 'Le statut de la réservation sera mis à jour immédiatement.', variant: 'warning', confirmLabel: t.label })) return;
-                  statusMut.mutate(t.status);
-                }}
-                className={`flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-semibold transition disabled:opacity-50 ${t.className}`}
-              >
-                {statusMut.isPending && statusMut.variables === t.status
-                  ? <Loader2 size={13} className="animate-spin" />
-                  : null}
-                {t.label}
-              </button>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* ── Luggage ───────────────────────────────────────────────────────── */}
-      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm">
-        <div className="px-6 py-4 border-b border-gray-50 flex items-center justify-between">
-          <h2 className="font-semibold text-gray-900 flex items-center gap-2 text-sm">
-            <Luggage size={15} className="text-brand-500" /> Bagages en soute
-          </h2>
-          <button
-            onClick={() => setShowLuggageForm(!showLuggageForm)}
-            className="flex items-center gap-1.5 text-sm text-brand-500 hover:text-brand-600 font-medium"
-          >
-            <Plus size={14} /> {lug ? 'Modifier' : 'Déclarer'}
-          </button>
-        </div>
-
-        <div className="p-6 space-y-4">
-          {showLuggageForm && (
-            <div className="border border-brand-100 bg-brand-50 rounded-xl p-5 space-y-4">
-              <div className="grid grid-cols-3 gap-3">
-                <div>
-                  <label className="block text-xs font-semibold text-gray-600 mb-1">Nombre de sacs *</label>
-                  <input
-                    type="number" min={0} max={20}
-                    value={luggageForm.bagCount}
-                    onChange={(e) => {
-                      const n = parseInt(e.target.value) || 0;
-                      setLuggageForm((p) => ({
-                        ...p,
-                        bagCount: n,
-                        bagLabels:  Array.from({ length: n }, (_, i) => p.bagLabels[i]  ?? ''),
-                        bagWeights: Array.from({ length: n }, (_, i) => p.bagWeights[i] ?? ''),
-                      }));
-                    }}
-                    className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-semibold text-gray-600 mb-1">Poids total (kg)</label>
-                  <input
-                    type="number" min={0}
-                    value={luggageForm.totalWeightKg}
-                    onChange={(e) => setLuggageForm((p) => ({ ...p, totalWeightKg: e.target.value }))}
-                    className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-semibold text-gray-600 mb-1">Franchise (kg)</label>
-                  <input
-                    type="number" min={0}
-                    value={luggageForm.freeWeightKg}
-                    onChange={(e) => setLuggageForm((p) => ({ ...p, freeWeightKg: parseFloat(e.target.value) || FREE_KG }))}
-                    className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
-                  />
-                </div>
-              </div>
-
-              {excessKg > 0 && (
-                <div className="flex items-center gap-3 bg-amber-50 border border-amber-200 rounded-lg px-4 py-3">
-                  <Scale size={14} className="text-amber-600 shrink-0" />
-                  <span className="text-sm text-amber-700">
-                    Excédent <strong>{excessKg.toFixed(1)} kg</strong> → frais : <strong>{formatCFA(excessFee)}</strong>
-                  </span>
-                  <label className="ml-auto flex items-center gap-2 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={luggageForm.excessPaid}
-                      onChange={(e) => setLuggageForm((p) => ({ ...p, excessPaid: e.target.checked }))}
-                      className="w-4 h-4 accent-brand-500"
-                    />
-                    <span className="text-xs font-medium text-amber-700">Payé maintenant</span>
-                  </label>
-                  {luggageForm.excessPaid && (
-                    <select
-                      value={luggageForm.excessPaymentMethod}
-                      onChange={(e) => setLuggageForm((p) => ({ ...p, excessPaymentMethod: e.target.value }))}
-                      className="border border-amber-300 rounded-lg px-2 py-1 text-xs focus:outline-none bg-white"
-                    >
-                      <option value="CASH">Espèces</option>
-                      <option value="ORANGE_MONEY">Orange Money</option>
-                      <option value="MTN_MOMO">MTN MoMo</option>
-                      <option value="WAVE">Wave</option>
-                    </select>
-                  )}
-                </div>
-              )}
-
-              {luggageForm.bagCount > 0 && (
-                <div className="space-y-2">
-                  <p className="text-xs font-semibold text-gray-500">Détails des sacs (optionnel)</p>
-                  {Array.from({ length: luggageForm.bagCount }).map((_, i) => (
-                    <div key={i} className="flex gap-2">
-                      <input
-                        type="text"
-                        placeholder={`Description sac ${i + 1}`}
-                        value={luggageForm.bagLabels[i] ?? ''}
-                        onChange={(e) => setLuggageForm((p) => {
-                          const l = [...p.bagLabels]; l[i] = e.target.value; return { ...p, bagLabels: l };
-                        })}
-                        className="flex-1 border border-gray-200 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
+              <div className="divide-y divide-gray-50">
+                {b.tickets.map((ticket: any) => (
+                  <div key={ticket.id} className="flex items-center gap-4 px-6 py-3">
+                    {ticket.qrCode ? (
+                      <img
+                        src={ticket.qrCode}
+                        alt="QR"
+                        className="w-12 h-12 rounded-lg border border-gray-100 shrink-0 object-contain bg-white p-0.5"
                       />
-                      <input
-                        type="number"
-                        placeholder="kg"
-                        value={luggageForm.bagWeights[i] ?? ''}
-                        onChange={(e) => setLuggageForm((p) => {
-                          const w = [...p.bagWeights]; w[i] = e.target.value; return { ...p, bagWeights: w };
-                        })}
-                        className="w-20 border border-gray-200 rounded-lg px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
-                      />
+                    ) : (
+                      <div className="w-12 h-12 rounded-lg border border-dashed border-gray-200 flex items-center justify-center shrink-0">
+                        <QrCode size={18} className="text-gray-300" />
+                      </div>
+                    )}
+                    <div className="flex-1">
+                      <p className="text-sm font-semibold text-gray-800">Siège {ticket.seatNumber}</p>
+                      <p className="font-mono text-[11px] text-gray-400 mt-0.5">{ticket.id?.slice(-8)?.toUpperCase()}</p>
                     </div>
-                  ))}
-                </div>
-              )}
-
-              <div className="flex gap-3 pt-2">
-                <button
-                  onClick={() => setShowLuggageForm(false)}
-                  className="px-4 py-2 text-sm text-gray-600 border border-gray-200 rounded-lg hover:bg-gray-50"
-                >
-                  Annuler
-                </button>
-                <button
-                  onClick={submitLuggage}
-                  disabled={declareMut.isPending || luggageForm.bagCount === 0}
-                  className="flex-1 py-2 text-sm font-semibold text-white bg-brand-500 hover:bg-brand-600 rounded-lg flex items-center justify-center gap-2 disabled:opacity-60"
-                >
-                  {declareMut.isPending && <Loader2 size={14} className="animate-spin" />}
-                  Valider la déclaration
-                </button>
+                    {ticket.scannedAt ? (
+                      <div className="flex items-center gap-1.5 text-[11px] text-green-600 bg-green-50 px-2.5 py-1 rounded-full font-semibold ring-1 ring-green-200">
+                        <CheckCircle2 size={11} />
+                        Scanné {dayjs(ticket.scannedAt).format('DD/MM HH:mm')}
+                      </div>
+                    ) : (
+                      <span className="text-[11px] text-gray-400 bg-gray-50 px-2.5 py-1 rounded-full ring-1 ring-gray-200">
+                        Non scanné
+                      </span>
+                    )}
+                  </div>
+                ))}
               </div>
             </div>
           )}
 
-          {lug ? (
-            <div className="space-y-4">
-              <div className="flex flex-wrap gap-4 text-sm text-gray-700">
-                <span className="flex items-center gap-1.5"><Package size={13} /> <strong>{lug.bagCount}</strong> sac(s)</span>
-                {lug.totalWeightKg > 0 && (
-                  <span className="flex items-center gap-1.5"><Scale size={13} /> <strong>{lug.totalWeightKg} kg</strong> total</span>
-                )}
-                {lug.excessFeeXof > 0 && (
-                  <span className={`flex items-center gap-1.5 font-semibold ${lug.excessPaid ? 'text-green-600' : 'text-amber-600'}`}>
-                    Excédent : {formatCFA(lug.excessFeeXof)} {lug.excessPaid ? '✓' : '(impayé)'}
-                  </span>
-                )}
+          {/* Tickets manquants */}
+          {canManage && b.status === 'CONFIRMED' && b.tickets?.length === 0 && (
+            <div className="bg-amber-50 border border-amber-200 rounded-2xl px-6 py-4 flex items-center justify-between gap-4">
+              <div className="flex items-center gap-3">
+                <Ticket size={16} className="text-amber-500 shrink-0" />
+                <div>
+                  <p className="text-sm font-semibold text-amber-800">Tickets non générés</p>
+                  <p className="text-xs text-amber-600 mt-0.5">Cette réservation est confirmée mais ses QR codes n'ont pas été créés.</p>
+                </div>
               </div>
+              <button
+                onClick={() => genTicketsMut.mutate()}
+                disabled={genTicketsMut.isPending}
+                className="shrink-0 flex items-center gap-1.5 bg-amber-500 hover:bg-amber-600 text-white text-sm font-semibold px-4 py-2 rounded-xl transition disabled:opacity-60"
+              >
+                {genTicketsMut.isPending
+                  ? <><Loader2 size={13} className="animate-spin" /> Génération...</>
+                  : <><Ticket size={13} /> Générer les tickets</>}
+              </button>
+            </div>
+          )}
 
-              <div className="divide-y divide-gray-50 rounded-xl border border-gray-100 overflow-hidden">
-                {lug.bags.map((bag: any) => {
-                  const cfg = BAG_CFG[bag.status] ?? BAG_CFG['DECLARED'];
-                  return (
-                    <div key={bag.id} className="flex items-center gap-3 px-4 py-3 bg-white">
-                      <div className="w-8 h-8 bg-gray-100 rounded-lg flex items-center justify-center shrink-0">
-                        <Luggage size={14} className="text-gray-400" />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium text-gray-800">
-                          {bag.label || 'Sac'}{bag.weightKg ? ` · ${bag.weightKg} kg` : ''}
-                        </p>
-                        <p className="font-mono text-xs text-gray-400">{bag.qrCode}</p>
-                      </div>
-                      <span
-                        className="text-[10px] font-semibold px-2 py-0.5 rounded-full"
-                        style={{ color: cfg.color, backgroundColor: cfg.bg }}
-                      >
-                        {cfg.label}
+        </div>
+
+        {/* Right: Status + Luggage */}
+        <div className="space-y-5">
+
+          {/* Status management */}
+          {canManage && transitions.length > 0 && (
+            <div className="bg-white rounded-2xl border border-gray-100 shadow-sm px-6 py-5">
+              <h2 className="font-semibold text-gray-900 flex items-center gap-2 text-sm mb-4">
+                <RefreshCw size={15} className="text-brand-500" /> Changer le statut
+              </h2>
+              <div className="flex flex-wrap gap-2">
+                {transitions.map((t) => (
+                  <button
+                    key={t.status}
+                    disabled={statusMut.isPending}
+                    onClick={async () => {
+                      if (!await confirm({ title: `Passer en "${t.label}" ?`, description: 'Le statut de la réservation sera mis à jour immédiatement.', variant: 'warning', confirmLabel: t.label })) return;
+                      statusMut.mutate(t.status);
+                    }}
+                    className={`flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-semibold transition disabled:opacity-50 ${t.className}`}
+                  >
+                    {statusMut.isPending && statusMut.variables === t.status
+                      ? <Loader2 size={13} className="animate-spin" />
+                      : null}
+                    {t.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Luggage */}
+          <div className="bg-white rounded-2xl border border-gray-100 shadow-sm">
+            <div className="px-6 py-4 border-b border-gray-50 flex items-center justify-between">
+              <h2 className="font-semibold text-gray-900 flex items-center gap-2 text-sm">
+                <Luggage size={15} className="text-brand-500" /> Bagages en soute
+              </h2>
+              <button
+                onClick={() => setShowLuggageForm(!showLuggageForm)}
+                className="flex items-center gap-1.5 text-sm text-brand-500 hover:text-brand-600 font-medium"
+              >
+                <Plus size={14} /> {lug ? 'Modifier' : 'Déclarer'}
+              </button>
+            </div>
+
+            <div className="p-6 space-y-4">
+              {showLuggageForm && (
+                <div className="border border-brand-100 bg-brand-50 rounded-xl p-5 space-y-4">
+                  <div className="grid grid-cols-3 gap-3">
+                    <div>
+                      <label className="block text-xs font-semibold text-gray-600 mb-1">Nombre de sacs *</label>
+                      <input
+                        type="number" min={0} max={20}
+                        value={luggageForm.bagCount}
+                        onChange={(e) => {
+                          const n = parseInt(e.target.value) || 0;
+                          setLuggageForm((p) => ({
+                            ...p,
+                            bagCount: n,
+                            bagLabels:  Array.from({ length: n }, (_, i) => p.bagLabels[i]  ?? ''),
+                            bagWeights: Array.from({ length: n }, (_, i) => p.bagWeights[i] ?? ''),
+                          }));
+                        }}
+                        className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-semibold text-gray-600 mb-1">Poids total (kg)</label>
+                      <input
+                        type="number" min={0}
+                        value={luggageForm.totalWeightKg}
+                        onChange={(e) => setLuggageForm((p) => ({ ...p, totalWeightKg: e.target.value }))}
+                        className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-semibold text-gray-600 mb-1">Franchise (kg)</label>
+                      <input
+                        type="number" min={0}
+                        value={luggageForm.freeWeightKg}
+                        onChange={(e) => setLuggageForm((p) => ({ ...p, freeWeightKg: parseFloat(e.target.value) || FREE_KG }))}
+                        className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
+                      />
+                    </div>
+                  </div>
+
+                  {excessKg > 0 && (
+                    <div className="flex items-center gap-3 bg-amber-50 border border-amber-200 rounded-lg px-4 py-3">
+                      <Scale size={14} className="text-amber-600 shrink-0" />
+                      <span className="text-sm text-amber-700">
+                        Excédent <strong>{excessKg.toFixed(1)} kg</strong> → frais : <strong>{formatCFA(excessFee)}</strong>
                       </span>
-                      <button
-                        onClick={() => printLabel(bag)}
-                        className="text-gray-400 hover:text-gray-600 p-1.5 rounded hover:bg-gray-100"
-                        title="Imprimer l'étiquette"
-                      >
-                        <Printer size={13} />
-                      </button>
-                      {!['MISSING', 'CLAIMED'].includes(bag.status) && (
-                        <>
-                          <button
-                            onClick={() => scanMut.mutate(bag.qrCode)}
-                            disabled={scanMut.isPending}
-                            className="text-brand-500 hover:text-brand-700 p-1.5 rounded hover:bg-brand-50"
-                            title="Scanner"
-                          >
-                            <QrCode size={13} />
-                          </button>
-                          <button
-                            onClick={async () => { if (await confirm({ title: 'Signaler ce sac comme manquant ?', description: 'Une alerte sera créée pour ce bagage.', variant: 'warning', confirmLabel: 'Signaler' })) missingMut.mutate({ bagId: bag.id }); }}
-                            className="text-red-400 hover:text-red-600 p-1.5 rounded hover:bg-red-50"
-                            title="Signaler manquant"
-                          >
-                            <AlertTriangle size={13} />
-                          </button>
-                        </>
+                      <label className="ml-auto flex items-center gap-2 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={luggageForm.excessPaid}
+                          onChange={(e) => setLuggageForm((p) => ({ ...p, excessPaid: e.target.checked }))}
+                          className="w-4 h-4 accent-brand-500"
+                        />
+                        <span className="text-xs font-medium text-amber-700">Payé maintenant</span>
+                      </label>
+                      {luggageForm.excessPaid && (
+                        <select
+                          value={luggageForm.excessPaymentMethod}
+                          onChange={(e) => setLuggageForm((p) => ({ ...p, excessPaymentMethod: e.target.value }))}
+                          className="border border-amber-300 rounded-lg px-2 py-1 text-xs focus:outline-none bg-white"
+                        >
+                          <option value="CASH">Espèces</option>
+                          <option value="ORANGE_MONEY">Orange Money</option>
+                          <option value="MTN_MOMO">MTN MoMo</option>
+                          <option value="WAVE">Wave</option>
+                        </select>
                       )}
                     </div>
-                  );
-                })}
-              </div>
+                  )}
+
+                  {luggageForm.bagCount > 0 && (
+                    <div className="space-y-2">
+                      <p className="text-xs font-semibold text-gray-500">Détails des sacs (optionnel)</p>
+                      {Array.from({ length: luggageForm.bagCount }).map((_, i) => (
+                        <div key={i} className="flex gap-2">
+                          <input
+                            type="text"
+                            placeholder={`Description sac ${i + 1}`}
+                            value={luggageForm.bagLabels[i] ?? ''}
+                            onChange={(e) => setLuggageForm((p) => {
+                              const l = [...p.bagLabels]; l[i] = e.target.value; return { ...p, bagLabels: l };
+                            })}
+                            className="flex-1 border border-gray-200 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
+                          />
+                          <input
+                            type="number"
+                            placeholder="kg"
+                            value={luggageForm.bagWeights[i] ?? ''}
+                            onChange={(e) => setLuggageForm((p) => {
+                              const w = [...p.bagWeights]; w[i] = e.target.value; return { ...p, bagWeights: w };
+                            })}
+                            className="w-20 border border-gray-200 rounded-lg px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
+                          />
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  <div className="flex gap-3 pt-2">
+                    <button
+                      onClick={() => setShowLuggageForm(false)}
+                      className="px-4 py-2 text-sm text-gray-600 border border-gray-200 rounded-lg hover:bg-gray-50"
+                    >
+                      Annuler
+                    </button>
+                    <button
+                      onClick={submitLuggage}
+                      disabled={declareMut.isPending || luggageForm.bagCount === 0}
+                      className="flex-1 py-2 text-sm font-semibold text-white bg-brand-500 hover:bg-brand-600 rounded-lg flex items-center justify-center gap-2 disabled:opacity-60"
+                    >
+                      {declareMut.isPending && <Loader2 size={14} className="animate-spin" />}
+                      Valider la déclaration
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {lug ? (
+                <div className="space-y-4">
+                  <div className="flex flex-wrap gap-4 text-sm text-gray-700">
+                    <span className="flex items-center gap-1.5"><Package size={13} /> <strong>{lug.bagCount}</strong> sac(s)</span>
+                    {lug.totalWeightKg > 0 && (
+                      <span className="flex items-center gap-1.5"><Scale size={13} /> <strong>{lug.totalWeightKg} kg</strong> total</span>
+                    )}
+                    {lug.excessFeeXof > 0 && (
+                      <span className={`flex items-center gap-1.5 font-semibold ${lug.excessPaid ? 'text-green-600' : 'text-amber-600'}`}>
+                        Excédent : {formatCFA(lug.excessFeeXof)} {lug.excessPaid ? '✓' : '(impayé)'}
+                      </span>
+                    )}
+                  </div>
+
+                  <div className="divide-y divide-gray-50 rounded-xl border border-gray-100 overflow-hidden">
+                    {lug.bags.map((bag: any) => {
+                      const cfg = BAG_CFG[bag.status] ?? BAG_CFG['DECLARED'];
+                      return (
+                        <div key={bag.id} className="flex items-center gap-3 px-4 py-3 bg-white">
+                          <div className="w-8 h-8 bg-gray-100 rounded-lg flex items-center justify-center shrink-0">
+                            <Luggage size={14} className="text-gray-400" />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-medium text-gray-800">
+                              {bag.label || 'Sac'}{bag.weightKg ? ` · ${bag.weightKg} kg` : ''}
+                            </p>
+                            <p className="font-mono text-xs text-gray-400">{bag.qrCode}</p>
+                          </div>
+                          <span
+                            className="text-[10px] font-semibold px-2 py-0.5 rounded-full"
+                            style={{ color: cfg.color, backgroundColor: cfg.bg }}
+                          >
+                            {cfg.label}
+                          </span>
+                          <button
+                            onClick={() => printLabel(bag)}
+                            className="text-gray-400 hover:text-gray-600 p-1.5 rounded hover:bg-gray-100"
+                            title="Imprimer l'étiquette"
+                          >
+                            <Printer size={13} />
+                          </button>
+                          {!['MISSING', 'CLAIMED'].includes(bag.status) && (
+                            <>
+                              <button
+                                onClick={() => scanMut.mutate(bag.qrCode)}
+                                disabled={scanMut.isPending}
+                                className="text-brand-500 hover:text-brand-700 p-1.5 rounded hover:bg-brand-50"
+                                title="Scanner"
+                              >
+                                <QrCode size={13} />
+                              </button>
+                              <button
+                                onClick={async () => { if (await confirm({ title: 'Signaler ce sac comme manquant ?', description: 'Une alerte sera créée pour ce bagage.', variant: 'warning', confirmLabel: 'Signaler' })) missingMut.mutate({ bagId: bag.id }); }}
+                                className="text-red-400 hover:text-red-600 p-1.5 rounded hover:bg-red-50"
+                                title="Signaler manquant"
+                              >
+                                <AlertTriangle size={13} />
+                              </button>
+                            </>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              ) : (
+                !showLuggageForm && (
+                  <div className="text-center py-8">
+                    <Luggage size={32} className="text-gray-200 mx-auto mb-2" />
+                    <p className="text-sm text-gray-400">Aucun bagage déclaré pour cette réservation</p>
+                  </div>
+                )
+              )}
             </div>
-          ) : (
-            !showLuggageForm && (
-              <div className="text-center py-8">
-                <Luggage size={32} className="text-gray-200 mx-auto mb-2" />
-                <p className="text-sm text-gray-400">Aucun bagage déclaré pour cette réservation</p>
-              </div>
-            )
-          )}
+          </div>
+
         </div>
       </div>
     </div>

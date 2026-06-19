@@ -171,3 +171,76 @@
 /* Scrollbar — sidebar sombre */
 .scrollbar-dark::-webkit-scrollbar-thumb { background: rgba(148, 163, 184, 0.12); }
 .scrollbar-dark::-webkit-scrollbar-thumb:hover { background: rgba(148, 163, 184, 0.22); }
+
+/* ─── Dark mode ─────────────────────────────────────────────────────────────── */
+.dark {
+  color-scheme: dark;
+  /* shadcn/ui tokens */
+  --background:           222 47% 5%;
+  --foreground:           215 28% 90%;
+  --card:                 222 40% 8%;
+  --card-foreground:      215 28% 90%;
+  --popover:              222 40% 8%;
+  --popover-foreground:   215 28% 90%;
+  --secondary:            222 40% 12%;
+  --secondary-foreground: 215 28% 90%;
+  --muted:                222 40% 12%;
+  --muted-foreground:     215 16% 55%;
+  --accent:               222 40% 12%;
+  --accent-foreground:    215 28% 90%;
+  --destructive:          0 72% 51%;
+  --destructive-foreground: 0 0% 100%;
+  --border:               222 20% 17%;
+  --input:                222 20% 17%;
+}
+
+/* ── Page / layout backgrounds ── */
+.dark .bg-white          { background-color: rgb(18 24 36) !important; }
+.dark .bg-gray-50        { background-color: rgb(11 14 22) !important; }
+.dark .bg-gray-100       { background-color: rgb(30 38 52) !important; }
+.dark .bg-gray-200       { background-color: rgb(44 55 72) !important; }
+
+/* ── Hover backgrounds ── */
+.dark .hover\:bg-gray-50:hover   { background-color: rgb(25 32 46) !important; }
+.dark .hover\:bg-gray-100:hover  { background-color: rgb(35 44 60) !important; }
+.dark .hover\:bg-white:hover     { background-color: rgb(25 32 46) !important; }
+
+/* ── Text ── */
+.dark .text-gray-900  { color: rgb(240 244 251) !important; }
+.dark .text-gray-800  { color: rgb(215 224 240) !important; }
+.dark .text-gray-700  { color: rgb(185 197 218) !important; }
+.dark .text-gray-600  { color: rgb(140 155 180) !important; }
+.dark .text-gray-500  { color: rgb(100 116 140) !important; }
+.dark .text-gray-400  { color: rgb(80 96 120)  !important; }
+
+/* ── Borders ── */
+.dark .border-gray-50  { border-color: rgb(25 32 46)  !important; }
+.dark .border-gray-100 { border-color: rgb(35 44 60)  !important; }
+.dark .border-gray-200 { border-color: rgb(50 62 82)  !important; }
+
+/* ── Dividers ── */
+.dark .divide-gray-50  > :not([hidden]) ~ :not([hidden]) { border-color: rgb(25 32 46)  !important; }
+.dark .divide-gray-100 > :not([hidden]) ~ :not([hidden]) { border-color: rgb(35 44 60)  !important; }
+
+/* ── Shadows ── */
+.dark .shadow-sm { box-shadow: 0 1px 3px 0 rgba(0,0,0,0.5), 0 1px 2px -1px rgba(0,0,0,0.4) !important; }
+.dark .shadow-lg { box-shadow: 0 10px 20px -3px rgba(0,0,0,0.7), 0 4px 8px -4px rgba(0,0,0,0.5) !important; }
+.dark .shadow-\[0_1px_0_0_rgb\(0\2c 0\2c 0\2c 0\.04\)\] { box-shadow: none !important; }
+
+/* ── Ring (badges) ── */
+.dark .ring-gray-200 { --tw-ring-color: rgb(50 62 82) !important; }
+
+/* ── Inputs / selects ── */
+.dark input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([class*="accent"]),
+.dark select,
+.dark textarea {
+  background-color: rgb(25 32 46) !important;
+  color: rgb(215 224 240) !important;
+  border-color: rgb(50 62 82) !important;
+}
+.dark input::placeholder,
+.dark textarea::placeholder { color: rgb(100 116 140) !important; }
+
+/* ── Scrollbar dark mode ── */
+.dark ::-webkit-scrollbar-thumb { background: rgb(40 52 70); }
+.dark ::-webkit-scrollbar-thumb:hover { background: rgb(55 68 90); }

@@ -7,22 +7,22 @@ import { useEffect, useRef } from 'react';
 import AppLoader from '@/components/ui/AppLoader';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { ThemePanel } from '@/components/ui/ThemePanel';
-import { useThemeStore } from '@/store/theme.store';
+import { useThemeStore, applyColorMode, type ColorMode } from '@/store/theme.store';
 import { useAuthStore } from '@/store/auth.store';
 
 function ThemeInit() {
-  const { accent, sidebar, setAccent, setSidebar } = useThemeStore();
+  const { accent, sidebar, colorMode, setAccent, setSidebar, setColorMode } = useThemeStore();
   const { user } = useAuthStore();
   const syncedForId = useRef<string | null>(null);
 
-  /* Quand un utilisateur se connecte (ou que la page recharge avec session active),
-     on écrase les préférences locales avec celles sauvegardées sur le compte. */
+  /* Quand un utilisateur se connecte, écraser les préférences locales avec celles du compte */
   useEffect(() => {
     if (!user) { syncedForId.current = null; return; }
     if (syncedForId.current === user.id) return;
     syncedForId.current = user.id;
     if (user.themeAccent) setAccent(user.themeAccent as any);
     if (user.themeSidebar) setSidebar(user.themeSidebar as any);
+    if ((user as any).themeColorMode) setColorMode((user as any).themeColorMode as ColorMode);
   }, [user?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   /* Maintenir le DOM en sync avec le store */
@@ -30,6 +30,16 @@ function ThemeInit() {
     document.documentElement.setAttribute('data-accent', accent);
     document.documentElement.setAttribute('data-sidebar', sidebar);
   }, [accent, sidebar]);
+
+  /* Appliquer la couleur de mode + écouter les changements système */
+  useEffect(() => {
+    applyColorMode(colorMode);
+    if (colorMode !== 'system') return;
+    const mq = window.matchMedia('(prefers-color-scheme: dark)');
+    const handler = () => applyColorMode('system');
+    mq.addEventListener('change', handler);
+    return () => mq.removeEventListener('change', handler);
+  }, [colorMode]);
 
   return null;
 }

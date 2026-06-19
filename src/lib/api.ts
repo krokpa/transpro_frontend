@@ -252,7 +252,7 @@ export const campaignsApi = {
 };
 
 export const usersApi = {
-  updateProfile: (data: { firstName?: string; lastName?: string; phone?: string; preferredLang?: string; themeAccent?: string; themeSidebar?: string }) =>
+  updateProfile: (data: { firstName?: string; lastName?: string; phone?: string; preferredLang?: string; themeAccent?: string; themeSidebar?: string; themeColorMode?: string }) =>
     api.patch('/users/profile', data),
   changePassword: (currentPassword: string, newPassword: string) =>
     api.post('/users/change-password', { currentPassword, newPassword }),

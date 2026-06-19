@@ -1,8 +1,8 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { SlidersHorizontal, X, Check } from 'lucide-react';
-import { useThemeStore, type Accent, type SidebarStyle } from '@/store/theme.store';
+import { SlidersHorizontal, X, Check, Sun, Moon, Monitor } from 'lucide-react';
+import { useThemeStore, type Accent, type SidebarStyle, type ColorMode } from '@/store/theme.store';
 import { useAuthStore } from '@/store/auth.store';
 import { usersApi } from '@/lib/api';
 import clsx from 'clsx';
@@ -22,7 +22,13 @@ const SIDEBARS: { key: SidebarStyle; label: string; color: string }[] = [
   { key: 'charcoal', label: 'Charbon', color: '#18181b' },
 ];
 
-async function persistTheme(patch: { themeAccent?: string; themeSidebar?: string }, setUser: (u: any) => void, user: any) {
+const COLOR_MODES: { key: ColorMode; label: string; icon: any }[] = [
+  { key: 'light',  label: 'Clair',   icon: Sun },
+  { key: 'dark',   label: 'Sombre',  icon: Moon },
+  { key: 'system', label: 'Système', icon: Monitor },
+];
+
+async function persistTheme(patch: { themeAccent?: string; themeSidebar?: string; themeColorMode?: string }, setUser: (u: any) => void, user: any) {
   if (!user) return;
   try {
     await usersApi.updateProfile(patch);
@@ -33,7 +39,7 @@ async function persistTheme(patch: { themeAccent?: string; themeSidebar?: string
 export function ThemePanel() {
   const [open, setOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
-  const { accent, sidebar, setAccent, setSidebar, reset } = useThemeStore();
+  const { accent, sidebar, colorMode, setAccent, setSidebar, setColorMode, reset } = useThemeStore();
   const { user, setUser } = useAuthStore();
 
   useEffect(() => { setMounted(true); }, []);
@@ -57,9 +63,14 @@ export function ThemePanel() {
     persistTheme({ themeSidebar: s }, setUser, user);
   }
 
+  function handleColorMode(m: ColorMode) {
+    setColorMode(m);
+    persistTheme({ themeColorMode: m }, setUser, user);
+  }
+
   function handleReset() {
     reset();
-    persistTheme({ themeAccent: 'orange', themeSidebar: 'navy' }, setUser, user);
+    persistTheme({ themeAccent: 'orange', themeSidebar: 'navy', themeColorMode: 'system' }, setUser, user);
   }
 
   return (
@@ -140,6 +151,34 @@ export function ThemePanel() {
               {ACCENTS.map((a) => (
                 <p key={a.key} className="text-center text-[9px] text-gray-400 leading-tight">{a.label}</p>
               ))}
+            </div>
+          </section>
+
+          {/* Mode clair/sombre */}
+          <section>
+            <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-widest mb-4">
+              Mode d'affichage
+            </p>
+            <div className="grid grid-cols-3 gap-2">
+              {COLOR_MODES.map((m) => {
+                const Icon = m.icon;
+                const active = colorMode === m.key;
+                return (
+                  <button
+                    key={m.key}
+                    onClick={() => handleColorMode(m.key)}
+                    className={clsx(
+                      'flex flex-col items-center gap-2 py-3 rounded-xl border-2 transition-all duration-150',
+                      active
+                        ? 'border-brand-500 bg-brand-50 text-brand-600'
+                        : 'border-gray-100 hover:border-gray-200 text-gray-400 hover:text-gray-600',
+                    )}
+                  >
+                    <Icon size={16} />
+                    <span className="text-[10px] font-semibold">{m.label}</span>
+                  </button>
+                );
+              })}
             </div>
           </section>
 

@@ -2,12 +2,13 @@
 
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { Bell, ChevronRight, Settings, LogOut } from 'lucide-react';
+import { Bell, ChevronRight, Settings, LogOut, Sun, Moon, Monitor } from 'lucide-react';
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
 import { useQuery } from '@tanstack/react-query';
 import { useEffect, useState } from 'react';
 import { useAuthStore } from '@/store/auth.store';
-import { notificationsApi, authApi } from '@/lib/api';
+import { useThemeStore, type ColorMode } from '@/store/theme.store';
+import { usersApi, notificationsApi, authApi } from '@/lib/api';
 import { getSocket, SocketEvent, disconnectSocket } from '@/lib/socket';
 import { toast } from 'sonner';
 import { UserAvatar } from '@/components/ui/UserAvatar';
@@ -38,8 +39,19 @@ const PAGE_TITLES: Record<string, string> = {
 export function Header() {
   const pathname = usePathname();
   const router = useRouter();
-  const { user, clearAuth, refreshToken } = useAuthStore();
+  const { user, clearAuth, refreshToken, setUser } = useAuthStore();
+  const { colorMode, setColorMode } = useThemeStore();
   const [unreadCount, setUnreadCount] = useState(0);
+
+  function cycleColorMode() {
+    const next: ColorMode = colorMode === 'light' ? 'dark' : colorMode === 'dark' ? 'system' : 'light';
+    setColorMode(next);
+    if (user) {
+      usersApi.updateProfile({ themeColorMode: next }).then(() => setUser({ ...user, themeColorMode: next } as any)).catch(() => {});
+    }
+  }
+
+  const ColorModeIcon = colorMode === 'dark' ? Moon : colorMode === 'light' ? Sun : Monitor;
 
   const { data: notifications } = useQuery({
     queryKey: ['notifications-unread'],
@@ -113,6 +125,15 @@ export function Header() {
 
       {/* Right — actions */}
       <div className="flex items-center gap-1">
+        {/* Color mode toggle */}
+        <button
+          onClick={cycleColorMode}
+          title={colorMode === 'light' ? 'Mode clair' : colorMode === 'dark' ? 'Mode sombre' : 'Mode système'}
+          className="p-2 text-gray-400 hover:text-gray-700 hover:bg-gray-50 rounded-lg transition-all duration-150"
+        >
+          <ColorModeIcon size={17} />
+        </button>
+
         {/* Notification bell */}
         <button className="relative p-2 text-gray-400 hover:text-gray-700 hover:bg-gray-50 rounded-lg transition-all duration-150 group">
           <Bell size={18} className="group-hover:scale-105 transition-transform duration-150" />

@@ -25,7 +25,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <script
           suppressHydrationWarning
           dangerouslySetInnerHTML={{
-            __html: `(function(){try{var t=JSON.parse(localStorage.getItem('transpro-theme')||'{}');var s=t.state||{};if(s.accent)document.documentElement.setAttribute('data-accent',s.accent);if(s.sidebar)document.documentElement.setAttribute('data-sidebar',s.sidebar);}catch(e){}})()`,
+            __html: `(function(){try{var t=JSON.parse(localStorage.getItem('transpro-theme')||'{}');var s=t.state||{};if(s.accent)document.documentElement.setAttribute('data-accent',s.accent);if(s.sidebar)document.documentElement.setAttribute('data-sidebar',s.sidebar);var m=s.colorMode||'system';var dark=m==='dark'||(m==='system'&&window.matchMedia('(prefers-color-scheme: dark)').matches);if(dark)document.documentElement.classList.add('dark');}catch(e){}})()`,
           }}
         />
         <Providers>{children}</Providers>
