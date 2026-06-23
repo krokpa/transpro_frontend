@@ -7,7 +7,7 @@ import {
   LayoutDashboard, Bus, Route, Users, Ticket,
   Settings, LogOut, Truck, CalendarClock, TicketCheck, ConciergeBell, ScanLine, BarChart3, FileText, Building2,
   ShieldCheck, MapPin, CreditCard, UserCog, Package, Lock, Home, Luggage, Megaphone, Banknote, Receipt, Wallet, BookOpen,
-  Loader2,
+  Loader2, KeyRound,
 } from 'lucide-react';
 import { useAuthStore } from '@/store/auth.store';
 import { useNavStore } from '@/store/nav.store';
@@ -58,6 +58,7 @@ const navGroups = [
       { label: 'Campagnes',    icon: Megaphone,  href: '/dashboard/campaigns',    plan: null, walkthroughId: undefined },
       { label: 'Reversements', icon: Banknote,   href: '/dashboard/settlements',  plan: null, walkthroughId: undefined },
       { label: 'Relevés',      icon: BookOpen,   href: '/dashboard/statements',   plan: null, walkthroughId: undefined },
+      { label: 'API & Webhooks', icon: KeyRound,  href: '/dashboard/developers',   plan: null, walkthroughId: undefined, role: 'COMPANY_OWNER' },
       { label: 'Abonnement',   icon: CreditCard, href: '/dashboard/subscription', plan: null, walkthroughId: undefined },
       { label: 'Paramètres',   icon: Settings,   href: '/dashboard/settings',     plan: null, walkthroughId: 'nav-settings' },
     ],
@@ -194,7 +195,9 @@ export function Sidebar() {
               {group.label}
             </p>
             <div className="space-y-px">
-              {group.items.map((item) => {
+              {group.items
+                .filter((item) => !(item as any).role || (item as any).role === user?.role)
+                .map((item) => {
                 const active =
                   pathname === item.href ||
                   (item.href !== '/dashboard' && pathname.startsWith(item.href + '/'));

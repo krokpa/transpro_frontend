@@ -463,3 +463,18 @@ export const stationsApi = {
   getCaisse: (id: string, date?: string) => api.get(`/stations/${id}/caisse`, { params: date ? { date } : {} }),
   getAnalytics: (id: string, days?: number) => api.get(`/stations/${id}/analytics`, { params: days ? { days } : {} }),
 };
+
+// ─── API Partenaires (consumers, clés, usage, webhooks) ──────────────────────
+export const apiConsumersApi = {
+  list:   ()           => api.get('/api-consumers'),
+  get:    (id: string) => api.get(`/api-consumers/${id}`),
+  create: (data: { name: string; email: string; companyName?: string; plan?: string; webhookUrl?: string; allowedIps?: string[]; notes?: string }) =>
+    api.post('/api-consumers', data),
+  update: (id: string, data: { name?: string; plan?: string; status?: string; webhookUrl?: string; allowedIps?: string[]; notes?: string }) =>
+    api.patch(`/api-consumers/${id}`, data),
+  usage:   (id: string) => api.get(`/api-consumers/${id}/usage`),
+  webhooks:(id: string) => api.get(`/api-consumers/${id}/webhooks`),
+  createKey: (id: string, data: { name: string; scopes?: string[]; expiresAt?: string }) =>
+    api.post(`/api-consumers/${id}/keys`, data),
+  revokeKey: (id: string, keyId: string) => api.delete(`/api-consumers/${id}/keys/${keyId}`),
+};
