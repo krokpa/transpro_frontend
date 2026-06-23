@@ -213,6 +213,7 @@ function ConsumerDetail({ consumerId }: { consumerId: string }) {
   const qc = useQueryClient();
   const [showKeyModal, setShowKeyModal] = useState(false);
   const [keyName, setKeyName] = useState('');
+  const [keyEnv, setKeyEnv] = useState<'LIVE' | 'TEST'>('LIVE');
   const [newKey, setNewKey] = useState<string | null>(null);
   const [showSecret, setShowSecret] = useState(false);
   const [webhookUrl, setWebhookUrl] = useState<string | null>(null);
@@ -232,7 +233,7 @@ function ConsumerDetail({ consumerId }: { consumerId: string }) {
   });
 
   const createKeyMut = useMutation({
-    mutationFn: () => apiConsumersApi.createKey(consumerId, { name: keyName }),
+    mutationFn: () => apiConsumersApi.createKey(consumerId, { name: keyName, environment: keyEnv }),
     onSuccess: (res: any) => {
       setNewKey(res?.key ?? null);
       setKeyName('');
@@ -326,6 +327,9 @@ function ConsumerDetail({ consumerId }: { consumerId: string }) {
                   <div className="min-w-0">
                     <div className="flex items-center gap-2">
                       <span className="font-medium text-gray-900 text-sm">{k.name}</span>
+                      <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-full ${k.environment === 'TEST' ? 'bg-amber-100 text-amber-700' : 'bg-blue-100 text-blue-700'}`}>
+                        {k.environment === 'TEST' ? 'TEST' : 'LIVE'}
+                      </span>
                       {revoked && <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-red-100 text-red-600">Révoquée</span>}
                     </div>
                     <p className="font-mono text-xs text-gray-400 mt-0.5">{k.keyPrefix}••••••••</p>
@@ -428,9 +432,31 @@ function ConsumerDetail({ consumerId }: { consumerId: string }) {
             <FormField label="Nom de la clé" required>
               <Input value={keyName} onChange={(e) => setKeyName(e.target.value)} placeholder="Production, Serveur backend…" autoFocus />
             </FormField>
+            <FormField label="Environnement">
+              <div className="grid grid-cols-2 gap-2">
+                {(['TEST', 'LIVE'] as const).map((env) => (
+                  <button
+                    key={env}
+                    type="button"
+                    onClick={() => setKeyEnv(env)}
+                    className={`px-3 py-2 rounded-lg text-sm font-semibold border transition ${
+                      keyEnv === env
+                        ? env === 'TEST' ? 'border-amber-400 bg-amber-50 text-amber-700' : 'border-blue-400 bg-blue-50 text-blue-700'
+                        : 'border-gray-200 text-gray-500 hover:bg-gray-50'
+                    }`}
+                  >
+                    {env === 'TEST' ? 'Test (sandbox)' : 'Production'}
+                    <span className="block text-[10px] font-mono font-normal opacity-70">
+                      {env === 'TEST' ? 'tpk_test_…' : 'tpk_live_…'}
+                    </span>
+                  </button>
+                ))}
+              </div>
+            </FormField>
             <p className="text-xs text-gray-400">
-              Cette clé héritera des scopes de votre plan ({consumer.plan}) :
-              <span className="font-mono"> {(PLAN_SCOPES[consumer.plan] ?? []).join(', ')}</span>.
+              {keyEnv === 'TEST'
+                ? 'Les clés de test ne décomptent pas le quota ; les réservations renvoient une réponse simulée (sans persistance).'
+                : <>Cette clé héritera des scopes de votre plan ({consumer.plan}) : <span className="font-mono">{(PLAN_SCOPES[consumer.plan] ?? []).join(', ')}</span>.</>}
             </p>
             <button
               onClick={() => keyName.trim() && createKeyMut.mutate()}

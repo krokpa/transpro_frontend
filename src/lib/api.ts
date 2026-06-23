@@ -474,7 +474,7 @@ export const apiConsumersApi = {
     api.patch(`/api-consumers/${id}`, data),
   usage:   (id: string) => api.get(`/api-consumers/${id}/usage`),
   webhooks:(id: string) => api.get(`/api-consumers/${id}/webhooks`),
-  createKey: (id: string, data: { name: string; scopes?: string[]; expiresAt?: string }) =>
+  createKey: (id: string, data: { name: string; environment?: 'LIVE' | 'TEST'; scopes?: string[]; expiresAt?: string }) =>
     api.post(`/api-consumers/${id}/keys`, data),
   revokeKey: (id: string, keyId: string) => api.delete(`/api-consumers/${id}/keys/${keyId}`),
 };
