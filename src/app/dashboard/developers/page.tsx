@@ -5,7 +5,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'next/navigation';
 import {
   KeyRound, Plus, Copy, Check, Trash2, Activity, Webhook,
-  ShieldCheck, Eye, EyeOff, Loader2, AlertCircle, ExternalLink,
+  ShieldCheck, Eye, EyeOff, Loader2, AlertCircle, ExternalLink, RotateCw,
 } from 'lucide-react';
 import { apiConsumersApi, apiError } from '@/lib/api';
 import { useAuthStore } from '@/store/auth.store';
@@ -269,6 +269,26 @@ function ConsumerDetail({ consumerId }: { consumerId: string }) {
     onError: (e) => toast.error(apiError(e, 'Révocation impossible')),
   });
 
+  const rotateKeyMut = useMutation({
+    mutationFn: (keyId: string) => apiConsumersApi.rotateKey(consumerId, keyId),
+    onSuccess: (res: any) => {
+      setNewKey(res?.key ?? null);
+      setShowKeyModal(true);
+      qc.invalidateQueries({ queryKey: ['api-consumer', consumerId] });
+      toast.success('Clé renouvelée — l\'ancienne reste valable 24 h');
+    },
+    onError: (e) => toast.error(apiError(e, 'Rotation impossible')),
+  });
+
+  const regenSecretMut = useMutation({
+    mutationFn: () => apiConsumersApi.regenerateWebhookSecret(consumerId),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['api-consumer', consumerId] });
+      toast.success('Secret de signature régénéré');
+    },
+    onError: (e) => toast.error(apiError(e, 'Régénération impossible')),
+  });
+
   const saveWebhookMut = useMutation({
     mutationFn: (url: string) => apiConsumersApi.update(consumerId, { webhookUrl: url }),
     onSuccess: () => {
@@ -425,9 +445,14 @@ function ConsumerDetail({ consumerId }: { consumerId: string }) {
                     </p>
                   </div>
                   {!revoked && (
-                    <button onClick={() => confirmRevoke(k.id, k.name)} className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition shrink-0" title="Révoquer">
-                      <Trash2 size={15} />
-                    </button>
+                    <div className="flex items-center gap-1 shrink-0">
+                      <button onClick={() => rotateKeyMut.mutate(k.id)} disabled={rotateKeyMut.isPending} className="p-1.5 text-gray-400 hover:text-brand-600 hover:bg-brand-50 rounded-lg transition disabled:opacity-50" title="Faire tourner (l'ancienne reste valable 24 h)">
+                        <RotateCw size={15} />
+                      </button>
+                      <button onClick={() => confirmRevoke(k.id, k.name)} className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition" title="Révoquer">
+                        <Trash2 size={15} />
+                      </button>
+                    </div>
                   )}
                 </div>
               );
@@ -464,6 +489,18 @@ function ConsumerDetail({ consumerId }: { consumerId: string }) {
                   {showSecret ? <EyeOff size={15} /> : <Eye size={15} />}
                 </button>
                 <CopyButton value={consumer.webhookSecret} />
+                <button
+                  onClick={async () => {
+                    if (await confirm({ title: 'Régénérer le secret ?', description: 'L\'ancien secret cessera immédiatement d\'être valide pour vérifier les signatures.', variant: 'danger' })) {
+                      regenSecretMut.mutate();
+                    }
+                  }}
+                  disabled={regenSecretMut.isPending}
+                  className="p-2 text-gray-400 hover:text-brand-600 rounded-lg disabled:opacity-50"
+                  title="Régénérer le secret"
+                >
+                  <RotateCw size={15} />
+                </button>
               </div>
               <p className="text-[11px] text-gray-400 mt-1 flex items-center gap-1">
                 <AlertCircle size={11} /> Sert à vérifier la signature HMAC des appels reçus.

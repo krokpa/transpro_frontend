@@ -481,5 +481,7 @@ export const apiConsumersApi = {
   confirmPlan:   (id: string, paymentId: string) => api.post(`/api-consumers/${id}/billing/confirm/${paymentId}`),
   createKey: (id: string, data: { name: string; environment?: 'LIVE' | 'TEST'; scopes?: string[]; expiresAt?: string }) =>
     api.post(`/api-consumers/${id}/keys`, data),
+  rotateKey: (id: string, keyId: string) => api.post(`/api-consumers/${id}/keys/${keyId}/rotate`),
   revokeKey: (id: string, keyId: string) => api.delete(`/api-consumers/${id}/keys/${keyId}`),
+  regenerateWebhookSecret: (id: string) => api.post(`/api-consumers/${id}/regenerate-webhook-secret`),
 };
