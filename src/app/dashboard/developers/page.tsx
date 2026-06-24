@@ -373,6 +373,7 @@ function ConsumerDetail({ consumerId }: { consumerId: string }) {
             <div className={`h-full rounded-full ${quotaPct > 90 ? 'bg-red-500' : quotaPct > 70 ? 'bg-orange-500' : 'bg-brand-500'}`} style={{ width: `${quotaPct}%` }} />
           </div>
         )}
+        {usage?.byDay?.length > 0 && <UsageChart data={usage.byDay} />}
         {usage?.topEndpoints?.length > 0 && (
           <div className="mt-4 space-y-1">
             <p className="text-xs font-medium text-gray-400 mb-1">Endpoints les plus appelés</p>
@@ -667,6 +668,26 @@ function AccessBanner({ access, reason, onRequest, requesting }: { access: strin
           {access === 'REJECTED' ? 'Refaire une demande' : 'Demander l\'activation production'}
         </button>
       )}
+    </div>
+  );
+}
+
+function UsageChart({ data }: { data: Array<{ day: string; count: number }> }) {
+  const max = Math.max(1, ...data.map((d) => d.count));
+  const recent = data.slice(-30);
+  return (
+    <div className="mt-4">
+      <p className="text-xs font-medium text-gray-400 mb-2">Requêtes / jour (30 j)</p>
+      <div className="flex items-end gap-[3px] h-20">
+        {recent.map((d) => (
+          <div
+            key={d.day}
+            className="flex-1 bg-brand-200 hover:bg-brand-400 rounded-t transition-colors"
+            style={{ height: `${Math.max(4, Math.round((d.count / max) * 100))}%` }}
+            title={`${new Date(d.day).toLocaleDateString('fr-FR')} — ${d.count} req`}
+          />
+        ))}
+      </div>
     </div>
   );
 }
