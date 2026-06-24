@@ -473,7 +473,7 @@ export const platformApi = {
 
 // ─── Inscription développeur tiers (self-service) ────────────────────────────
 export const developerApi = {
-  register: (data: { name: string; email: string; password: string; companyName?: string }) =>
+  register: (data: { name: string; email: string; password: string; companyName?: string; acceptTerms: boolean }) =>
     api.post('/developer/register', data),
   verifyEmail: (token: string) => api.post('/developer/verify-email', { token }),
   resendVerification: () => api.post('/developer/resend-verification'),
