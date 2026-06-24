@@ -477,6 +477,8 @@ export const apiConsumersApi = {
   requestProduction: (id: string) => api.post(`/api-consumers/${id}/request-production`),
   reviewProduction:  (id: string, approve: boolean, reason?: string) =>
     api.post(`/api-consumers/${id}/review-production`, { approve, reason }),
+  subscribePlan: (id: string, plan: string) => api.post(`/api-consumers/${id}/billing/subscribe`, { plan }),
+  confirmPlan:   (id: string, paymentId: string) => api.post(`/api-consumers/${id}/billing/confirm/${paymentId}`),
   createKey: (id: string, data: { name: string; environment?: 'LIVE' | 'TEST'; scopes?: string[]; expiresAt?: string }) =>
     api.post(`/api-consumers/${id}/keys`, data),
   revokeKey: (id: string, keyId: string) => api.delete(`/api-consumers/${id}/keys/${keyId}`),

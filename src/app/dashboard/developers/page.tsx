@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'next/navigation';
 import {
@@ -24,6 +24,7 @@ const PLAN_QUOTA: Record<string, string> = {
   BUSINESS: '50 000 req/mois',
   ENTERPRISE: 'Illimité',
 };
+const PLAN_PRICE: Record<string, number> = { STARTER: 0, BUSINESS: 50_000, ENTERPRISE: 200_000 };
 
 interface Consumer {
   id: string;
@@ -44,6 +45,21 @@ export default function DevelopersPage() {
   const [showCreate, setShowCreate] = useState(false);
   const [form, setForm] = useState({ name: '', email: '', plan: 'STARTER', webhookUrl: '' });
   const [selectedId, setSelectedId] = useState<string | null>(null);
+
+  // Retour de paiement Genius Pay (?billing=success|error).
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const billing = params.get('billing');
+    if (!billing) return;
+    if (billing === 'success') {
+      toast.success('Paiement reçu — votre plan sera activé sous peu.');
+      qc.invalidateQueries({ queryKey: ['api-consumers'] });
+      qc.invalidateQueries({ queryKey: ['api-consumer'] });
+    } else if (billing === 'error') {
+      toast.error('Le paiement a échoué ou a été annulé.');
+    }
+    window.history.replaceState({}, '', '/dashboard/developers');
+  }, [qc]);
 
   if (user?.role !== 'COMPANY_OWNER') {
     router.replace('/dashboard');
@@ -272,6 +288,21 @@ function ConsumerDetail({ consumerId }: { consumerId: string }) {
     onError: (e) => toast.error(apiError(e, 'Demande impossible')),
   });
 
+  const subscribeMut = useMutation({
+    mutationFn: (plan: string) => apiConsumersApi.subscribePlan(consumerId, plan),
+    onSuccess: (res: any) => {
+      if (res?.checkoutUrl) {
+        toast.info('Redirection vers le paiement…');
+        window.location.href = res.checkoutUrl;
+        return;
+      }
+      qc.invalidateQueries({ queryKey: ['api-consumer', consumerId] });
+      qc.invalidateQueries({ queryKey: ['api-consumers'] });
+      toast.success('Plan mis à jour');
+    },
+    onError: (e) => toast.error(apiError(e, 'Changement de plan impossible')),
+  });
+
   if (!consumer) {
     return <div className="bg-white rounded-2xl border border-gray-100 p-12 text-center text-gray-400">Chargement…</div>;
   }
@@ -324,6 +355,42 @@ function ConsumerDetail({ consumerId }: { consumerId: string }) {
             ))}
           </div>
         )}
+      </Card>
+
+      {/* Plan & facturation */}
+      <Card icon={<ShieldCheck size={16} className="text-brand-500" />} title="Plan & facturation">
+        {consumer.planExpiresAt && (
+          <p className="text-xs text-gray-500 mb-3">
+            Plan actif jusqu'au {new Date(consumer.planExpiresAt).toLocaleDateString('fr-FR')}.
+          </p>
+        )}
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+          {(['STARTER', 'BUSINESS', 'ENTERPRISE'] as const).map((plan) => {
+            const current = consumer.plan === plan;
+            return (
+              <div key={plan} className={`rounded-xl border p-3 ${current ? 'border-brand-400 bg-brand-50' : 'border-gray-200'}`}>
+                <p className="font-semibold text-gray-900 text-sm">{plan.charAt(0) + plan.slice(1).toLowerCase()}</p>
+                <p className="text-xs text-gray-500 mt-0.5">{PLAN_QUOTA[plan]}</p>
+                <p className="text-sm font-bold text-gray-900 mt-2">
+                  {PLAN_PRICE[plan] === 0 ? 'Gratuit' : `${PLAN_PRICE[plan].toLocaleString('fr-FR')} F`}
+                  {PLAN_PRICE[plan] > 0 && <span className="text-[11px] font-normal text-gray-400">/mois</span>}
+                </p>
+                {current ? (
+                  <span className="mt-2 block text-center text-[11px] font-semibold text-brand-600">Plan actuel</span>
+                ) : (
+                  <button
+                    onClick={() => subscribeMut.mutate(plan)}
+                    disabled={subscribeMut.isPending}
+                    className="mt-2 w-full px-2 py-1.5 text-xs font-semibold bg-gray-900 hover:bg-gray-800 text-white rounded-lg transition disabled:opacity-50"
+                  >
+                    {PLAN_PRICE[plan] === 0 ? 'Rétrograder' : 'Choisir'}
+                  </button>
+                )}
+              </div>
+            );
+          })}
+        </div>
+        <p className="text-[11px] text-gray-400 mt-2">Paiement sécurisé via Genius Pay. Renouvellement mensuel.</p>
       </Card>
 
       {/* Clés API */}
