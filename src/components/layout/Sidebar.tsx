@@ -7,10 +7,11 @@ import {
   LayoutDashboard, Bus, Route, Users, Ticket,
   Settings, LogOut, Truck, CalendarClock, TicketCheck, ConciergeBell, ScanLine, BarChart3, FileText, Building2,
   ShieldCheck, MapPin, CreditCard, UserCog, Package, Lock, Home, Luggage, Megaphone, Banknote, Receipt, Wallet, BookOpen,
-  Loader2, KeyRound,
+  Loader2, KeyRound, Palette,
 } from 'lucide-react';
 import { useAuthStore } from '@/store/auth.store';
 import { useNavStore } from '@/store/nav.store';
+import { useBranding } from '@/lib/branding';
 import { authApi, tenantsApi } from '@/lib/api';
 import { disconnectSocket } from '@/lib/socket';
 import { toast } from 'sonner';
@@ -89,6 +90,7 @@ export function Sidebar() {
   const pathname = usePathname();
   const router = useRouter();
   const { user, clearAuth, refreshToken } = useAuthStore();
+  const { appName } = useBranding();
 
   const { pendingHref, setPendingHref } = useNavStore();
   useEffect(() => { setPendingHref(null); }, [pathname]);
@@ -137,7 +139,7 @@ export function Sidebar() {
           )}
           <div className="min-w-0">
             <p className="font-semibold text-white text-[13px] truncate">
-              {tenant?.sigle ?? tenant?.name ?? 'TransPro CI'}
+              {tenant?.sigle ?? tenant?.name ?? appName}
             </p>
             <p className="text-[11px] text-slate-500 truncate">
               {tenant?.name && tenant.sigle ? tenant.name : 'Gestion transport'}
@@ -162,6 +164,7 @@ export function Sidebar() {
                 { label: 'Facturation',     icon: CreditCard,      href: '/dashboard/admin/billing' },
                 { label: 'Reversements',    icon: Banknote,        href: '/dashboard/admin/settlements' },
                 { label: 'Accès API',       icon: KeyRound,        href: '/dashboard/admin/api-access' },
+                { label: 'Marque',          icon: Palette,         href: '/dashboard/admin/branding' },
                 { label: 'Villes',          icon: MapPin,          href: '/dashboard/cities' },
                 { label: 'Paramètres',      icon: Settings,        href: '/dashboard/settings' },
               ].map((item) => {

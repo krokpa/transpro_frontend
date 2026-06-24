@@ -9,6 +9,7 @@ import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { ThemePanel } from '@/components/ui/ThemePanel';
 import { useThemeStore, applyColorMode, type ColorMode } from '@/store/theme.store';
 import { useAuthStore } from '@/store/auth.store';
+import { BrandingProvider } from '@/lib/branding';
 
 function ThemeInit() {
   const { accent, sidebar, colorMode, setAccent, setSidebar, setColorMode } = useThemeStore();
@@ -65,9 +66,11 @@ const GOOGLE_CLIENT_ID = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID;
 export default function Providers({ children }: { children: React.ReactNode }) {
   const inner = (
     <QueryClientProvider client={queryClient}>
-      <AppLoader>
-        {children}
-      </AppLoader>
+      <BrandingProvider>
+        <AppLoader>
+          {children}
+        </AppLoader>
+      </BrandingProvider>
       <Toaster position="top-right" richColors />
       <ConfirmDialog />
       <ThemeInit />

@@ -7,12 +7,14 @@ import { useState } from 'react';
 import { KeyRound, LogOut, ExternalLink, MailWarning } from 'lucide-react';
 import { apiConsumersApi, developerApi, apiError } from '@/lib/api';
 import { useAuthStore } from '@/store/auth.store';
+import { useBranding } from '@/lib/branding';
 import { ConsumerDetail } from '@/app/dashboard/developers/page';
 import { toast } from 'sonner';
 
 export default function DeveloperConsolePage() {
   const router = useRouter();
   const { user, clearAuth } = useAuthStore();
+  const { appName } = useBranding();
   const [resending, setResending] = useState(false);
 
   // Retour de paiement Genius Pay (?billing=success|error).
@@ -71,7 +73,7 @@ export default function DeveloperConsolePage() {
             </div>
             <div>
               <p className="font-bold text-gray-900 leading-tight">Espace Développeur</p>
-              <p className="text-xs text-gray-400 leading-tight">TransPro API</p>
+              <p className="text-xs text-gray-400 leading-tight">{appName} API</p>
             </div>
           </div>
           <div className="flex items-center gap-3">

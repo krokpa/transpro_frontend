@@ -464,6 +464,13 @@ export const stationsApi = {
   getAnalytics: (id: string, days?: number) => api.get(`/stations/${id}/analytics`, { params: days ? { days } : {} }),
 };
 
+// ─── Réglages plateforme (branding) ──────────────────────────────────────────
+export const platformApi = {
+  getSettings: () => api.get('/platform-settings'),
+  updateSettings: (data: { appName?: string; tagline?: string; primaryColor?: string; logoUrl?: string }) =>
+    api.patch('/platform-settings', data),
+};
+
 // ─── Inscription développeur tiers (self-service) ────────────────────────────
 export const developerApi = {
   register: (data: { name: string; email: string; password: string; companyName?: string }) =>
