@@ -495,6 +495,9 @@ export const apiConsumersApi = {
     api.post(`/api-consumers/${id}/review-production`, { approve, reason }),
   subscribePlan: (id: string, plan: string) => api.post(`/api-consumers/${id}/billing/subscribe`, { plan }),
   confirmPlan:   (id: string, paymentId: string) => api.post(`/api-consumers/${id}/billing/confirm/${paymentId}`),
+  invoices:      (id: string) => api.get(`/api-consumers/${id}/billing/invoices`),
+  downloadInvoice: (id: string, paymentId: string) =>
+    api.get(`/api-consumers/${id}/billing/invoices/${paymentId}/pdf`, { responseType: 'blob' }),
   createKey: (id: string, data: { name: string; environment?: 'LIVE' | 'TEST'; scopes?: string[]; expiresAt?: string }) =>
     api.post(`/api-consumers/${id}/keys`, data),
   rotateKey: (id: string, keyId: string) => api.post(`/api-consumers/${id}/keys/${keyId}/rotate`),

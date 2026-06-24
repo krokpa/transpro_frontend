@@ -5,7 +5,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'next/navigation';
 import {
   KeyRound, Plus, Copy, Check, Trash2, Activity, Webhook,
-  ShieldCheck, Eye, EyeOff, Loader2, AlertCircle, ExternalLink, RotateCw,
+  ShieldCheck, Eye, EyeOff, Loader2, AlertCircle, ExternalLink, RotateCw, Download,
 } from 'lucide-react';
 import { apiConsumersApi, apiError } from '@/lib/api';
 import { useAuthStore } from '@/store/auth.store';
@@ -251,6 +251,23 @@ export function ConsumerDetail({ consumerId }: { consumerId: string }) {
     queryFn: () => apiConsumersApi.webhooks(consumerId) as any,
     refetchInterval: 30_000,
   });
+  const { data: invoices = [] } = useQuery({
+    queryKey: ['api-consumer-invoices', consumerId],
+    queryFn: () => apiConsumersApi.invoices(consumerId) as any,
+  });
+
+  async function downloadInvoice(paymentId: string) {
+    try {
+      const blob = (await apiConsumersApi.downloadInvoice(consumerId, paymentId)) as any as Blob;
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url; a.download = `facture-${paymentId.slice(-8)}.pdf`;
+      document.body.appendChild(a); a.click(); a.remove();
+      URL.revokeObjectURL(url);
+    } catch (e) {
+      toast.error(apiError(e, 'Téléchargement impossible'));
+    }
+  }
 
   const createKeyMut = useMutation({
     mutationFn: () => apiConsumersApi.createKey(consumerId, { name: keyName, environment: keyEnv }),
@@ -425,6 +442,24 @@ export function ConsumerDetail({ consumerId }: { consumerId: string }) {
           })}
         </div>
         <p className="text-[11px] text-gray-400 mt-2">Paiement sécurisé via Genius Pay. Renouvellement mensuel.</p>
+
+        {invoices.length > 0 && (
+          <div className="mt-4 pt-4 border-t border-gray-100">
+            <p className="text-xs font-medium text-gray-400 mb-2">Factures</p>
+            <div className="space-y-1">
+              {invoices.slice(0, 6).map((inv: any) => (
+                <div key={inv.id} className="flex items-center justify-between text-xs">
+                  <span className="text-gray-600">
+                    {inv.plan} · {new Date(inv.paidAt).toLocaleDateString('fr-FR')} · {Number(inv.amount).toLocaleString('fr-FR')} F
+                  </span>
+                  <button onClick={() => downloadInvoice(inv.id)} className="text-brand-600 hover:text-brand-700 font-medium inline-flex items-center gap-1">
+                    <Download size={12} /> PDF
+                  </button>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
       </Card>
 
       {/* Clés API */}
