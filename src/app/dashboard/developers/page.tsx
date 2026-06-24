@@ -61,6 +61,10 @@ export default function DevelopersPage() {
     window.history.replaceState({}, '', '/dashboard/developers');
   }, [qc]);
 
+  if (user?.role === 'DEVELOPER') {
+    router.replace(`/developer/console${typeof window !== 'undefined' ? window.location.search : ''}`);
+    return null;
+  }
   if (user?.role !== 'COMPANY_OWNER') {
     router.replace('/dashboard');
     return null;
@@ -225,7 +229,7 @@ export default function DevelopersPage() {
 }
 
 // ── Détail d'une intégration : clés, usage, webhooks ──────────────────────────
-function ConsumerDetail({ consumerId }: { consumerId: string }) {
+export function ConsumerDetail({ consumerId }: { consumerId: string }) {
   const qc = useQueryClient();
   const [showKeyModal, setShowKeyModal] = useState(false);
   const [keyName, setKeyName] = useState('');

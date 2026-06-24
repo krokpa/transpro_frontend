@@ -83,6 +83,7 @@ export default function LoginPage() {
     toast.success('Connexion réussie !');
     const role = res.user?.role;
     if (role === 'SUPER_ADMIN')        router.push('/dashboard/admin');
+    else if (role === 'DEVELOPER')     router.push('/developer/console');
     else if (role === 'PASSENGER')     router.push('/passenger');
     else if (!res.user?.tenantId)      router.push('/register');
     else if (role === 'DRIVER')        router.push('/driver');

@@ -464,6 +464,12 @@ export const stationsApi = {
   getAnalytics: (id: string, days?: number) => api.get(`/stations/${id}/analytics`, { params: days ? { days } : {} }),
 };
 
+// ─── Inscription développeur tiers (self-service) ────────────────────────────
+export const developerApi = {
+  register: (data: { name: string; email: string; password: string; companyName?: string }) =>
+    api.post('/developer/register', data),
+};
+
 // ─── API Partenaires (consumers, clés, usage, webhooks) ──────────────────────
 export const apiConsumersApi = {
   list:   ()           => api.get('/api-consumers'),
