@@ -474,6 +474,7 @@ export const apiConsumersApi = {
     api.patch(`/api-consumers/${id}`, data),
   usage:   (id: string) => api.get(`/api-consumers/${id}/usage`),
   webhooks:(id: string) => api.get(`/api-consumers/${id}/webhooks`),
+  resendWebhook: (id: string, deliveryId: string) => api.post(`/api-consumers/${id}/webhooks/${deliveryId}/resend`),
   requestProduction: (id: string) => api.post(`/api-consumers/${id}/request-production`),
   reviewProduction:  (id: string, approve: boolean, reason?: string) =>
     api.post(`/api-consumers/${id}/review-production`, { approve, reason }),

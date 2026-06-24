@@ -289,6 +289,15 @@ function ConsumerDetail({ consumerId }: { consumerId: string }) {
     onError: (e) => toast.error(apiError(e, 'Régénération impossible')),
   });
 
+  const resendMut = useMutation({
+    mutationFn: (deliveryId: string) => apiConsumersApi.resendWebhook(consumerId, deliveryId),
+    onSuccess: () => {
+      setTimeout(() => qc.invalidateQueries({ queryKey: ['api-consumer-webhooks', consumerId] }), 1200);
+      toast.success('Livraison relancée');
+    },
+    onError: (e) => toast.error(apiError(e, 'Relance impossible')),
+  });
+
   const saveWebhookMut = useMutation({
     mutationFn: (url: string) => apiConsumersApi.update(consumerId, { webhookUrl: url }),
     onSuccess: () => {
@@ -521,7 +530,19 @@ function ConsumerDetail({ consumerId }: { consumerId: string }) {
                       <span className="font-mono text-gray-700">{d.event}</span>
                       <span className="text-gray-400 ml-2">{new Date(d.createdAt).toLocaleString('fr-FR')}</span>
                     </div>
-                    <DeliveryBadge status={d.status} attempts={d.attempts} code={d.statusCode} />
+                    <div className="flex items-center gap-1.5 shrink-0">
+                      <DeliveryBadge status={d.status} attempts={d.attempts} code={d.statusCode} />
+                      {d.status !== 'DELIVERED' && (
+                        <button
+                          onClick={() => resendMut.mutate(d.id)}
+                          disabled={resendMut.isPending}
+                          className="p-1 text-gray-400 hover:text-brand-600 rounded disabled:opacity-50"
+                          title="Relancer cette livraison"
+                        >
+                          <RotateCw size={13} />
+                        </button>
+                      )}
+                    </div>
                   </div>
                 ))}
               </div>
