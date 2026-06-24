@@ -161,6 +161,7 @@ export function Sidebar() {
                 { label: 'Utilisateurs',    icon: Users,           href: '/dashboard/admin/users' },
                 { label: 'Facturation',     icon: CreditCard,      href: '/dashboard/admin/billing' },
                 { label: 'Reversements',    icon: Banknote,        href: '/dashboard/admin/settlements' },
+                { label: 'Accès API',       icon: KeyRound,        href: '/dashboard/admin/api-access' },
                 { label: 'Villes',          icon: MapPin,          href: '/dashboard/cities' },
                 { label: 'Paramètres',      icon: Settings,        href: '/dashboard/settings' },
               ].map((item) => {

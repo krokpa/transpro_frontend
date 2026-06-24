@@ -262,6 +262,16 @@ function ConsumerDetail({ consumerId }: { consumerId: string }) {
     onError: (e) => toast.error(apiError(e, 'Enregistrement impossible')),
   });
 
+  const requestProdMut = useMutation({
+    mutationFn: () => apiConsumersApi.requestProduction(consumerId),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['api-consumer', consumerId] });
+      qc.invalidateQueries({ queryKey: ['api-consumers'] });
+      toast.success('Demande d\'activation production envoyée');
+    },
+    onError: (e) => toast.error(apiError(e, 'Demande impossible')),
+  });
+
   if (!consumer) {
     return <div className="bg-white rounded-2xl border border-gray-100 p-12 text-center text-gray-400">Chargement…</div>;
   }
@@ -271,6 +281,8 @@ function ConsumerDetail({ consumerId }: { consumerId: string }) {
   const quotaLimit = usage?.quota?.limit ?? null;
   const quotaPct = quotaLimit ? Math.min(100, Math.round((quotaUsed / quotaLimit) * 100)) : 0;
   const effectiveWebhookUrl = webhookUrl ?? consumer.webhookUrl ?? '';
+  const access = consumer.accessStatus ?? 'SANDBOX';
+  const isApproved = access === 'APPROVED';
 
   async function confirmRevoke(keyId: string, name: string) {
     if (await confirm({ title: `Révoquer la clé "${name}" ?`, description: 'Les applications utilisant cette clé perdront immédiatement l\'accès.', variant: 'danger' })) {
@@ -280,6 +292,14 @@ function ConsumerDetail({ consumerId }: { consumerId: string }) {
 
   return (
     <div className="space-y-5">
+      {/* Statut d'accès (sandbox → production) */}
+      <AccessBanner
+        access={access}
+        reason={consumer.prodRejectionReason}
+        onRequest={() => requestProdMut.mutate()}
+        requesting={requestProdMut.isPending}
+      />
+
       {/* Usage / quota */}
       <Card icon={<Activity size={16} className="text-brand-500" />} title="Quota mensuel">
         <div className="flex items-center justify-between text-sm mb-2">
@@ -311,7 +331,7 @@ function ConsumerDetail({ consumerId }: { consumerId: string }) {
         icon={<KeyRound size={16} className="text-brand-500" />}
         title="Clés API"
         action={
-          <button onClick={() => { setNewKey(null); setShowKeyModal(true); }} className="text-xs font-semibold text-brand-600 hover:text-brand-700 inline-flex items-center gap-1">
+          <button onClick={() => { setNewKey(null); setKeyEnv(isApproved ? 'LIVE' : 'TEST'); setShowKeyModal(true); }} className="text-xs font-semibold text-brand-600 hover:text-brand-700 inline-flex items-center gap-1">
             <Plus size={13} /> Nouvelle clé
           </button>
         }
@@ -434,23 +454,30 @@ function ConsumerDetail({ consumerId }: { consumerId: string }) {
             </FormField>
             <FormField label="Environnement">
               <div className="grid grid-cols-2 gap-2">
-                {(['TEST', 'LIVE'] as const).map((env) => (
-                  <button
-                    key={env}
-                    type="button"
-                    onClick={() => setKeyEnv(env)}
-                    className={`px-3 py-2 rounded-lg text-sm font-semibold border transition ${
-                      keyEnv === env
-                        ? env === 'TEST' ? 'border-amber-400 bg-amber-50 text-amber-700' : 'border-blue-400 bg-blue-50 text-blue-700'
-                        : 'border-gray-200 text-gray-500 hover:bg-gray-50'
-                    }`}
-                  >
-                    {env === 'TEST' ? 'Test (sandbox)' : 'Production'}
-                    <span className="block text-[10px] font-mono font-normal opacity-70">
-                      {env === 'TEST' ? 'tpk_test_…' : 'tpk_live_…'}
-                    </span>
-                  </button>
-                ))}
+                {(['TEST', 'LIVE'] as const).map((env) => {
+                  const disabled = env === 'LIVE' && !isApproved;
+                  return (
+                    <button
+                      key={env}
+                      type="button"
+                      disabled={disabled}
+                      title={disabled ? 'Activez l\'accès production pour créer des clés LIVE' : undefined}
+                      onClick={() => setKeyEnv(env)}
+                      className={`px-3 py-2 rounded-lg text-sm font-semibold border transition ${
+                        disabled
+                          ? 'border-gray-100 text-gray-300 cursor-not-allowed bg-gray-50'
+                          : keyEnv === env
+                            ? env === 'TEST' ? 'border-amber-400 bg-amber-50 text-amber-700' : 'border-blue-400 bg-blue-50 text-blue-700'
+                            : 'border-gray-200 text-gray-500 hover:bg-gray-50'
+                      }`}
+                    >
+                      {env === 'TEST' ? 'Test (sandbox)' : 'Production'}
+                      <span className="block text-[10px] font-mono font-normal opacity-70">
+                        {env === 'TEST' ? 'tpk_test_…' : disabled ? 'verrouillé' : 'tpk_live_…'}
+                      </span>
+                    </button>
+                  );
+                })}
               </div>
             </FormField>
             <p className="text-xs text-gray-400">
@@ -484,6 +511,37 @@ function Card({ icon, title, action, children }: { icon: React.ReactNode; title:
         {action}
       </div>
       {children}
+    </div>
+  );
+}
+
+function AccessBanner({ access, reason, onRequest, requesting }: { access: string; reason?: string | null; onRequest: () => void; requesting: boolean }) {
+  const cfg: Record<string, { bg: string; text: string; title: string; desc: string; canRequest: boolean }> = {
+    SANDBOX: { bg: 'bg-amber-50 border-amber-200', text: 'text-amber-800', title: 'Mode sandbox', desc: 'Seules les clés de test (tpk_test_) sont disponibles. Demandez l\'activation production pour générer des clés LIVE.', canRequest: true },
+    PENDING: { bg: 'bg-blue-50 border-blue-200', text: 'text-blue-800', title: 'Activation en cours de validation', desc: 'Votre demande d\'accès production est en attente de validation par un administrateur.', canRequest: false },
+    APPROVED: { bg: 'bg-green-50 border-green-200', text: 'text-green-800', title: 'Production activée', desc: 'Vous pouvez générer des clés LIVE (tpk_live_).', canRequest: false },
+    REJECTED: { bg: 'bg-red-50 border-red-200', text: 'text-red-800', title: 'Demande refusée', desc: reason || 'Votre demande d\'activation production a été refusée.', canRequest: true },
+  };
+  const c = cfg[access] ?? cfg.SANDBOX;
+  return (
+    <div className={`rounded-2xl border p-4 flex items-start justify-between gap-4 ${c.bg}`}>
+      <div className="flex items-start gap-2.5">
+        <ShieldCheck size={18} className={`${c.text} shrink-0 mt-0.5`} />
+        <div>
+          <p className={`text-sm font-semibold ${c.text}`}>{c.title}</p>
+          <p className={`text-xs mt-0.5 ${c.text} opacity-80`}>{c.desc}</p>
+        </div>
+      </div>
+      {c.canRequest && (
+        <button
+          onClick={onRequest}
+          disabled={requesting}
+          className="shrink-0 px-3 py-2 text-xs font-semibold bg-gray-900 hover:bg-gray-800 text-white rounded-lg transition disabled:opacity-50 inline-flex items-center gap-1.5"
+        >
+          {requesting && <Loader2 size={12} className="animate-spin" />}
+          {access === 'REJECTED' ? 'Refaire une demande' : 'Demander l\'activation production'}
+        </button>
+      )}
     </div>
   );
 }
