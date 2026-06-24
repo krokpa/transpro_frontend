@@ -3,8 +3,9 @@
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useQuery } from '@tanstack/react-query';
-import { KeyRound, LogOut, ExternalLink } from 'lucide-react';
-import { apiConsumersApi } from '@/lib/api';
+import { useState } from 'react';
+import { KeyRound, LogOut, ExternalLink, MailWarning } from 'lucide-react';
+import { apiConsumersApi, developerApi, apiError } from '@/lib/api';
 import { useAuthStore } from '@/store/auth.store';
 import { ConsumerDetail } from '@/app/dashboard/developers/page';
 import { toast } from 'sonner';
@@ -12,6 +13,7 @@ import { toast } from 'sonner';
 export default function DeveloperConsolePage() {
   const router = useRouter();
   const { user, clearAuth } = useAuthStore();
+  const [resending, setResending] = useState(false);
 
   // Retour de paiement Genius Pay (?billing=success|error).
   useEffect(() => {
@@ -41,6 +43,18 @@ export default function DeveloperConsolePage() {
   function logout() {
     clearAuth();
     router.push('/developer/login');
+  }
+
+  async function resendVerification() {
+    setResending(true);
+    try {
+      await developerApi.resendVerification();
+      toast.success('Email de vérification renvoyé — vérifiez votre boîte.');
+    } catch (e) {
+      toast.error(apiError(e, 'Envoi impossible'));
+    } finally {
+      setResending(false);
+    }
   }
 
   const apiDocsUrl =
@@ -73,6 +87,27 @@ export default function DeveloperConsolePage() {
       </header>
 
       <main className="max-w-4xl mx-auto px-5 py-6">
+        {(user as any).isVerified === false && (
+          <div className="mb-5 rounded-2xl border border-amber-200 bg-amber-50 p-4 flex items-start justify-between gap-4">
+            <div className="flex items-start gap-2.5">
+              <MailWarning size={18} className="text-amber-700 shrink-0 mt-0.5" />
+              <div>
+                <p className="text-sm font-semibold text-amber-800">Vérifiez votre adresse email</p>
+                <p className="text-xs text-amber-800/80 mt-0.5">
+                  Le sandbox est disponible, mais la demande d'accès production nécessite un email vérifié.
+                </p>
+              </div>
+            </div>
+            <button
+              onClick={resendVerification}
+              disabled={resending}
+              className="shrink-0 px-3 py-2 text-xs font-semibold bg-gray-900 hover:bg-gray-800 text-white rounded-lg transition disabled:opacity-50"
+            >
+              Renvoyer l'email
+            </button>
+          </div>
+        )}
+
         <div className="mb-5">
           <h1 className="text-2xl font-bold text-gray-900">Mon intégration API</h1>
           <p className="text-sm text-gray-500 mt-1">

@@ -29,7 +29,7 @@ export default function DeveloperRegisterPage() {
         companyName: form.companyName.trim() || undefined,
       });
       setAuth(res.user, res.accessToken, res.refreshToken);
-      toast.success('Compte développeur créé — bienvenue !');
+      toast.success('Compte créé — vérifiez votre email pour débloquer la production.');
       router.push('/developer/console');
     } catch (err) {
       toast.error(apiError(err, 'Inscription impossible'));

@@ -468,6 +468,8 @@ export const stationsApi = {
 export const developerApi = {
   register: (data: { name: string; email: string; password: string; companyName?: string }) =>
     api.post('/developer/register', data),
+  verifyEmail: (token: string) => api.post('/developer/verify-email', { token }),
+  resendVerification: () => api.post('/developer/resend-verification'),
 };
 
 // ─── API Partenaires (consumers, clés, usage, webhooks) ──────────────────────
