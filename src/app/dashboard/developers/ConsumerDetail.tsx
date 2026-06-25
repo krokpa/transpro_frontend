@@ -11,10 +11,11 @@ import { FormModal, FormField, Input } from '@/components/ui';
 import { toast } from 'sonner';
 import { confirm } from '@/lib/confirm';
 
+const BASE_READ = ['trips:read', 'stations:read', 'routes:read', 'cities:read', 'companies:read', 'schedules:read', 'ratings:read', 'promotions:read', 'parcels:read'];
 const PLAN_SCOPES: Record<string, string[]> = {
-  STARTER: ['trips:read', 'stations:read', 'routes:read', 'parcels:read'],
-  BUSINESS: ['trips:read', 'stations:read', 'routes:read', 'bookings:read', 'bookings:write', 'parcels:read', 'parcels:write'],
-  ENTERPRISE: ['trips:read', 'stations:read', 'routes:read', 'bookings:read', 'bookings:write', 'parcels:read', 'parcels:write'],
+  STARTER: BASE_READ,
+  BUSINESS: [...BASE_READ, 'bookings:read', 'bookings:write', 'parcels:write'],
+  ENTERPRISE: [...BASE_READ, 'bookings:read', 'bookings:write', 'parcels:write'],
 };
 const PLAN_QUOTA: Record<string, string> = {
   STARTER: '5 000 req/mois',

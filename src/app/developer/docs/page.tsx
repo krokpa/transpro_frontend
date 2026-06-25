@@ -160,10 +160,13 @@ const NAV: { group: string; items: { id: string; label: string }[] }[] = [
   {
     group: 'Référence API',
     items: [
-      { id: 'voyages', label: 'Voyages' },
+      { id: 'voyages', label: 'Voyages & sièges' },
       { id: 'gares-itineraires', label: 'Gares & itinéraires' },
+      { id: 'villes-compagnies', label: 'Villes & compagnies' },
+      { id: 'plannings', label: 'Plannings' },
       { id: 'reservations', label: 'Réservations' },
       { id: 'colis', label: 'Colis' },
+      { id: 'avis-promos', label: 'Avis & promos' },
       { id: 'meta', label: 'Méta' },
     ],
   },
@@ -359,7 +362,7 @@ const trips = await client.searchTrips({
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-50">
-                  <tr><td className="px-3 py-2 font-mono">STARTER</td><td className="px-3 py-2 text-gray-500">5 000 req</td><td className="px-3 py-2 text-gray-600"><C>trips:read</C> <C>stations:read</C> <C>routes:read</C> <C>parcels:read</C></td></tr>
+                  <tr><td className="px-3 py-2 font-mono">STARTER</td><td className="px-3 py-2 text-gray-500">5 000 req</td><td className="px-3 py-2 text-gray-600">toutes les lectures : <C>trips:read</C> <C>stations:read</C> <C>routes:read</C> <C>cities:read</C> <C>companies:read</C> <C>schedules:read</C> <C>ratings:read</C> <C>promotions:read</C> <C>parcels:read</C></td></tr>
                   <tr><td className="px-3 py-2 font-mono">BUSINESS</td><td className="px-3 py-2 text-gray-500">50 000 req</td><td className="px-3 py-2 text-gray-600">+ <C>bookings:read</C> <C>bookings:write</C> <C>parcels:write</C></td></tr>
                   <tr><td className="px-3 py-2 font-mono">ENTERPRISE</td><td className="px-3 py-2 text-gray-500">illimité</td><td className="px-3 py-2 text-gray-600">tous les scopes</td></tr>
                 </tbody>
@@ -456,7 +459,7 @@ const trips = await client.searchTrips({
           </Section>
 
           {/* Voyages */}
-          <Section id="voyages" title="Voyages" icon={<Rocket size={22} className="text-brand-500" />}>
+          <Section id="voyages" title="Voyages & sièges" icon={<Rocket size={22} className="text-brand-500" />}>
             <EndpointHead method="GET" path="/ext/trips" scope="trips:read" />
             <P>Recherche les voyages disponibles pour un trajet et une date.</P>
             <Params
@@ -500,6 +503,22 @@ const trips = await client.searchTrips({
             />
             <EndpointHead method="GET" path="/ext/trips/:id" scope="trips:read" />
             <P>Détails d'un voyage, incluant les arrêts intermédiaires et le contact de la compagnie.</P>
+
+            <EndpointHead method="GET" path="/ext/trips/:id/seats" scope="trips:read" />
+            <P>Plan de salle : liste des sièges avec leur disponibilité, pour laisser l'utilisateur choisir sa place avant de réserver.</P>
+            <CodeBlock tabs={[{ label: 'Réponse', code: `{
+  "success": true,
+  "data": {
+    "tripId": "cmtrip123",
+    "totalSeats": 50,
+    "availableSeats": 23,
+    "seats": [
+      { "seatNumber": "A1", "status": "AVAILABLE", "available": true },
+      { "seatNumber": "A2", "status": "BOOKED", "available": false }
+    ]
+  },
+  "timestamp": "2026-07-01T07:00:00.000Z"
+}` }]} />
           </Section>
 
           {/* Gares & itinéraires */}
@@ -519,6 +538,55 @@ const trips = await client.searchTrips({
       "basePrice": 8000,
       "originCity": { "name": "Abidjan" },
       "destinationCity": { "name": "Bouake" },
+      "tenant": { "name": "Transport Express", "slug": "transport-express" }
+    }
+  ],
+  "timestamp": "2026-07-01T07:00:00.000Z"
+}` }]} />
+          </Section>
+
+          {/* Villes & compagnies */}
+          <Section id="villes-compagnies" title="Villes & compagnies" icon={<Boxes size={22} className="text-brand-500" />}>
+            <EndpointHead method="GET" path="/ext/cities" scope="cities:read" />
+            <P>Liste les villes desservies — utile pour l'autocomplétion des champs départ / arrivée.</P>
+            <EndpointHead method="GET" path="/ext/companies" scope="companies:read" />
+            <P>Liste les compagnies exposées sur l'API (celles ayant activé l'API publique) : nom, logo, ville, téléphone.</P>
+            <CodeBlock tabs={[{ label: 'Réponse', code: `{
+  "success": true,
+  "data": [
+    {
+      "id": "cmten1",
+      "name": "Transport Express",
+      "slug": "transport-express",
+      "logo": "https://...",
+      "phone": "+2250700000001",
+      "city": { "name": "Abidjan" }
+    }
+  ],
+  "timestamp": "2026-07-01T07:00:00.000Z"
+}` }]} />
+          </Section>
+
+          {/* Plannings */}
+          <Section id="plannings" title="Plannings" icon={<Rocket size={22} className="text-brand-500" />}>
+            <EndpointHead method="GET" path="/ext/schedules" scope="schedules:read" />
+            <P>
+              Départs <strong>récurrents</strong> (ex. « tous les jours à 08:00 ») : utile pour présenter les
+              fréquences avant qu'un voyage daté ne soit généré. <C>daysOfWeek</C> : 0 = dimanche … 6 = samedi.
+            </P>
+            <CodeBlock tabs={[{ label: 'Réponse', code: `{
+  "success": true,
+  "data": [
+    {
+      "id": "cmsched1",
+      "label": "Abidjan - Bouake (matin)",
+      "departureTime": "08:00",
+      "daysOfWeek": [1, 2, 3, 4, 5],
+      "price": 8000,
+      "tripClass": "STANDARD",
+      "amenities": ["wifi", "ac"],
+      "route": { "name": "Abidjan - Bouake", "durationMinutes": 270,
+        "originCity": { "name": "Abidjan" }, "destinationCity": { "name": "Bouake" } },
       "tenant": { "name": "Transport Express", "slug": "transport-express" }
     }
   ],
@@ -582,10 +650,88 @@ const trips = await client.searchTrips({
             />
             <EndpointHead method="GET" path="/ext/bookings/:reference" scope="bookings:read" />
             <P>Récupère une réservation par sa référence (statut, voyage, paiement, passager).</P>
+
+            <EndpointHead method="GET" path="/ext/bookings" scope="bookings:read" />
+            <P>Liste les réservations <strong>créées via votre intégration</strong>. Filtre optionnel <C>?phone=</C> (téléphone passager).</P>
+
+            <EndpointHead method="GET" path="/ext/bookings/:reference/tickets" scope="bookings:read" />
+            <P>Billets de la réservation (un par siège), avec le <strong>QR code</strong> en data-URI à présenter à l'embarquement. Disponibles une fois la réservation confirmée.</P>
+            <CodeBlock tabs={[{ label: 'Réponse', code: `{
+  "success": true,
+  "data": {
+    "reference": "TPXLZK9F2A",
+    "status": "CONFIRMED",
+    "tickets": [
+      {
+        "seatNumber": "A1",
+        "qrCode": "data:image/png;base64,iVBORw0KGgo...",
+        "qrCodeData": "TPX:A1:...",
+        "isScanned": false,
+        "scannedAt": null
+      }
+    ]
+  },
+  "timestamp": "2026-07-01T07:00:00.000Z"
+}` }]} />
+
+            <EndpointHead method="POST" path="/ext/bookings/:reference/cancel" scope="bookings:write" />
+            <P>Annule une réservation (uniquement celles créées via votre intégration). Les sièges sont libérés automatiquement.</P>
+
+            <EndpointHead method="POST" path="/ext/bookings/:reference/pay" scope="bookings:write" />
+            <P>Relance le paiement d'une réservation encore en attente (<C>PENDING</C>) et renvoie un nouveau lien <C>payment.url</C>.</P>
+            <CodeBlock tabs={[{ label: 'Réponse', code: `{
+  "success": true,
+  "data": {
+    "reference": "TPXLZK9F2A",
+    "payment": {
+      "url": "https://pay.geniuspay.ci/checkout/def456",
+      "reference": "PMT_def456",
+      "expiresAt": "2026-07-01T08:15:00.000Z"
+    }
+  },
+  "timestamp": "2026-07-01T08:01:00.000Z"
+}` }]} />
           </Section>
 
           {/* Colis */}
           <Section id="colis" title="Colis" icon={<Boxes size={22} className="text-brand-500" />}>
+            <EndpointHead method="POST" path="/ext/parcels/quote" scope="parcels:read" />
+            <P>Estime le tarif d'un colis selon le voyage et le poids, avant de l'enregistrer.</P>
+            <CodeBlock tabs={[
+              { label: 'cURL', code: `curl -X POST "${API_BASE}/ext/parcels/quote" \\
+  -H "X-API-Key: tpk_live_xxxxxxxxxxxxxxxxxxxx" \\
+  -H "Content-Type: application/json" \\
+  -d '{ "tripId": "cmtrip123", "weightKg": 2.5 }'` },
+              { label: 'Réponse', code: `{
+  "success": true,
+  "data": { "tripId": "cmtrip123", "weightKg": 2.5, "fee": 1200, "currency": "XOF", "maxWeightKg": 50 },
+  "timestamp": "2026-07-01T07:00:00.000Z"
+}` },
+            ]} />
+
+            <EndpointHead method="POST" path="/ext/parcels" scope="parcels:write" />
+            <P>Enregistre un colis sur un voyage (au statut <C>PENDING</C>). Poids maximum : 50 kg.</P>
+            <Params
+              rows={[
+                ['tripId', 'string', 'Voyage qui transporte le colis'],
+                ['senderName / senderPhone', 'string', "Expéditeur (E.164 pour le téléphone)"],
+                ['recipientName / recipientPhone', 'string', 'Destinataire'],
+                ['deliveryCity', 'string', 'Ville de livraison'],
+                ['description', 'string', 'Description du contenu'],
+                ['weightKg', 'number', 'Poids en kg (≤ 50)'],
+                ['declaredValue / fragile', 'int? / bool?', 'Valeur déclarée (FCFA) et fragilité'],
+              ]}
+            />
+            <CodeBlock tabs={[{ label: 'cURL', code: `curl -X POST "${API_BASE}/ext/parcels" \\
+  -H "X-API-Key: tpk_live_xxxxxxxxxxxxxxxxxxxx" \\
+  -H "Content-Type: application/json" \\
+  -d '{
+    "tripId": "cmtrip123",
+    "senderName": "Awa Kone", "senderPhone": "+2250700000000",
+    "recipientName": "Yao Kouassi", "recipientPhone": "+2250500000000",
+    "deliveryCity": "Bouake", "description": "Documents", "weightKg": 2.5
+  }'` }]} />
+
             <EndpointHead method="GET" path="/ext/parcels/:code" scope="parcels:read" />
             <P>Suit un colis par son code de tracking (statut, expéditeur, destinataire, voyage associé).</P>
             <CodeBlock tabs={[{ label: 'Réponse', code: `{
@@ -603,6 +749,42 @@ const trips = await client.searchTrips({
       "status": "DEPARTED",
       "route": { "originCity": { "name": "Abidjan" }, "destinationCity": { "name": "Bouake" } }
     }
+  },
+  "timestamp": "2026-07-01T07:00:00.000Z"
+}` }]} />
+          </Section>
+
+          {/* Avis & promos */}
+          <Section id="avis-promos" title="Avis & promotions" icon={<ShieldCheck size={22} className="text-brand-500" />}>
+            <EndpointHead method="GET" path="/ext/ratings" scope="ratings:read" />
+            <P>Avis passagers (note 1–5 + commentaire). Filtre optionnel <C>?company=</C> (slug de compagnie).</P>
+            <CodeBlock tabs={[{ label: 'Réponse', code: `{
+  "success": true,
+  "data": [
+    {
+      "rating": 5,
+      "comment": "Voyage ponctuel et confortable.",
+      "createdAt": "2026-06-28T10:00:00.000Z",
+      "booking": {
+        "tenant": { "name": "Transport Express", "slug": "transport-express" },
+        "trip": { "route": { "name": "Abidjan - Bouake" } }
+      },
+      "passenger": { "firstName": "Awa" }
+    }
+  ],
+  "timestamp": "2026-07-01T07:00:00.000Z"
+}` }]} />
+
+            <EndpointHead method="GET" path="/ext/promotions/:code" scope="promotions:read" />
+            <P>Valide un code promo. Renvoie <C>{'{ valid: false }'}</C> si le code est inconnu, expiré ou inactif.</P>
+            <CodeBlock tabs={[{ label: 'Réponse', code: `{
+  "success": true,
+  "data": {
+    "valid": true,
+    "code": "RENTREE25",
+    "type": "PROMO",
+    "title": "-25% sur Abidjan - Bouake",
+    "endsAt": "2026-09-30T23:59:59.000Z"
   },
   "timestamp": "2026-07-01T07:00:00.000Z"
 }` }]} />
@@ -635,10 +817,12 @@ const trips = await client.searchTrips({
             </P>
             <Params
               rows={[
+                ['BOOKING_CREATED', 'event', 'Réservation initiée (paiement en attente)'],
                 ['BOOKING_CONFIRMED', 'event', "Paiement d'une réservation confirmé"],
                 ['BOOKING_CANCELLED', 'event', 'Réservation annulée (expiration ou voyage annulé)'],
                 ['TRIP_DELAYED', 'event', 'Voyage retardé'],
                 ['TRIP_CANCELLED', 'event', 'Voyage annulé par la compagnie'],
+                ['PARCEL_REGISTERED', 'event', 'Nouveau colis enregistré'],
                 ['PARCEL_STATUS_CHANGED', 'event', "Statut d'un colis modifié"],
               ]}
             />
