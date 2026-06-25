@@ -472,6 +472,12 @@ export default function LoginPage() {
                     Inscrire ma compagnie
                   </a>
                 </p>
+                <p className="text-xs text-slate-400">
+                  Développeur ?{' '}
+                  <a href="/developer/login" className="text-slate-600 font-medium hover:text-slate-900 transition-colors">
+                    Accéder à l&apos;espace API
+                  </a>
+                </p>
               </div>
             </>
           )}
