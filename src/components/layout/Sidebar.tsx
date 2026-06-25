@@ -7,7 +7,7 @@ import {
   LayoutDashboard, Bus, Route, Users, Ticket,
   Settings, LogOut, Truck, CalendarClock, TicketCheck, ConciergeBell, ScanLine, BarChart3, FileText, Building2,
   ShieldCheck, MapPin, CreditCard, UserCog, Package, Lock, Home, Luggage, Megaphone, Banknote, Receipt, Wallet, BookOpen,
-  Loader2, KeyRound, Palette,
+  Loader2, KeyRound, Palette, MessageSquare,
 } from 'lucide-react';
 import { useAuthStore } from '@/store/auth.store';
 import { useNavStore } from '@/store/nav.store';
@@ -165,6 +165,7 @@ export function Sidebar() {
                 { label: 'Reversements',    icon: Banknote,        href: '/dashboard/admin/settlements' },
                 { label: 'Accès API',       icon: KeyRound,        href: '/dashboard/admin/api-access' },
                 { label: 'Marque',          icon: Palette,         href: '/dashboard/admin/branding' },
+                { label: 'SMS & Providers', icon: MessageSquare,   href: '/dashboard/admin/sms' },
                 { label: 'Villes',          icon: MapPin,          href: '/dashboard/cities' },
                 { label: 'Paramètres',      icon: Settings,        href: '/dashboard/settings' },
               ].map((item) => {

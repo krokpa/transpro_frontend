@@ -8,6 +8,7 @@ import { formatCFA } from '@transpro/shared';
 import {
   Building2, Users, Ticket, Bus, TrendingUp, CreditCard,
   CheckCircle2, Clock, XCircle, AlertCircle, ArrowRight, MessageSquare,
+  KeyRound, Palette, Banknote, Code2,
 } from 'lucide-react';
 import Link from 'next/link';
 import dayjs from 'dayjs';
@@ -91,7 +92,17 @@ export default function SuperAdminHomePage() {
       color: 'text-emerald-600',
       bg: 'bg-emerald-50',
     },
+    {
+      label: 'Intégrations API',
+      value: stats?.api?.consumers ?? '—',
+      sub: `${stats?.api?.approved ?? 0} en prod · ${stats?.api?.developers ?? 0} dévs · ${stats?.tenants?.publicApi ?? 0} compagnie(s) exposée(s)`,
+      icon: Code2,
+      color: 'text-cyan-600',
+      bg: 'bg-cyan-50',
+    },
   ];
+
+  const pendingApi = stats?.api?.pending ?? 0;
 
   return (
     <div className="space-y-8">
@@ -99,6 +110,27 @@ export default function SuperAdminHomePage() {
         <h1 className="text-2xl font-bold text-gray-900">Administration TransPro CI</h1>
         <p className="text-sm text-gray-500 mt-1">Vue globale de la plateforme</p>
       </div>
+
+      {/* Alerte : demandes d'accès API en attente */}
+      {pendingApi > 0 && (
+        <Link
+          href="/dashboard/admin/api-access"
+          className="flex items-center justify-between gap-4 bg-blue-50 border border-blue-200 rounded-2xl px-5 py-4 hover:bg-blue-100/70 transition group"
+        >
+          <div className="flex items-center gap-3">
+            <div className="bg-blue-100 p-2.5 rounded-xl shrink-0">
+              <KeyRound size={18} className="text-blue-600" />
+            </div>
+            <div>
+              <p className="text-sm font-semibold text-blue-900">
+                {pendingApi} demande{pendingApi > 1 ? 's' : ''} d'accès production en attente
+              </p>
+              <p className="text-xs text-blue-700/80 mt-0.5">Validez les intégrations tierces souhaitant passer en production.</p>
+            </div>
+          </div>
+          <ArrowRight size={16} className="text-blue-400 group-hover:text-blue-600 transition shrink-0" />
+        </Link>
+      )}
 
       {/* KPIs */}
       <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
@@ -121,11 +153,14 @@ export default function SuperAdminHomePage() {
       {/* Actions rapides */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         {[
-          { label: 'Gérer les compagnies', href: '/dashboard/admin/tenants', icon: Building2 },
-          { label: 'Gérer les utilisateurs', href: '/dashboard/admin/users',   icon: Users },
-          { label: 'Facturation',           href: '/dashboard/admin/billing',  icon: CreditCard },
-          { label: 'SMS & Providers',       href: '/dashboard/admin/sms',      icon: MessageSquare },
-          { label: 'Villes',                href: '/dashboard/cities',         icon: Building2 },
+          { label: 'Gérer les compagnies',  href: '/dashboard/admin/tenants',     icon: Building2 },
+          { label: 'Gérer les utilisateurs', href: '/dashboard/admin/users',       icon: Users },
+          { label: 'Facturation',            href: '/dashboard/admin/billing',     icon: CreditCard },
+          { label: 'Reversements',           href: '/dashboard/admin/settlements', icon: Banknote },
+          { label: 'Accès API',              href: '/dashboard/admin/api-access',  icon: KeyRound },
+          { label: 'Marque',                 href: '/dashboard/admin/branding',    icon: Palette },
+          { label: 'SMS & Providers',        href: '/dashboard/admin/sms',         icon: MessageSquare },
+          { label: 'Villes',                 href: '/dashboard/cities',            icon: Building2 },
         ].map((a) => (
           <Link
             key={a.href}
