@@ -2,9 +2,11 @@
 
 import { useEffect, useState } from 'react';
 import { useAuthStore } from '@/store/auth.store';
+import { useBranding } from '@/lib/branding';
 
 export default function AppLoader({ children }: { children: React.ReactNode }) {
   const [hydrated, setHydrated] = useState(false);
+  const { appName, logoUrl } = useBranding();
 
   useEffect(() => {
     // Zustand persist exposes hasHydrated() after rehydration from storage
@@ -24,21 +26,17 @@ export default function AppLoader({ children }: { children: React.ReactNode }) {
     return (
       <div className="fixed inset-0 z-[9999] flex flex-col items-center justify-center bg-white">
         <div className="flex flex-col items-center gap-6">
-          {/* Wordmark */}
-          <div className="flex items-center gap-2">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#f05a1a]">
-              <svg viewBox="0 0 24 24" fill="none" className="h-6 w-6 text-white" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
-              </svg>
-            </div>
-            <span className="text-2xl font-bold tracking-tight text-gray-900">
-              Trans<span className="text-[#f05a1a]">Pro</span>
-            </span>
-          </div>
+          {/* Marque (logo ou nom configuré) */}
+          {logoUrl ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={logoUrl} alt={appName} className="h-11 w-auto max-w-[200px] object-contain" />
+          ) : (
+            <span className="text-2xl font-bold tracking-tight text-gray-900">{appName}</span>
+          )}
 
-          {/* Spinner */}
+          {/* Spinner (couleur de marque via --brand-500) */}
           <svg
-            className="h-8 w-8 animate-spin text-[#f05a1a]"
+            className="h-8 w-8 animate-spin text-brand-500"
             xmlns="http://www.w3.org/2000/svg"
             fill="none"
             viewBox="0 0 24 24"

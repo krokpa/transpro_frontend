@@ -11,11 +11,12 @@ export interface Branding {
   primaryColor: string;
 }
 
+// Défauts white-label : surchargeables par env (avant toute config admin).
 const DEFAULTS: Branding = {
-  appName: 'TransPro CI',
-  tagline: 'Voyagez en toute sérénité',
-  logoUrl: '/transpro-logo-transparent.png',
-  primaryColor: '#F97316',
+  appName: process.env.NEXT_PUBLIC_APP_NAME || 'TransPro CI',
+  tagline: process.env.NEXT_PUBLIC_APP_TAGLINE || 'Voyagez en toute sérénité',
+  logoUrl: process.env.NEXT_PUBLIC_APP_LOGO || '/transpro-logo-transparent.png',
+  primaryColor: process.env.NEXT_PUBLIC_BRAND_COLOR || '#F97316',
 };
 
 const BrandingContext = createContext<Branding>(DEFAULTS);

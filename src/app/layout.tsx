@@ -1,26 +1,31 @@
 import type { Metadata } from 'next';
 import { Inter } from 'next/font/google';
 import Providers from './providers';
+import { getServerBranding, brandVarsCss } from '@/lib/server-branding';
 import './globals.css';
 
 const inter = Inter({ subsets: ['latin'] });
 
-export const metadata: Metadata = {
-  title: {
-    default: 'TransPro CI',
-    template: '%s · TransPro CI',
-  },
-  description: 'Gestion des compagnies de transport en Côte d\'Ivoire',
-  icons: {
-    icon: '/favicon.png',
-    apple: '/favicon.png',
-  },
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const b = await getServerBranding();
+  return {
+    title: { default: b.appName, template: `%s · ${b.appName}` },
+    description: b.tagline,
+    icons: {
+      icon: b.logoUrl || '/favicon.png',
+      apple: b.logoUrl || '/favicon.png',
+    },
+  };
+}
 
-export default function RootLayout({ children }: { children: React.ReactNode }) {
+export default async function RootLayout({ children }: { children: React.ReactNode }) {
+  const brand = await getServerBranding();
+  const brandCss = brandVarsCss(brand.primaryColor);
   return (
     <html lang="fr" suppressHydrationWarning>
       <body className={inter.className}>
+        {/* Couleur de marque configurée injectée côté serveur → 1er paint correct */}
+        {brandCss && <style id="brand-vars" dangerouslySetInnerHTML={{ __html: brandCss }} />}
         {/* Script synchrone anti-flash : applique le thème avant le premier rendu */}
         <script
           suppressHydrationWarning

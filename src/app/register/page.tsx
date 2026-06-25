@@ -12,6 +12,7 @@ import {
 import { useQuery } from '@tanstack/react-query';
 import { authApi, tenantsApi, citiesApi, otpApi } from '@/lib/api';
 import { useAuthStore } from '@/store/auth.store';
+import { useBranding } from '@/lib/branding';
 import { SearchableSelect, SelectOption } from '@/components/ui/SearchableSelect';
 import { PhoneInput } from '@/components/ui/PhoneInput';
 import { BrandPanel } from '@/components/auth/BrandPanel';
@@ -74,6 +75,7 @@ const slideVariants = {
 export default function RegisterPage() {
   const router = useRouter();
   const { setAuth } = useAuthStore();
+  const { primaryColor } = useBranding();
   const [step, setStep] = useState<StepNum>(1);
   const [direction, setDirection] = useState(1);
   const [loading, setLoading] = useState(false);
@@ -273,7 +275,7 @@ export default function RegisterPage() {
                     <motion.div
                       animate={{
                         scale: active ? 1.1 : 1,
-                        backgroundColor: done || active ? '#f05a1a' : '#f1f5f9',
+                        backgroundColor: done || active ? primaryColor : '#f1f5f9',
                       }}
                       transition={{ type: 'spring', stiffness: 400, damping: 20 }}
                       className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 shadow-sm"
@@ -290,7 +292,7 @@ export default function RegisterPage() {
                   {i < STEPS.length - 1 && (
                     <motion.div
                       className="flex-1 h-0.5 mx-2"
-                      animate={{ backgroundColor: step > n ? '#f05a1a' : '#e2e8f0' }}
+                      animate={{ backgroundColor: step > n ? primaryColor : '#e2e8f0' }}
                       transition={{ duration: 0.3 }}
                     />
                   )}

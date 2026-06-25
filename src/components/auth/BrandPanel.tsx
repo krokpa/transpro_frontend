@@ -1,5 +1,7 @@
-import Image from 'next/image';
+'use client';
+
 import { MapPin, Users, BarChart3, ShieldCheck } from 'lucide-react';
+import { useBranding } from '@/lib/branding';
 
 const features = [
   { icon: MapPin,       text: 'Suivi GPS des véhicules en temps réel' },
@@ -15,6 +17,7 @@ const stats = [
 ];
 
 export function BrandPanel() {
+  const { appName, logoUrl } = useBranding();
   return (
     <div className="hidden lg:flex lg:w-[52%] relative flex-col bg-canvas text-white p-12 overflow-hidden select-none">
       {/* dot-grid texture */}
@@ -29,16 +32,13 @@ export function BrandPanel() {
       <div className="absolute -top-48 -right-48 w-[420px] h-[420px] bg-brand-500 rounded-full opacity-[0.12] blur-3xl pointer-events-none" />
       <div className="absolute bottom-0 -left-24 w-72 h-72 bg-brand-600 rounded-full opacity-[0.07] blur-3xl pointer-events-none" />
 
-      {/* Logo */}
+      {/* Logo / nom configurés */}
       <div className="relative flex items-center gap-3.5 mb-14">
-        <Image
-          src="/transpro-logo.png"
-          width={48}
-          height={48}
-          alt="TransPro CI"
-          className="rounded-xl shadow-lg"
-        />
-        <span className="text-xl font-bold tracking-tight">transpro</span>
+        {logoUrl && (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={logoUrl} alt={appName} width={48} height={48} className="rounded-xl shadow-lg object-contain bg-white/5" />
+        )}
+        <span className="text-xl font-bold tracking-tight">{appName}</span>
       </div>
 
       {/* Headline */}
@@ -49,7 +49,7 @@ export function BrandPanel() {
           <span className="text-brand-400">sans effort.</span>
         </h2>
         <p className="text-slate-400 text-base mb-10 leading-relaxed max-w-sm">
-          La plateforme tout-en-un pour les compagnies de transport en Côte d'Ivoire.
+          La plateforme tout-en-un pour les compagnies de transport.
         </p>
 
         {/* Feature list */}
