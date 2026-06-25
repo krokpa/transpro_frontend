@@ -8,12 +8,27 @@ const inter = Inter({ subsets: ['latin'] });
 
 export async function generateMetadata(): Promise<Metadata> {
   const b = await getServerBranding();
+  // Favicon dédié (icône carrée) > logo > fichier statique par défaut.
+  const icon = b.faviconUrl || b.logoUrl || '/favicon.png';
+  // Image de partage : OG dédiée > logo (si défini).
+  const ogImage = b.ogImageUrl || b.logoUrl || undefined;
   return {
     title: { default: b.appName, template: `%s · ${b.appName}` },
     description: b.tagline,
-    icons: {
-      icon: b.logoUrl || '/favicon.png',
-      apple: b.logoUrl || '/favicon.png',
+    applicationName: b.appName,
+    icons: { icon, apple: icon },
+    openGraph: {
+      title: b.appName,
+      description: b.tagline,
+      siteName: b.appName,
+      type: 'website',
+      ...(ogImage ? { images: [{ url: ogImage }] } : {}),
+    },
+    twitter: {
+      card: ogImage ? 'summary_large_image' : 'summary',
+      title: b.appName,
+      description: b.tagline,
+      ...(ogImage ? { images: [ogImage] } : {}),
     },
   };
 }

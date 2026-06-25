@@ -7,6 +7,8 @@ export interface ServerBranding {
   appName: string;
   tagline: string;
   logoUrl: string | null;
+  faviconUrl: string | null;
+  ogImageUrl: string | null;
   primaryColor: string;
 }
 
@@ -15,6 +17,8 @@ const FALLBACK: ServerBranding = {
   appName:      process.env.NEXT_PUBLIC_APP_NAME    || 'TransPro CI',
   tagline:      process.env.NEXT_PUBLIC_APP_TAGLINE || 'Voyagez en toute sérénité',
   logoUrl:      process.env.NEXT_PUBLIC_APP_LOGO    || null,
+  faviconUrl:   process.env.NEXT_PUBLIC_APP_FAVICON || null,
+  ogImageUrl:   process.env.NEXT_PUBLIC_APP_OG      || null,
   primaryColor: process.env.NEXT_PUBLIC_BRAND_COLOR || '#F97316',
 };
 
@@ -28,6 +32,8 @@ export async function getServerBranding(): Promise<ServerBranding> {
       appName:      d?.appName      || FALLBACK.appName,
       tagline:      d?.tagline      || FALLBACK.tagline,
       logoUrl:      d?.logoUrl      || FALLBACK.logoUrl,
+      faviconUrl:   d?.faviconUrl   || FALLBACK.faviconUrl,
+      ogImageUrl:   d?.ogImageUrl   || FALLBACK.ogImageUrl,
       primaryColor: d?.primaryColor || FALLBACK.primaryColor,
     };
   } catch {
