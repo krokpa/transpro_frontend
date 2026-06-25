@@ -14,7 +14,7 @@ export interface Branding {
 const DEFAULTS: Branding = {
   appName: 'TransPro CI',
   tagline: 'Voyagez en toute sérénité',
-  logoUrl: null,
+  logoUrl: '/transpro-logo-transparent.png',
   primaryColor: '#F97316',
 };
 
@@ -59,7 +59,7 @@ export function BrandingProvider({ children }: { children: React.ReactNode }) {
   const branding: Branding = {
     appName: data?.appName ?? DEFAULTS.appName,
     tagline: data?.tagline ?? DEFAULTS.tagline,
-    logoUrl: data?.logoUrl ?? null,
+    logoUrl: data?.logoUrl || DEFAULTS.logoUrl,
     primaryColor: data?.primaryColor ?? DEFAULTS.primaryColor,
   };
 

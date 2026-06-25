@@ -3,11 +3,11 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
-import Image from 'next/image';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Loader2, ArrowRight, ArrowLeft, Check, Eye, EyeOff, UserRound, Phone, ClipboardList } from 'lucide-react';
 import { authApi } from '@/lib/api';
 import { useAuthStore } from '@/store/auth.store';
+import { useBranding } from '@/lib/branding';
 import { OtpStep } from '@/components/auth/OtpStep';
 import { PhoneInput } from '@/components/ui/PhoneInput';
 import { SocialButtons } from '@/components/auth/SocialButtons';
@@ -57,6 +57,7 @@ const slideVariants = {
 export default function PassengerRegisterPage() {
   const router = useRouter();
   const { setAuth } = useAuthStore();
+  const { appName, logoUrl } = useBranding();
   const [step, setStep] = useState<StepNum>(1);
   const [direction, setDirection] = useState(1);
   const [loading, setLoading] = useState(false);
@@ -118,19 +119,30 @@ export default function PassengerRegisterPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-brand-500 via-brand-600 to-brand-800 flex items-center justify-center p-4">
-      <div className="bg-white rounded-3xl shadow-2xl w-full max-w-md overflow-hidden">
+    <div className="min-h-screen bg-gradient-to-br from-brand-50/60 via-white to-slate-100 flex items-center justify-center p-4">
+      <motion.div
+        initial={{ opacity: 0, y: 16 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5, ease: 'easeOut' as const }}
+        className="bg-white rounded-3xl shadow-xl shadow-slate-300/40 ring-1 ring-slate-100 w-full max-w-md overflow-hidden"
+      >
 
-        {/* Header fixe */}
-        <div className="bg-gradient-to-r from-brand-500 to-brand-600 px-8 pt-8 pb-6 text-white">
-          <div className="flex flex-col items-center mb-5">
-            <Image src="/transpro-logo.png" width={52} height={52} alt="TransPro CI"
-              className="rounded-2xl mb-3 shadow-lg shadow-black/20" />
-            <h1 className="text-xl font-bold">Créer un compte passager</h1>
-            <p className="text-brand-100 text-sm mt-0.5">Réservez vos voyages en toute simplicité</p>
+        {/* Header neutre */}
+        <div className="px-8 pt-8 pb-6 border-b border-slate-100">
+          <div className="flex flex-col items-center mb-6">
+            {logoUrl ? (
+              <img src={logoUrl} width={52} height={52} alt={appName}
+                className="w-13 h-13 mb-3 object-contain" />
+            ) : (
+              <div className="w-13 h-13 mb-3 rounded-2xl bg-brand-500 flex items-center justify-center text-white font-bold text-lg">
+                {appName.charAt(0)}
+              </div>
+            )}
+            <h1 className="text-xl font-bold text-slate-900">Créer un compte passager</h1>
+            <p className="text-slate-500 text-sm mt-0.5">Réservez vos voyages en toute simplicité</p>
           </div>
 
-          {/* Stepper dans le header */}
+          {/* Stepper */}
           <div className="flex items-center gap-0">
             {STEPS.map(({ n, label, icon: Icon }, i) => {
               const done = step > n;
@@ -142,21 +154,21 @@ export default function PassengerRegisterPage() {
                     className="flex items-center gap-1.5"
                   >
                     <div className={`w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0 transition-all ${
-                      done ? 'bg-white' : active ? 'bg-white' : 'bg-brand-400/50'
+                      done || active ? 'bg-brand-500' : 'bg-slate-100'
                     }`}>
                       {done
-                        ? <Check size={13} className="text-brand-600" />
-                        : <Icon size={13} className={active ? 'text-brand-600' : 'text-brand-200'} />
+                        ? <Check size={13} className="text-white" />
+                        : <Icon size={13} className={active ? 'text-white' : 'text-slate-400'} />
                       }
                     </div>
-                    <span className={`text-xs font-medium whitespace-nowrap hidden sm:block ${active || done ? 'text-white' : 'text-brand-300'}`}>
+                    <span className={`text-xs font-medium whitespace-nowrap hidden sm:block ${active || done ? 'text-slate-900' : 'text-slate-400'}`}>
                       {label}
                     </span>
                   </motion.div>
                   {i < STEPS.length - 1 && (
                     <motion.div
-                      className="flex-1 h-0.5 mx-2"
-                      animate={{ backgroundColor: step > n ? 'rgba(255,255,255,0.8)' : 'rgba(255,255,255,0.2)' }}
+                      className="flex-1 h-0.5 mx-2 rounded-full"
+                      animate={{ backgroundColor: step > n ? 'rgb(var(--brand-500))' : 'rgb(226 232 240)' }}
                       transition={{ duration: 0.3 }}
                     />
                   )}
@@ -340,7 +352,7 @@ export default function PassengerRegisterPage() {
             <a href="/register" className="text-slate-600 font-medium hover:text-slate-900 hover:underline">Inscrire ma compagnie</a>
           </p>
         </div>
-      </div>
+      </motion.div>
     </div>
   );
 }
