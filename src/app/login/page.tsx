@@ -7,11 +7,11 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { toast } from 'sonner';
-import Image from 'next/image';
+import { motion } from 'framer-motion';
 import { Loader2, Eye, EyeOff, ArrowRight, ShieldCheck, ArrowLeft, Phone, Mail, Bus } from 'lucide-react';
 import { authApi, otpApi, twoFactorApi } from '@/lib/api';
 import { useAuthStore } from '@/store/auth.store';
-import { BrandPanel } from '@/components/auth/BrandPanel';
+import { useBranding } from '@/lib/branding';
 import { PhoneInput } from '@/components/ui/PhoneInput';
 import { SocialButtons } from '@/components/auth/SocialButtons';
 
@@ -41,6 +41,7 @@ type TwoFactorState = { twoFactorToken: string };
 export default function LoginPage() {
   const router   = useRouter();
   const { setAuth } = useAuthStore();
+  const { appName, logoUrl } = useBranding();
 
   // ── Email login state ──
   const [loading,      setLoading]      = useState(false);
@@ -174,19 +175,35 @@ export default function LoginPage() {
   // ── Render ────────────────────────────────────────────────────────────────────
 
   return (
-    <div className="min-h-screen flex">
-      <BrandPanel />
+    <div className="min-h-screen relative flex items-center justify-center p-4 overflow-hidden bg-slate-50">
+      {/* Fond décoratif (façon template admin) */}
+      <div className="absolute inset-0 bg-gradient-to-br from-brand-50/70 via-white to-slate-100" />
+      <div
+        className="absolute inset-0 opacity-[0.5]"
+        style={{ backgroundImage: 'radial-gradient(circle at 1px 1px, rgb(148 163 184 / 0.18) 1px, transparent 0)', backgroundSize: '22px 22px' }}
+      />
+      <div className="absolute -top-28 -right-28 w-[26rem] h-[26rem] rounded-full bg-brand-200/30 blur-3xl pointer-events-none" />
+      <div className="absolute -bottom-28 -left-28 w-[26rem] h-[26rem] rounded-full bg-brand-100/40 blur-3xl pointer-events-none" />
 
-      <div className="flex-1 flex flex-col items-center justify-center p-8 bg-white relative overflow-hidden">
-        <div className="absolute top-0 right-0 w-64 h-64 bg-brand-50 rounded-full -translate-y-1/2 translate-x-1/2 pointer-events-none" />
-        <div className="absolute bottom-0 left-0 w-48 h-48 bg-slate-50 rounded-full translate-y-1/2 -translate-x-1/2 pointer-events-none" />
-
-        <div className="lg:hidden flex items-center gap-3 mb-10 relative">
-          <Image src="/transpro-logo.png" width={40} height={40} alt="TransPro CI" className="rounded-xl" />
-          <span className="text-lg font-bold text-slate-900">transpro</span>
+      <motion.div
+        initial={{ opacity: 0, y: 18 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5, ease: 'easeOut' }}
+        className="relative w-full max-w-[420px]"
+      >
+        {/* Logo + nom de marque */}
+        <div className="flex items-center justify-center gap-2.5 mb-6">
+          {logoUrl ? (
+            <img src={logoUrl} alt={appName} className="w-10 h-10 rounded-xl object-contain bg-white shadow-sm" />
+          ) : (
+            <div className="bg-brand-500 text-white rounded-xl p-2.5 shadow-lg shadow-brand-500/25"><Bus size={20} /></div>
+          )}
+          <span className="text-xl font-bold text-slate-900 tracking-tight">{appName}</span>
         </div>
 
-        <div className="w-full max-w-[360px] relative">
+        {/* Carte */}
+        <div className="bg-white/90 backdrop-blur-sm rounded-2xl border border-slate-100 shadow-xl shadow-slate-300/40 p-7 sm:p-8">
+          <div className="w-full relative">
           {/* ── 2FA challenge ── */}
           {twoFactor ? (
             <div className="space-y-6">
@@ -458,8 +475,9 @@ export default function LoginPage() {
               </div>
             </>
           )}
+          </div>
         </div>
-      </div>
+      </motion.div>
     </div>
   );
 }
