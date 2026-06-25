@@ -2,13 +2,14 @@
 
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import { useQuery } from '@tanstack/react-query';
 import { useState } from 'react';
-import { KeyRound, LogOut, ExternalLink, MailWarning } from 'lucide-react';
+import { KeyRound, LogOut, ExternalLink, MailWarning, BookOpen } from 'lucide-react';
 import { apiConsumersApi, developerApi, apiError } from '@/lib/api';
 import { useAuthStore } from '@/store/auth.store';
 import { useBranding } from '@/lib/branding';
-import { ConsumerDetail } from '@/app/dashboard/developers/page';
+import { ConsumerDetail } from '@/app/dashboard/developers/ConsumerDetail';
 import { toast } from 'sonner';
 
 export default function DeveloperConsolePage() {
@@ -77,8 +78,11 @@ export default function DeveloperConsolePage() {
             </div>
           </div>
           <div className="flex items-center gap-3">
-            <a href={apiDocsUrl} target="_blank" rel="noopener noreferrer" className="text-sm text-gray-600 hover:text-gray-900 inline-flex items-center gap-1.5">
-              <ExternalLink size={15} /> Documentation
+            <Link href="/developer/docs" className="text-sm text-gray-600 hover:text-gray-900 inline-flex items-center gap-1.5">
+              <BookOpen size={15} /> Documentation
+            </Link>
+            <a href={apiDocsUrl} target="_blank" rel="noopener noreferrer" className="hidden md:inline-flex text-sm text-gray-400 hover:text-gray-700 items-center gap-1.5" title="Référence Swagger">
+              <ExternalLink size={14} /> Swagger
             </a>
             <span className="text-sm text-gray-400 hidden sm:inline">{user.email}</span>
             <button onClick={logout} title="Déconnexion" className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition">
