@@ -2,6 +2,7 @@
 
 import { useEffect, useRef } from 'react';
 import { MapPin } from 'lucide-react';
+import { useBranding } from '@/lib/branding';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -32,6 +33,7 @@ export interface MapPickerProps {
 
 export default function MapPicker({ lat, lng, onChange, provider }: MapPickerProps) {
   const activeProvider = provider ?? ENV_PROVIDER;
+  const { primaryColor } = useBranding();
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<any>(null);
   const markerRef = useRef<any>(null);
@@ -99,7 +101,7 @@ export default function MapPicker({ lat, lng, onChange, provider }: MapPickerPro
     });
 
     if (lat != null && lng != null) {
-      const marker = new mapboxgl.Marker({ draggable: true, color: '#F05A1A' })
+      const marker = new mapboxgl.Marker({ draggable: true, color: primaryColor })
         .setLngLat([lng, lat])
         .addTo(map);
       marker.on('dragend', () => {
@@ -114,7 +116,7 @@ export default function MapPicker({ lat, lng, onChange, provider }: MapPickerPro
       if (markerRef.current) {
         markerRef.current.setLngLat([newLng, newLat]);
       } else {
-        const marker = new mapboxgl.Marker({ draggable: true, color: '#F05A1A' })
+        const marker = new mapboxgl.Marker({ draggable: true, color: primaryColor })
           .setLngLat([newLng, newLat])
           .addTo(map);
         marker.on('dragend', () => {

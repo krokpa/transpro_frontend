@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { tenantsApi } from '@/lib/api';
+import { useBranding } from '@/lib/branding';
 import { formatCFA } from '@transpro/shared';
 import {
   TrendingUp, TrendingDown, Minus, Users, Bus, Ticket,
@@ -23,7 +24,7 @@ const PERIODS = [
   { key: '12m', label: '12 mois' },
 ];
 
-const BRAND_COLORS = ['#f05a1a', '#3b82f6', '#10b981', '#f59e0b', '#8b5cf6'];
+const CHART_PALETTE = ['#3b82f6', '#10b981', '#f59e0b', '#8b5cf6'];
 
 function KpiCard({ label, current, previous, change, format, icon: Icon, color }: {
   label: string; current: number; previous: number; change: number;
@@ -74,6 +75,8 @@ function CustomTooltip({ active, payload, label, isMonthly }: any) {
 }
 
 export default function AnalyticsPage() {
+  const { primaryColor } = useBranding();
+  const BRAND_COLORS = [primaryColor, ...CHART_PALETTE];
   const [period, setPeriod] = useState('30d');
 
   const { data: raw, isLoading } = useQuery({
@@ -187,8 +190,8 @@ export default function AnalyticsPage() {
             <AreaChart data={timeline} margin={{ top: 5, right: 5, left: 0, bottom: 0 }}>
               <defs>
                 <linearGradient id="revGrad" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%"  stopColor="#f05a1a" stopOpacity={0.15} />
-                  <stop offset="95%" stopColor="#f05a1a" stopOpacity={0} />
+                  <stop offset="5%"  stopColor={primaryColor} stopOpacity={0.15} />
+                  <stop offset="95%" stopColor={primaryColor} stopOpacity={0} />
                 </linearGradient>
               </defs>
               <CartesianGrid strokeDasharray="3 3" stroke="#f3f4f6" />
@@ -222,7 +225,7 @@ export default function AnalyticsPage() {
                 type="monotone"
                 dataKey="revenue"
                 name="Revenus"
-                stroke="#f05a1a"
+                stroke={primaryColor}
                 strokeWidth={2}
                 fill="url(#revGrad)"
                 dot={false}
@@ -356,7 +359,7 @@ export default function AnalyticsPage() {
                 {routeFillRate.map((r, i) => (
                   <Cell
                     key={r.routeId}
-                    fill={r.fillRate >= 80 ? '#16a34a' : r.fillRate >= 50 ? '#f05a1a' : '#f59e0b'}
+                    fill={r.fillRate >= 80 ? '#16a34a' : r.fillRate >= 50 ? primaryColor : '#f59e0b'}
                   />
                 ))}
               </Bar>

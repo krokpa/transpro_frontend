@@ -5,6 +5,7 @@ import { useQuery } from '@tanstack/react-query';
 import { tenantsApi, tripsApi } from '@/lib/api';
 import { formatCFA } from '@transpro/shared';
 import { useAuthStore } from '@/store/auth.store';
+import { useBranding } from '@/lib/branding';
 import {
   TrendingUp, TrendingDown, Users, Bus, Ticket, Calendar,
   ArrowRight, Clock, AlertTriangle, CreditCard, CheckCircle2,
@@ -119,6 +120,7 @@ function SubscriptionBanner({ tenant }: { tenant: any }) {
 
 export default function DashboardPage() {
   const { user } = useAuthStore();
+  const { primaryColor } = useBranding();
   const [period, setPeriod] = useState<'7d' | '30d' | '90d' | '12m'>('30d');
 
   const canFetchTenant = user?.role === 'COMPANY_OWNER' || user?.role === 'COMPANY_ADMIN';
@@ -296,8 +298,8 @@ export default function DashboardPage() {
               <AreaChart data={timeline} margin={{ top: 4, right: 4, left: 0, bottom: 0 }}>
                 <defs>
                   <linearGradient id="colorRevenue" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%"  stopColor="#f97316" stopOpacity={0.18} />
-                    <stop offset="95%" stopColor="#f97316" stopOpacity={0} />
+                    <stop offset="5%"  stopColor={primaryColor} stopOpacity={0.18} />
+                    <stop offset="95%" stopColor={primaryColor} stopOpacity={0} />
                   </linearGradient>
                   <linearGradient id="colorBookings" x1="0" y1="0" x2="0" y2="1">
                     <stop offset="5%"  stopColor="#60a5fa" stopOpacity={0.18} />
@@ -315,7 +317,7 @@ export default function DashboardPage() {
                   }
                   labelFormatter={(l) => dayjs(l).format('DD MMM YYYY')}
                 />
-                <Area yAxisId="rev" type="monotone" dataKey="revenue"  stroke="#f97316" strokeWidth={2}   fill="url(#colorRevenue)"  dot={false} />
+                <Area yAxisId="rev" type="monotone" dataKey="revenue"  stroke={primaryColor} strokeWidth={2}   fill="url(#colorRevenue)"  dot={false} />
                 <Area yAxisId="bkg" type="monotone" dataKey="bookings" stroke="#60a5fa" strokeWidth={1.5} fill="url(#colorBookings)" dot={false} />
               </AreaChart>
             </ResponsiveContainer>
@@ -440,7 +442,7 @@ export default function DashboardPage() {
                     contentStyle={{ borderRadius: '10px', border: '1px solid #f3f4f6', boxShadow: '0 4px 12px rgba(0,0,0,0.06)' }}
                     formatter={(v: any) => [formatCFA(v), 'Revenus']}
                   />
-                  <Bar dataKey="revenue" fill="#f97316" radius={[0, 4, 4, 0]} />
+                  <Bar dataKey="revenue" fill={primaryColor} radius={[0, 4, 4, 0]} />
                 </BarChart>
               </ResponsiveContainer>
               <div className="mt-3 space-y-2">

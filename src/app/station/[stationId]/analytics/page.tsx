@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { useParams } from 'next/navigation';
 import { useQuery } from '@tanstack/react-query';
 import { stationsApi } from '@/lib/api';
+import { useBranding } from '@/lib/branding';
 import { formatCFA } from '@transpro/shared';
 import { TrendingUp, Ticket, Banknote, Bus, BarChart2, PieChart } from 'lucide-react';
 
@@ -23,7 +24,7 @@ const METHOD_COLORS: Record<string, string> = {
   MTN_MOMO: '#eab308', WAVE: '#3b82f6', CARD: '#8b5cf6',
 };
 
-function MiniBar({ value, max, color = '#f05a1a' }: { value: number; max: number; color?: string }) {
+function MiniBar({ value, max, color = '#94a3b8' }: { value: number; max: number; color?: string }) {
   const pct = max > 0 ? Math.max(2, (value / max) * 100) : 2;
   return (
     <div className="h-1.5 rounded-full bg-gray-100 overflow-hidden">
@@ -34,6 +35,7 @@ function MiniBar({ value, max, color = '#f05a1a' }: { value: number; max: number
 
 export default function StationAnalyticsPage() {
   const { stationId } = useParams<{ stationId: string }>();
+  const { primaryColor } = useBranding();
   const [days, setDays] = useState(30);
 
   const { data, isLoading } = useQuery({
@@ -114,7 +116,7 @@ export default function StationAnalyticsPage() {
                     <div key={d.date} className="flex items-center gap-3">
                       <span className="text-xs text-gray-400 w-12 shrink-0">{d.label}</span>
                       <div className="flex-1">
-                        <MiniBar value={d.revenue} max={maxRevenue} />
+                        <MiniBar value={d.revenue} max={maxRevenue} color={primaryColor} />
                       </div>
                       <span className="text-xs font-medium text-gray-700 w-24 text-right shrink-0">{formatCFA(d.revenue)}</span>
                       <span className="text-xs text-gray-400 w-12 text-right shrink-0">{d.count} billet{d.count !== 1 ? 's' : ''}</span>
@@ -176,7 +178,7 @@ export default function StationAnalyticsPage() {
                           <span className="text-gray-700 font-medium truncate pr-2">{route.label}</span>
                           <span className="text-gray-400 shrink-0">{route.count} billet{route.count !== 1 ? 's' : ''}</span>
                         </div>
-                        <MiniBar value={route.count} max={topRoutes[0]?.count ?? 1} color={i === 0 ? '#f05a1a' : '#94a3b8'} />
+                        <MiniBar value={route.count} max={topRoutes[0]?.count ?? 1} color={i === 0 ? primaryColor : '#94a3b8'} />
                         <p className="text-xs text-gray-400 mt-0.5">{formatCFA(route.revenue)}</p>
                       </div>
                     ))}

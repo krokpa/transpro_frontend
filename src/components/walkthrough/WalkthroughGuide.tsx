@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import { Joyride, STATUS, type EventData, type Step } from 'react-joyride';
 import { isWalkthroughDone, markWalkthroughDone } from '@/lib/walkthrough';
+import { useBranding } from '@/lib/branding';
 
 type Props = {
   role: string;
@@ -10,6 +11,7 @@ type Props = {
 };
 
 export function WalkthroughGuide({ role, steps }: Props) {
+  const { primaryColor } = useBranding();
   const [run, setRun] = useState(false);
 
   useEffect(() => {
@@ -40,7 +42,7 @@ export function WalkthroughGuide({ role, steps }: Props) {
       scrollToFirstStep
       onEvent={handleEvent}
       options={{
-        primaryColor: '#f97316',
+        primaryColor: primaryColor,
         overlayColor: 'rgba(15, 23, 42, 0.52)',
         zIndex: 9999,
         showProgress: true,
@@ -78,7 +80,7 @@ export function WalkthroughGuide({ role, steps }: Props) {
           padding: '0 0 4px',
         } as React.CSSProperties,
         buttonNext: {
-          backgroundColor: '#f97316',
+          backgroundColor: primaryColor,
           borderRadius: '10px',
           padding: '8px 18px',
           fontSize: '13px',

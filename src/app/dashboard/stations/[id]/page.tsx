@@ -14,6 +14,7 @@ import {
   TrendingDown, TrendingUp as TrendingUpIcon, TriangleAlert, ShieldCheck,
 } from 'lucide-react';
 import { stationsApi, expensesApi, cashProvisionsApi, cashPeriodsApi } from '@/lib/api';
+import { useBranding } from '@/lib/branding';
 import { api } from '@/lib/api';
 import { formatCFA } from '@transpro/shared';
 import Link from 'next/link';
@@ -669,6 +670,7 @@ function StationCaisse({ stationId }: { stationId: string }) {
 export default function StationDetailPage() {
   const { id } = useParams<{ id: string }>();
   const qc = useQueryClient();
+  const { primaryColor } = useBranding();
   const [tab, setTab] = useState<Tab>('overview');
   const [addModal, setAddModal] = useState(false);
   const [selectedUserId, setSelectedUserId] = useState('');
@@ -845,15 +847,15 @@ export default function StationDetailPage() {
                   <AreaChart data={analyticsData.trend} margin={{ top: 4, right: 4, left: 0, bottom: 0 }}>
                     <defs>
                       <linearGradient id="stRevGrad" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor="#f05a1a" stopOpacity={0.2} />
-                        <stop offset="95%" stopColor="#f05a1a" stopOpacity={0} />
+                        <stop offset="5%" stopColor={primaryColor} stopOpacity={0.2} />
+                        <stop offset="95%" stopColor={primaryColor} stopOpacity={0} />
                       </linearGradient>
                     </defs>
                     <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
                     <XAxis dataKey="label" tick={{ fontSize: 10 }} interval={4} />
                     <YAxis tickFormatter={(v) => `${(v / 1000).toFixed(0)}k`} tick={{ fontSize: 10 }} width={36} />
                     <Tooltip formatter={(v: any) => [formatCFA(v), 'Revenus']} />
-                    <Area type="monotone" dataKey="revenue" stroke="#f05a1a" strokeWidth={2} fill="url(#stRevGrad)" dot={false} />
+                    <Area type="monotone" dataKey="revenue" stroke={primaryColor} strokeWidth={2} fill="url(#stRevGrad)" dot={false} />
                   </AreaChart>
                 </ResponsiveContainer>
               ) : (

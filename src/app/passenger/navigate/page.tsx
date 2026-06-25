@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState, Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { ArrowLeft, Navigation2, MapPin, Clock, CheckCircle2, LocateFixed, WifiOff } from 'lucide-react';
+import { useBranding } from '@/lib/branding';
 
 // ── Config ────────────────────────────────────────────────────────────────────
 
@@ -38,6 +39,7 @@ function fmtEta(m: number) {
 function NavigateInner() {
   const searchParams = useSearchParams();
   const router = useRouter();
+  const { primaryColor } = useBranding();
 
   const stationName = searchParams.get('name') ?? 'Gare';
   const stationLat  = parseFloat(searchParams.get('lat') ?? '0');
@@ -109,7 +111,7 @@ function NavigateInner() {
     // Station marker
     const el = document.createElement('div');
     el.innerHTML = `<div style="
-      width:40px;height:40px;background:#F05A1A;border-radius:50%;
+      width:40px;height:40px;background:${primaryColor};border-radius:50%;
       border:3px solid white;box-shadow:0 2px 12px rgba(240,90,26,.4);
       display:flex;align-items:center;justify-content:center;
     ">
@@ -130,7 +132,7 @@ function NavigateInner() {
         id: 'route-line',
         type: 'line',
         source: 'route',
-        paint: { 'line-color': '#F05A1A', 'line-width': 3, 'line-dasharray': [2, 2], 'line-opacity': 0.8 },
+        paint: { 'line-color': primaryColor, 'line-width': 3, 'line-dasharray': [2, 2], 'line-opacity': 0.8 },
       });
       sourceReadyRef.current = true;
     });
@@ -189,7 +191,7 @@ function NavigateInner() {
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 }).addTo(map);
 
     const stationIcon = L.divIcon({
-      html: `<div style="width:36px;height:36px;background:#F05A1A;border-radius:50%;border:3px solid white;box-shadow:0 2px 10px rgba(240,90,26,.4);display:flex;align-items:center;justify-content:center;">
+      html: `<div style="width:36px;height:36px;background:${primaryColor};border-radius:50%;border:3px solid white;box-shadow:0 2px 10px rgba(240,90,26,.4);display:flex;align-items:center;justify-content:center;">
         <span style="color:white;font-size:16px;">📍</span></div>`,
       className: '',
       iconAnchor: [18, 18],
@@ -221,7 +223,7 @@ function NavigateInner() {
     if (!polylineRef.current) {
       polylineRef.current = (require('leaflet') as any).polyline(
         [[uLat, uLng], [stationLat, stationLng]],
-        { color: '#F05A1A', weight: 3, dashArray: '8, 8', opacity: 0.8 },
+        { color: primaryColor, weight: 3, dashArray: '8, 8', opacity: 0.8 },
       ).addTo(map);
     } else {
       polylineRef.current.setLatLngs([[uLat, uLng], [stationLat, stationLng]]);

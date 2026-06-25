@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useRef } from 'react';
+import { useBranding } from '@/lib/branding';
 
 type Provider = 'leaflet' | 'mapbox';
 
@@ -23,6 +24,7 @@ export interface MapViewProps {
 export default function MapView({ lat, lng, label, height = 220, zoom = 14 }: MapViewProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<any>(null);
+  const { primaryColor } = useBranding();
 
   useEffect(() => {
     if (!containerRef.current || mapRef.current) return;
@@ -62,7 +64,7 @@ export default function MapView({ lat, lng, label, height = 220, zoom = 14 }: Ma
 
     const popup = label ? new mapboxgl.Popup({ offset: 25 }).setText(label) : undefined;
 
-    new mapboxgl.Marker({ color: '#F05A1A' })
+    new mapboxgl.Marker({ color: primaryColor })
       .setLngLat([lng, lat])
       .setPopup(popup)
       .addTo(map);
