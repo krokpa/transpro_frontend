@@ -467,7 +467,7 @@ export const stationsApi = {
 // ─── Réglages plateforme (branding) ──────────────────────────────────────────
 export const platformApi = {
   getSettings: () => api.get('/platform-settings'),
-  updateSettings: (data: { appName?: string; tagline?: string; primaryColor?: string; logoUrl?: string }) =>
+  updateSettings: (data: { appName?: string; tagline?: string; primaryColor?: string; logoUrl?: string | null }) =>
     api.patch('/platform-settings', data),
 };
 
