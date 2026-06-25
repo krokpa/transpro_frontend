@@ -65,8 +65,8 @@ export default function DeveloperConsolePage() {
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header autonome (pas de sidebar compagnie) */}
-      <header className="bg-white border-b border-gray-100">
-        <div className="max-w-4xl mx-auto px-5 py-3 flex items-center justify-between">
+      <header className="bg-white/90 backdrop-blur-md border-b border-gray-100 sticky top-0 z-30">
+        <div className="max-w-[1600px] mx-auto px-6 lg:px-10 py-3 flex items-center justify-between">
           <div className="flex items-center gap-2">
             <div className="bg-brand-500 text-white rounded-xl p-2 shadow-sm">
               <KeyRound size={18} />
@@ -88,7 +88,7 @@ export default function DeveloperConsolePage() {
         </div>
       </header>
 
-      <main className="max-w-4xl mx-auto px-5 py-6">
+      <main className="max-w-[1600px] mx-auto px-6 lg:px-10 py-8">
         {(user as any).isVerified === false && (
           <div className="mb-5 rounded-2xl border border-amber-200 bg-amber-50 p-4 flex items-start justify-between gap-4">
             <div className="flex items-start gap-2.5">
@@ -124,7 +124,7 @@ export default function DeveloperConsolePage() {
             Aucune intégration trouvée pour ce compte.
           </div>
         ) : (
-          <ConsumerDetail consumerId={consumers[0].id} />
+          <ConsumerDetail consumerId={consumers[0].id} wide />
         )}
       </main>
     </div>

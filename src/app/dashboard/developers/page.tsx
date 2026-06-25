@@ -229,7 +229,7 @@ export default function DevelopersPage() {
 }
 
 // ── Détail d'une intégration : clés, usage, webhooks ──────────────────────────
-export function ConsumerDetail({ consumerId }: { consumerId: string }) {
+export function ConsumerDetail({ consumerId, wide = false }: { consumerId: string; wide?: boolean }) {
   const qc = useQueryClient();
   const [showKeyModal, setShowKeyModal] = useState(false);
   const [keyName, setKeyName] = useState('');
@@ -371,18 +371,17 @@ export function ConsumerDetail({ consumerId }: { consumerId: string }) {
     }
   }
 
-  return (
-    <div className="space-y-5">
-      {/* Statut d'accès (sandbox → production) */}
-      <AccessBanner
-        access={access}
-        reason={consumer.prodRejectionReason}
-        onRequest={() => requestProdMut.mutate()}
-        requesting={requestProdMut.isPending}
-      />
+  const banner = (
+    <AccessBanner
+      access={access}
+      reason={consumer.prodRejectionReason}
+      onRequest={() => requestProdMut.mutate()}
+      requesting={requestProdMut.isPending}
+    />
+  );
 
-      {/* Usage / quota */}
-      <Card icon={<Activity size={16} className="text-brand-500" />} title="Quota mensuel">
+  const quotaCard = (
+    <Card icon={<Activity size={16} className="text-brand-500" />} title="Quota mensuel">
         <div className="flex items-center justify-between text-sm mb-2">
           <span className="text-gray-500">{consumer.plan}</span>
           <span className="font-medium text-gray-900">
@@ -406,10 +405,11 @@ export function ConsumerDetail({ consumerId }: { consumerId: string }) {
             ))}
           </div>
         )}
-      </Card>
+    </Card>
+  );
 
-      {/* Plan & facturation */}
-      <Card icon={<ShieldCheck size={16} className="text-brand-500" />} title="Plan & facturation">
+  const planCard = (
+    <Card icon={<ShieldCheck size={16} className="text-brand-500" />} title="Plan & facturation">
         {consumer.planExpiresAt && (
           <p className="text-xs text-gray-500 mb-3">
             Plan actif jusqu'au {new Date(consumer.planExpiresAt).toLocaleDateString('fr-FR')}.
@@ -460,12 +460,13 @@ export function ConsumerDetail({ consumerId }: { consumerId: string }) {
             </div>
           </div>
         )}
-      </Card>
+    </Card>
+  );
 
-      {/* Clés API */}
-      <Card
-        icon={<KeyRound size={16} className="text-brand-500" />}
-        title="Clés API"
+  const keysCard = (
+    <Card
+      icon={<KeyRound size={16} className="text-brand-500" />}
+      title="Clés API"
         action={
           <button onClick={() => { setNewKey(null); setKeyEnv(isApproved ? 'LIVE' : 'TEST'); setShowKeyModal(true); }} className="text-xs font-semibold text-brand-600 hover:text-brand-700 inline-flex items-center gap-1">
             <Plus size={13} /> Nouvelle clé
@@ -508,10 +509,11 @@ export function ConsumerDetail({ consumerId }: { consumerId: string }) {
             })}
           </div>
         )}
-      </Card>
+    </Card>
+  );
 
-      {/* Webhooks */}
-      <Card icon={<Webhook size={16} className="text-brand-500" />} title="Webhooks">
+  const webhooksCard = (
+    <Card icon={<Webhook size={16} className="text-brand-500" />} title="Webhooks">
         <div className="space-y-3">
           <div>
             <label className="block text-xs font-medium text-gray-500 mb-1">URL de réception</label>
@@ -589,11 +591,12 @@ export function ConsumerDetail({ consumerId }: { consumerId: string }) {
             )}
           </div>
         </div>
-      </Card>
+    </Card>
+  );
 
-      {/* Modal nouvelle clé */}
-      <FormModal
-        isOpen={showKeyModal}
+  const keyModal = (
+    <FormModal
+      isOpen={showKeyModal}
         onClose={() => setShowKeyModal(false)}
         title={newKey ? 'Clé créée' : 'Nouvelle clé API'}
         description={newKey ? undefined : 'Donnez un nom pour identifier cette clé.'}
@@ -659,7 +662,38 @@ export function ConsumerDetail({ consumerId }: { consumerId: string }) {
             </button>
           </div>
         )}
-      </FormModal>
+    </FormModal>
+  );
+
+  // Layout empilé (par défaut — utilisé dans la colonne étroite du dashboard compagnie).
+  if (!wide) {
+    return (
+      <div className="space-y-5">
+        {banner}
+        {quotaCard}
+        {planCard}
+        {keysCard}
+        {webhooksCard}
+        {keyModal}
+      </div>
+    );
+  }
+
+  // Layout pleine largeur (espace développeur) : contenu principal + rail latéral.
+  return (
+    <div className="space-y-5">
+      {banner}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-5 items-start">
+        <div className="lg:col-span-2 space-y-5">
+          {keysCard}
+          {webhooksCard}
+        </div>
+        <div className="space-y-5 lg:sticky lg:top-20">
+          {quotaCard}
+          {planCard}
+        </div>
+      </div>
+      {keyModal}
     </div>
   );
 }
