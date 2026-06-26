@@ -178,6 +178,16 @@ export default function SettingsPage() {
     },
   });
 
+  // Toggle opt-in API publique (sauvegarde immédiate).
+  const publicApiMutation = useMutation({
+    mutationFn: (enabled: boolean) => tenantsApi.update({ publicApiEnabled: enabled }),
+    onSuccess: (_d, enabled) => {
+      qc.invalidateQueries({ queryKey: ['tenant-me'] });
+      toast.success(enabled ? 'Votre compagnie est désormais visible aux applications tierces' : 'Votre compagnie n\'est plus exposée aux applications tierces');
+    },
+    onError: () => toast.error('Erreur lors de la mise à jour'),
+  });
+
   function handleLogoFile(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -561,6 +571,41 @@ export default function SettingsPage() {
                 {companyForm.latitude.toFixed(6)}, {companyForm.longitude.toFixed(6)}
               </p>
             )}
+          </div>
+
+          {/* API publique / partenaires — opt-in d'exposition aux applications tierces */}
+          <div className="col-span-2 bg-white rounded-xl border border-gray-100 shadow-sm p-6">
+            <div className="flex items-start justify-between gap-6">
+              <div className="flex items-start gap-3">
+                <div className="bg-brand-50 p-2.5 rounded-xl shrink-0">
+                  <KeyRound size={18} className="text-brand-500" />
+                </div>
+                <div>
+                  <h2 className="text-lg font-semibold text-gray-900">API publique & partenaires</h2>
+                  <p className="text-sm text-gray-500 mt-1 max-w-xl">
+                    Autorisez les applications tierces (agrégateurs, comparateurs de voyages…) à voir vos
+                    voyages et à réserver pour vos passagers via l'API publique. Désactivé (par défaut), vos
+                    données ne sont jamais exposées aux développeurs externes.
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                role="switch"
+                aria-checked={!!tenant?.publicApiEnabled}
+                disabled={publicApiMutation.isPending}
+                onClick={() => publicApiMutation.mutate(!tenant?.publicApiEnabled)}
+                title={tenant?.publicApiEnabled ? 'Désactiver l\'exposition' : 'Activer l\'exposition'}
+                className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition disabled:opacity-50 ${tenant?.publicApiEnabled ? 'bg-brand-500' : 'bg-gray-200'}`}
+              >
+                <span className={`inline-block h-5 w-5 transform rounded-full bg-white shadow transition ${tenant?.publicApiEnabled ? 'translate-x-5' : 'translate-x-0.5'}`} />
+              </button>
+            </div>
+            <div className="mt-3 text-xs font-medium">
+              {tenant?.publicApiEnabled
+                ? <span className="text-green-600">● Visible aux applications tierces</span>
+                : <span className="text-gray-400">● Non exposée (par défaut)</span>}
+            </div>
           </div>
         </div>
       )}
