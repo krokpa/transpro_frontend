@@ -129,6 +129,8 @@ export const bookingsApi = {
   cancel: (id: string) => api.delete(`/bookings/${id}`),
   updateStatus: (id: string, status: string) => api.patch(`/bookings/${id}/status`, { status }),
   generateTickets: (id: string) => api.post(`/bookings/${id}/tickets/generate`),
+  publicTicket: (reference: string) => api.get(`/bookings/public/${reference}`),
+  sendTicketSms: (id: string, phone: string) => api.post(`/bookings/${id}/send-ticket-sms`, { phone }),
 };
 
 export const paymentsApi = {
