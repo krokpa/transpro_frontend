@@ -13,8 +13,24 @@ const PRESETS = ['#F97316', '#3B82F6', '#8B5CF6', '#10B981', '#F43F5E', '#0EA5E9
 const DEFAULT_LOGO = '/transpro-logo-transparent.png';
 const MAX_IMG_BYTES = 500_000; // 500 Ko
 
-type Form = { appName: string; tagline: string; primaryColor: string; logoUrl: string; faviconUrl: string; ogImageUrl: string };
-const EMPTY: Form = { appName: '', tagline: '', primaryColor: '#F97316', logoUrl: '', faviconUrl: '', ogImageUrl: '' };
+type Form = {
+  appName: string; tagline: string;
+  primaryColor: string; secondaryColor: string; tertiaryColor: string;
+  passengerColor: string; agentColor: string; ownerColor: string; driverColor: string;
+  logoUrl: string; faviconUrl: string; ogImageUrl: string;
+};
+const EMPTY: Form = {
+  appName: '', tagline: '',
+  primaryColor: '#F97316', secondaryColor: '#0EA5E9', tertiaryColor: '#6366F1',
+  passengerColor: '#0EA5E9', agentColor: '#10B981', ownerColor: '#6366F1', driverColor: '#F97316',
+  logoUrl: '', faviconUrl: '', ogImageUrl: '',
+};
+const formFromData = (d: any): Form => ({
+  appName: d.appName ?? '', tagline: d.tagline ?? '',
+  primaryColor: d.primaryColor ?? '#F97316', secondaryColor: d.secondaryColor ?? '#0EA5E9', tertiaryColor: d.tertiaryColor ?? '#6366F1',
+  passengerColor: d.passengerColor ?? '#0EA5E9', agentColor: d.agentColor ?? '#10B981', ownerColor: d.ownerColor ?? '#6366F1', driverColor: d.driverColor ?? '#F97316',
+  logoUrl: d.logoUrl ?? '', faviconUrl: d.faviconUrl ?? '', ogImageUrl: d.ogImageUrl ?? '',
+});
 
 export default function BrandingPage() {
   const router = useRouter();
@@ -33,10 +49,7 @@ export default function BrandingPage() {
   });
 
   useEffect(() => {
-    if (data) setForm({
-      appName: data.appName ?? '', tagline: data.tagline ?? '', primaryColor: data.primaryColor ?? '#F97316',
-      logoUrl: data.logoUrl ?? '', faviconUrl: data.faviconUrl ?? '', ogImageUrl: data.ogImageUrl ?? '',
-    });
+    if (data) setForm(formFromData(data));
   }, [data]);
 
   // Aperçu live de la couleur.
@@ -49,6 +62,12 @@ export default function BrandingPage() {
         appName: form.appName.trim() || undefined,
         tagline: form.tagline.trim() || undefined,
         primaryColor: form.primaryColor,
+        secondaryColor: form.secondaryColor,
+        tertiaryColor: form.tertiaryColor,
+        passengerColor: form.passengerColor,
+        agentColor: form.agentColor,
+        ownerColor: form.ownerColor,
+        driverColor: form.driverColor,
         logoUrl: clean(form.logoUrl),
         faviconUrl: clean(form.faviconUrl),
         ogImageUrl: clean(form.ogImageUrl),
@@ -76,24 +95,26 @@ export default function BrandingPage() {
         <Field label="Nom de l'application" value={form.appName} onChange={(v) => setForm({ ...form, appName: v })} placeholder="TransPro CI" />
         <Field label="Slogan" value={form.tagline} onChange={(v) => setForm({ ...form, tagline: v })} placeholder="Voyagez en toute sérénité" />
 
-        <div className="space-y-2">
-          <label className="block text-sm font-medium text-gray-700">Couleur principale</label>
-          <div className="flex items-center gap-3">
-            <input type="color" value={form.primaryColor} onChange={(e) => setForm({ ...form, primaryColor: e.target.value })}
-              className="w-12 h-10 rounded-lg border border-gray-200 cursor-pointer" />
-            <input value={form.primaryColor} onChange={(e) => setForm({ ...form, primaryColor: e.target.value })}
-              className="w-32 px-3 py-2 text-sm font-mono border border-gray-200 rounded-lg outline-none focus:ring-2 focus:ring-brand-200" />
-            <div className="flex items-center gap-1.5">
-              {PRESETS.map((c) => (
-                <button key={c} type="button" onClick={() => setForm({ ...form, primaryColor: c })}
-                  className="w-6 h-6 rounded-full border-2 border-white shadow ring-1 ring-gray-200 transition hover:scale-110"
-                  style={{ background: c }} title={c}>
-                  {form.primaryColor.toLowerCase() === c.toLowerCase() && <Check size={13} className="text-white mx-auto" />}
-                </button>
-              ))}
-            </div>
+        <ColorField label="Couleur principale" value={form.primaryColor}
+          onChange={(v) => setForm({ ...form, primaryColor: v })}
+          hint="Aperçu appliqué en direct à l'interface. Sert aussi de couleur de thème PWA." />
+        <ColorField label="Couleur secondaire" value={form.secondaryColor}
+          onChange={(v) => setForm({ ...form, secondaryColor: v })} />
+        <ColorField label="Couleur tertiaire" value={form.tertiaryColor}
+          onChange={(v) => setForm({ ...form, tertiaryColor: v })} />
+
+        <div className="pt-2 border-t border-gray-100">
+          <p className="text-sm font-semibold text-gray-800 mb-3">Couleurs par espace (mobile)</p>
+          <div className="space-y-4">
+            <ColorField label="Espace passager" value={form.passengerColor}
+              onChange={(v) => setForm({ ...form, passengerColor: v })} />
+            <ColorField label="Espace agent (guichet)" value={form.agentColor}
+              onChange={(v) => setForm({ ...form, agentColor: v })} />
+            <ColorField label="Espace propriétaire" value={form.ownerColor}
+              onChange={(v) => setForm({ ...form, ownerColor: v })} />
+            <ColorField label="Espace chauffeur" value={form.driverColor}
+              onChange={(v) => setForm({ ...form, driverColor: v })} />
           </div>
-          <p className="text-[11px] text-gray-400">Aperçu appliqué en direct à l'interface. Sert aussi de couleur de thème PWA.</p>
         </div>
 
         <ImageField
@@ -125,10 +146,7 @@ export default function BrandingPage() {
           {data && (
             <button onClick={() => {
               applyBrandColor(data.primaryColor);
-              setForm({
-                appName: data.appName ?? '', tagline: data.tagline ?? '', primaryColor: data.primaryColor ?? '#F97316',
-                logoUrl: data.logoUrl ?? '', faviconUrl: data.faviconUrl ?? '', ogImageUrl: data.ogImageUrl ?? '',
-              });
+              setForm(formFromData(data));
             }}
               className="px-4 py-2.5 text-sm font-medium text-gray-600 hover:bg-gray-100 rounded-xl transition">
               Réinitialiser
@@ -146,6 +164,31 @@ function Field({ label, value, onChange, placeholder }: { label: string; value: 
       <label className="block text-sm font-medium text-gray-700">{label}</label>
       <input value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder}
         className="w-full px-3.5 py-2.5 text-sm border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-brand-200 focus:border-brand-500 transition" />
+    </div>
+  );
+}
+
+// Sélecteur de couleur réutilisable : pastille native + hex + presets.
+function ColorField({ label, value, onChange, hint }: { label: string; value: string; onChange: (v: string) => void; hint?: string }) {
+  return (
+    <div className="space-y-2">
+      <label className="block text-sm font-medium text-gray-700">{label}</label>
+      <div className="flex items-center gap-3 flex-wrap">
+        <input type="color" value={value} onChange={(e) => onChange(e.target.value)}
+          className="w-12 h-10 rounded-lg border border-gray-200 cursor-pointer" />
+        <input value={value} onChange={(e) => onChange(e.target.value)}
+          className="w-32 px-3 py-2 text-sm font-mono border border-gray-200 rounded-lg outline-none focus:ring-2 focus:ring-brand-200" />
+        <div className="flex items-center gap-1.5">
+          {PRESETS.map((c) => (
+            <button key={c} type="button" onClick={() => onChange(c)}
+              className="w-6 h-6 rounded-full border-2 border-white shadow ring-1 ring-gray-200 transition hover:scale-110"
+              style={{ background: c }} title={c}>
+              {value.toLowerCase() === c.toLowerCase() && <Check size={13} className="text-white mx-auto" />}
+            </button>
+          ))}
+        </div>
+      </div>
+      {hint && <p className="text-[11px] text-gray-400">{hint}</p>}
     </div>
   );
 }

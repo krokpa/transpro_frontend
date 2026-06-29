@@ -469,7 +469,12 @@ export const stationsApi = {
 // ─── Réglages plateforme (branding) ──────────────────────────────────────────
 export const platformApi = {
   getSettings: () => api.get('/platform-settings'),
-  updateSettings: (data: { appName?: string; tagline?: string; primaryColor?: string; logoUrl?: string | null; faviconUrl?: string | null; ogImageUrl?: string | null }) =>
+  updateSettings: (data: {
+    appName?: string; tagline?: string;
+    primaryColor?: string; secondaryColor?: string; tertiaryColor?: string;
+    passengerColor?: string; agentColor?: string; ownerColor?: string; driverColor?: string;
+    logoUrl?: string | null; faviconUrl?: string | null; ogImageUrl?: string | null;
+  }) =>
     api.patch('/platform-settings', data),
 };
 
